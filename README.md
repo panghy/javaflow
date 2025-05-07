@@ -2,7 +2,7 @@
 
 > A Java-based actor concurrency framework designed to support highly concurrent, asynchronous programming with deterministic execution for testing.
 
-JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK 25's virtual threads and structured concurrency instead of any custom compiler or preprocessor.
+JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK virtual threads and structured concurrency instead of any custom compiler or preprocessor.
 
 ## Overview
 
@@ -43,7 +43,7 @@ Currently, we are in Phase 1, establishing the core future and actor abstraction
 
 | Subtask | Description | Status |
 |---------|-------------|--------|
-| 1.1 | **Future/Promise API** - Core interfaces and implementation | 📅 Planned |
+| 1.1 | **Future/Promise API** - Core interfaces and implementation | ✅ Completed |
 | 1.2 | **Single-threaded Scheduler** - Thread control and scheduling | 📅 Planned |
 | 1.3 | **Actor Framework** - Virtual thread-based actor implementation | 📅 Planned |
 | 1.4 | **Await Mechanism** - Suspend/resume functionality | 📅 Planned |
@@ -58,8 +58,9 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 
 ## Requirements
 
-- JDK 25 or later (uses Project Loom virtual threads and structured concurrency)
-- Gradle 8.10 or later
+- JDK 24 (currently targeting JDK 24 as Gradle 8.14 supports up to Java 24)
+- Gradle 8.14 or compatible version
+- Note: In the future, we plan to migrate to JDK 25+ once Gradle adds support
 
 ## Building and Testing
 
@@ -72,7 +73,24 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 
 # Run a specific test
 ./gradlew test --tests "fully.qualified.TestClassName"
+
+# Run checkstyle validation
+./gradlew checkstyleMain checkstyleTest
+
+# Clean build
+./gradlew clean build
 ```
+
+The project uses Checkstyle to enforce Java coding standards based on the Google Java Style Guide:
+
+- Indentation: 2 spaces (no tabs)
+- Max line length: 100 characters
+- One statement per line
+- No wildcard imports
+- Proper bracing (always use braces with if/for/while)
+- Consistent naming conventions
+
+Checkstyle validation is automatically part of the build process. To see detailed checkstyle reports, check the build/reports/checkstyle directory after running the build.
 
 ## Design Goals
 
