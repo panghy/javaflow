@@ -15,26 +15,17 @@ public class FlowScheduler implements AutoCloseable {
   private final SingleThreadedScheduler delegate;
 
   /**
-   * Creates a new FlowScheduler with the default configuration.
+   * Creates a new FlowScheduler with the single threaded scheduler.
    */
   public FlowScheduler() {
-    this(FlowSchedulerConfig.DEFAULT);
-  }
-  
-  /**
-   * Creates a new FlowScheduler with the specified configuration.
-   *
-   * @param config The scheduler configuration
-   */
-  public FlowScheduler(FlowSchedulerConfig config) {
-    this.delegate = new SingleThreadedScheduler(config);
+    this.delegate = new SingleThreadedScheduler();
   }
 
   /**
    * Schedules a task to be executed by the flow scheduler.
    *
    * @param task The task to execute
-   * @param <T> The return type of the task
+   * @param <T>  The return type of the task
    * @return A future that will be completed with the task's result
    */
   public <T> FlowFuture<T> schedule(Callable<T> task) {
@@ -44,9 +35,9 @@ public class FlowScheduler implements AutoCloseable {
   /**
    * Schedules a task to be executed by the flow scheduler with the specified priority.
    *
-   * @param task The task to execute
+   * @param task     The task to execute
    * @param priority The priority of the task
-   * @param <T> The return type of the task
+   * @param <T>      The return type of the task
    * @return A future that will be completed with the task's result
    */
   public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
@@ -71,7 +62,7 @@ public class FlowScheduler implements AutoCloseable {
   public FlowFuture<Void> yield() {
     return delegate.yield();
   }
-  
+
   /**
    * Shuts down the scheduler.
    */
@@ -79,7 +70,7 @@ public class FlowScheduler implements AutoCloseable {
   public void close() {
     delegate.close();
   }
-  
+
   /**
    * Shuts down the scheduler (alias for close).
    */
