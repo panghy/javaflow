@@ -11,9 +11,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,6 +24,15 @@ import java.util.logging.Logger;
  * SingleThreadedScheduler implements a cooperative multitasking scheduler
  * where only one task is active at a time and tasks must explicitly yield
  * to allow other tasks to run.
+ * 
+ * <p>This scheduler is designed to work efficiently with virtual threads 
+ * and follows best practices for virtual thread usage:
+ * <ul>
+ *   <li>Using ReentrantLock instead of synchronized blocks to avoid carrier thread pinning</li>
+ *   <li>Using proper blocking mechanisms for waiting rather than busy-spinning</li>
+ *   <li>Using signaling conditions for efficient thread coordination</li>
+ * </ul>
+ * </p>
  */
 public class SingleThreadedScheduler implements AutoCloseable {
   private static final Logger LOGGER = Logger.getLogger(SingleThreadedScheduler.class.getName());
@@ -43,6 +55,16 @@ public class SingleThreadedScheduler implements AutoCloseable {
   // Queue of ready tasks sorted by priority
   private final PriorityBlockingQueue<Task> readyTasks = new PriorityBlockingQueue<>();
   
+  // Lock to protect access to readyTasks and related operations
+  // Using ReentrantLock instead of synchronized for better virtual thread performance
+  private final ReentrantLock taskLock = new ReentrantLock();
+  
+  // Condition for signaling when tasks are added or when scheduler should wake up
+  private final Condition tasksAvailableCondition = taskLock.newCondition();
+  
+  // Condition for signaling when a task is resumed
+  private final Condition taskResumedCondition = taskLock.newCondition();
+  
   // Currently running task
   private final AtomicInteger runningTaskCount = new AtomicInteger(0);
   
@@ -50,6 +72,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final Map<Thread, Task> threadToTask = new ConcurrentHashMap<>();
   
   // Thread factory for creating virtual threads
+  // Virtual threads are lightweight and efficiently managed by the JVM
+  // They are ideal for I/O-bound or blocking operations as they don't consume OS threads
   private final ThreadFactory virtualThreadFactory;
   
   // Thread for the scheduler loop
@@ -69,7 +93,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
   public SingleThreadedScheduler(FlowSchedulerConfig config) {
     this.config = config;
     
-    // Create a virtual thread factory
+    // Create a virtual thread factory (using JDK 21+ API)
+    // Virtual threads are preferred over platform threads for tasks that may block
+    // as they have minimal overhead and don't consume OS resources when blocked
     this.virtualThreadFactory = Thread.ofVirtual()
         .name("flow-actor-", 0)
         .factory();
@@ -140,9 +166,12 @@ public class SingleThreadedScheduler implements AutoCloseable {
     
     log("Scheduling task " + flowTask);
     
-    synchronized (readyTasks) {
+    taskLock.lock();
+    try {
       readyTasks.add(flowTask);
-      readyTasks.notifyAll(); // Wake up scheduler
+      tasksAvailableCondition.signalAll(); // Wake up scheduler
+    } finally {
+      taskLock.unlock();
     }
     
     return future;
@@ -209,8 +238,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
       promise.complete(null);
     };
     
-    // Schedule the task to be resumed
-    synchronized (readyTasks) {
+    taskLock.lock();
+    try {
       // Store callback for when task is resumed
       yieldCallbacks.computeIfAbsent(currentThread, k -> new ArrayList<>())
           .add(resumeCallback);
@@ -227,13 +256,20 @@ public class SingleThreadedScheduler implements AutoCloseable {
       
       // Add to priority queue
       readyTasks.add(resumeTask);
-      readyTasks.notifyAll(); // Wake up scheduler
-    }
-    
-    // Spin until we're resumed (this is faster than park/unpark for simple cooperative scheduling)
-    // We know we're resumed when the task state is RUNNING again
-    while (task.getState() == Task.TaskState.SUSPENDED) {
-      Thread.onSpinWait();
+      tasksAvailableCondition.signalAll(); // Wake up scheduler
+      
+      // Wait for task to be resumed - more efficient than spinning for virtual threads
+      // This avoids busy-waiting and allows the carrier thread to execute other virtual threads
+      while (task.getState() == Task.TaskState.SUSPENDED) {
+        try {
+          taskResumedCondition.await(); // Will release lock and re-acquire it when signaled
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // Continue waiting if interrupted, as we need to be resumed
+        }
+      }
+    } finally {
+      taskLock.unlock();
     }
     
     return future;
@@ -243,7 +279,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * Resume a task that was yielded.
    */
   private void resumeTask(Thread thread) {
-    synchronized (readyTasks) {
+    taskLock.lock();
+    try {
       // Mark thread as running again
       Task task = threadToTask.get(thread);
       if (task != null) {
@@ -260,6 +297,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
       
       // Increment running count
       runningTaskCount.incrementAndGet();
+      
+      // Signal all waiting tasks in case this task was the one they were waiting for
+      taskResumedCondition.signalAll();
+    } finally {
+      taskLock.unlock();
     }
   }
   
@@ -270,32 +312,48 @@ public class SingleThreadedScheduler implements AutoCloseable {
     log("Scheduler loop starting");
     
     while (running.get()) {
+      Task task = null;
+      boolean lockAcquired = false;
+      
       try {
-        Task task = null;
+        // Attempt to acquire the lock - if we can't, other operations may be in progress
+        taskLock.lock();
+        lockAcquired = true;
         
-        // Wait for a task to be ready or running count to allow more
-        synchronized (readyTasks) {
-          // Wait until we can run a task or there's a task in the queue
-          while (readyTasks.isEmpty() || runningTaskCount.get() >= config.getCarrierThreadCount()) {
-            readyTasks.wait(10); // Short wait to check conditions again
-            
-            // Exit if scheduler is stopping
-            if (!running.get()) {
-              return;
-            }
+        // Wait until we can run a task or there's a task in the queue
+        while (readyTasks.isEmpty() || runningTaskCount.get() >= config.getCarrierThreadCount()) {
+          // Exit early if scheduler is stopping
+          if (!running.get()) {
+            taskLock.unlock();
+            lockAcquired = false;
+            return;
           }
           
-          // Take next task if available
-          if (!readyTasks.isEmpty()) {
-            // If strict priority ordering is enabled, find highest priority task
-            if (config.isEnforcePriorities()) {
-              task = findHighestPriorityTask();
-            } else {
-              // Otherwise just take the next one from the queue
-              task = readyTasks.poll();
-            }
+          // Await with a timeout to periodically check conditions
+          tasksAvailableCondition.await(100, TimeUnit.MILLISECONDS);
+          
+          // Check again if we should exit
+          if (!running.get()) {
+            taskLock.unlock();
+            lockAcquired = false;
+            return;
           }
         }
+        
+        // Take next task if available
+        if (!readyTasks.isEmpty()) {
+          // If strict priority ordering is enabled, find highest priority task
+          if (config.isEnforcePriorities()) {
+            task = findHighestPriorityTask();
+          } else {
+            // Otherwise just take the next one from the queue
+            task = readyTasks.poll();
+          }
+        }
+        
+        // We can release the lock once we have obtained a task
+        taskLock.unlock();
+        lockAcquired = false;
         
         // Process task if we got one
         if (task != null) {
@@ -317,6 +375,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
       } catch (Exception e) {
         log("Error in scheduler: " + e);
         e.printStackTrace();
+      } finally {
+        // Ensure we release the lock if we still hold it
+        if (lockAcquired) {
+          taskLock.unlock();
+        }
       }
     }
     
@@ -325,23 +388,28 @@ public class SingleThreadedScheduler implements AutoCloseable {
   
   /**
    * Finds the highest priority task in the ready queue.
+   * Note: This method should only be called when holding the taskLock.
    * 
    * @return The highest priority task, or null if queue is empty
    */
   private Task findHighestPriorityTask() {
-    synchronized (readyTasks) {
-      if (readyTasks.isEmpty()) {
-        return null;
-      }
-      
-      // Simply poll from the PriorityBlockingQueue which will return
-      // the highest priority task based on the Task's natural ordering
-      return readyTasks.poll();
+    if (readyTasks.isEmpty()) {
+      return null;
     }
+    
+    // Simply poll from the PriorityBlockingQueue which will return
+    // the highest priority task based on the Task's natural ordering
+    return readyTasks.poll();
   }
   
   /**
    * Start a new task in a virtual thread.
+   * 
+   * <p>This method creates and starts a new virtual thread for each task.
+   * Virtual threads have low overhead and are automatically managed by the JVM.
+   * When a virtual thread blocks (e.g., on I/O or when yielding), it doesn't
+   * block its carrier thread, allowing other virtual threads to execute.
+   * This makes them ideal for cooperative multitasking.</p>
    */
   private void startTask(Task task) {
     Thread thread = virtualThreadFactory.newThread(new Runnable() {
@@ -379,8 +447,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
           runningTaskCount.decrementAndGet();
           
           // Wake up scheduler
-          synchronized (readyTasks) {
-            readyTasks.notifyAll();
+          taskLock.lock();
+          try {
+            tasksAvailableCondition.signalAll();
+          } finally {
+            taskLock.unlock();
           }
         }
       }
@@ -413,8 +484,12 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
       
       // Wake up waiting threads
-      synchronized (readyTasks) {
-        readyTasks.notifyAll();
+      taskLock.lock();
+      try {
+        tasksAvailableCondition.signalAll();
+        taskResumedCondition.signalAll();
+      } finally {
+        taskLock.unlock();
       }
     }
   }
