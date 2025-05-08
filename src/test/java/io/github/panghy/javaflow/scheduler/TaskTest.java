@@ -55,18 +55,6 @@ class TaskTest {
   }
   
   @Test
-  void testTaskThread() {
-    Task task = new Task(1, TaskPriority.DEFAULT, () -> "test");
-    
-    assertNull(task.getThread());
-    
-    Thread thread = new Thread();
-    task.setThread(thread);
-    
-    assertEquals(thread, task.getThread());
-  }
-  
-  @Test
   void testNullCallable() {
     assertThrows(NullPointerException.class, () -> new Task(1, TaskPriority.DEFAULT, null));
   }

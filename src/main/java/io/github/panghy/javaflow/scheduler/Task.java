@@ -16,9 +16,8 @@ public class Task implements Comparable<Task> {
   private final long creationTime;
   private final long sequence;
   private final Callable<?> callable;
-  private Thread thread;
   private TaskState state;
-  
+
   /**
    * Task state enum.
    */
@@ -34,7 +33,7 @@ public class Task implements Comparable<Task> {
   /**
    * Creates a new task with the given ID, priority, and callable.
    *
-   * @param id The task ID (for debugging)
+   * @param id       The task ID (for debugging)
    * @param priority The task priority (lower value means higher priority)
    * @param callable The callable to execute
    */
@@ -64,7 +63,7 @@ public class Task implements Comparable<Task> {
   public int getPriority() {
     return priority;
   }
-  
+
   /**
    * Gets the task's creation time.
    *
@@ -73,7 +72,7 @@ public class Task implements Comparable<Task> {
   public long getCreationTime() {
     return creationTime;
   }
-  
+
   /**
    * Gets the task's sequence number for FIFO ordering of same-priority tasks.
    *
@@ -93,24 +92,6 @@ public class Task implements Comparable<Task> {
   }
 
   /**
-   * Gets the thread running this task.
-   *
-   * @return The thread
-   */
-  public Thread getThread() {
-    return thread;
-  }
-
-  /**
-   * Sets the thread running this task.
-   *
-   * @param thread The thread
-   */
-  public void setThread(Thread thread) {
-    this.thread = thread;
-  }
-  
-  /**
    * Gets the task's state.
    *
    * @return The task state
@@ -118,7 +99,7 @@ public class Task implements Comparable<Task> {
   public TaskState getState() {
     return state;
   }
-  
+
   /**
    * Sets the task's state.
    *
@@ -135,22 +116,22 @@ public class Task implements Comparable<Task> {
     if (result != 0) {
       return result;
     }
-    
+
     // If same priority, compare by creation time (earlier time means higher priority)
     result = Long.compare(this.creationTime, other.creationTime);
     if (result != 0) {
       return result;
     }
-    
+
     // If same creation time, use sequence number for stable FIFO ordering
     return Long.compare(this.sequence, other.sequence);
   }
-  
+
   @Override
   public String toString() {
     return "Task{id=" + id + ", priority=" + priority + ", state=" + state + "}";
   }
-  
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -162,7 +143,7 @@ public class Task implements Comparable<Task> {
     Task task = (Task) o;
     return id == task.id;
   }
-  
+
   @Override
   public int hashCode() {
     return Objects.hash(id);

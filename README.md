@@ -28,7 +28,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 |-------|-------------|--------|
 | 1 | **Core Futures and Actors** - Basic async infrastructure | ✅ Completed |
 | 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
-| 3 | **Timers and Clock** - Time-based waits and controllable clock | 📅 Planned |
+| 3 | **Timers and Clock** - Time-based waits and controllable clock | 🔄 In Progress |
 | 4 | **Asynchronous I/O Integration** - Network and disk operations as futures | 📅 Planned |
 | 5 | **Deterministic Simulation Mode** - Simulation environment | 📅 Planned |
 | 6 | **Error Handling and Propagation** - Error model | 📅 Planned |
@@ -37,7 +37,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 9 | **Performance Optimization and Polishing** - Optimization and refinement | 📅 Planned |
 | 10 | **Production Hardening and Documentation** - Production readiness | 📅 Planned |
 
-Phases 1 and 2 have been completed, establishing the core future and actor abstractions and implementing the cooperative scheduling system. Below are the detailed tasks that were completed in these phases:
+Phases 1 and 2 have been completed, establishing the core future and actor abstractions and implementing the cooperative scheduling system. We are currently working on Phase 3, implementing a timer and clock system for time-based operations. Below are the detailed tasks that were completed in the initial phases and the plan for Phase 3:
 
 #### Phase 1: Core Futures and Actors
 
@@ -68,6 +68,21 @@ Phases 1 and 2 have been completed, establishing the core future and actor abstr
 | 2.8 | **Continuation Management** - Proper resumption of suspended tasks | ✅ Completed |
 | 2.9 | **Integration Tests** - Multi-actor coordination testing | ✅ Completed |
 | 2.10 | **Actor Example** - Example demonstrating cooperative scheduling | ✅ Completed |
+
+#### Phase 3: Timers and Clock
+
+| Subtask | Description | Status |
+|---------|-------------|--------|
+| 3.1 | **FlowClock Interface** - Clock abstraction with real and simulated implementations | 🔄 In Progress |
+| 3.2 | **Timer Event Queue** - Priority queue for scheduled time-based events | 📅 Planned |
+| 3.3 | **Flow.delay API** - Method to create futures that resolve after time delays | 📅 Planned |
+| 3.4 | **Flow.now API** - Method to retrieve current time (wall or simulated) | 📅 Planned |
+| 3.5 | **Timeout Functionality** - Ability to cancel futures after a timeout period | 📅 Planned |
+| 3.6 | **Event Loop Integration** - Seamless integration of timers with scheduler | 📅 Planned |
+| 3.7 | **Simulation Time Control** - API to advance or manipulate simulated time | 📅 Planned |
+| 3.8 | **Timer Cancellation** - Proper cleanup of cancelled timer operations | 📅 Planned |
+| 3.9 | **Timer Unit Tests** - Comprehensive testing of timer functionality | 📅 Planned |
+| 3.10 | **Timer Example** - Sample code demonstrating timer usage patterns | 📅 Planned |
 
 These subtasks represent the foundation of JavaFlow's actor model and form the building blocks for all subsequent phases.
 
@@ -134,6 +149,7 @@ JavaFlow provides:
 - **SingleThreadedScheduler**: Cooperative multitasking with one task active at a time
 - **Task & TaskPriority**: Prioritized operations for optimal scheduling
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
+- **FlowClock & Timers**: Time-based operations and controllable clock for testing
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -159,6 +175,18 @@ FlowFuture<String> result = Flow.start(() -> {
 
 // Use the result when it's ready
 result.thenAccept(System.out::println);
+
+// Using timer functionality
+FlowFuture<Void> delayedOperation = Flow.start(() -> {
+    // Do initial work
+    initialSetup();
+    
+    // Wait for 5 seconds
+    Flow.delay(5.0).await();
+    
+    // Perform operation after delay
+    return finalOperation();
+});
 ```
 
 ## Contributing
