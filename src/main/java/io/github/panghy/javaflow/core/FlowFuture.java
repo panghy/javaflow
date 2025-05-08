@@ -15,8 +15,8 @@ import static io.github.panghy.javaflow.scheduler.FlowScheduler.isInFlowContext;
  *
  * <p>Unlike standard futures, this class does not block when asking for results
  * but instead cooperatively yields to the flow scheduler when called from within
- * a flow task. When called from outside a flow task, get() will throw an
- * IllegalStateException if the future is not completed.</p>
+ * a flow task. When called from outside a flow task, get() will block and attempt
+ * to retrieve the result.</p>
  *
  * @param <T> The type of value this future holds
  */
@@ -211,9 +211,6 @@ public class FlowFuture<T> {
     try {
       return await(this);
     } catch (ExecutionException e) {
-      throw e;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
       throw e;
     } catch (Exception e) {
       // Wrap any other exception
