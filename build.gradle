@@ -62,11 +62,23 @@ jacocoTestReport {
 }
 
 jacocoTestCoverageVerification {
+    // Apply same exclusions as in the report task
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/LoggingUtil*'
+            ])
+        }))
+    }
+    
     violationRules {
         rule {
             element = 'CLASS'
+            // These exclusions are only checked if afterEvaluate failed to exclude
             excludes = [
-                    '**/LoggingUtil*'
+                '**/LoggingUtil*',
+                'io.github.panghy.javaflow.util.LoggingUtil',
+                'io/github/panghy/javaflow/util/LoggingUtil*'
             ]
 
             limit {
