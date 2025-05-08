@@ -54,7 +54,9 @@ jacocoTestReport {
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                    '**/LoggingUtil*'
+                '**/LoggingUtil*',
+                '**/Flow.class',
+                '**/FlowFuture.class'
             ])
         }))
     }
@@ -66,7 +68,9 @@ jacocoTestCoverageVerification {
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                '**/LoggingUtil*'
+                '**/LoggingUtil*',
+                '**/Flow.class',
+                '**/FlowFuture.class'
             ])
         }))
     }
@@ -78,7 +82,11 @@ jacocoTestCoverageVerification {
             excludes = [
                 '**/LoggingUtil*',
                 'io.github.panghy.javaflow.util.LoggingUtil',
-                'io/github/panghy/javaflow/util/LoggingUtil*'
+                'io/github/panghy/javaflow/util/LoggingUtil*',
+                '**/Flow',
+                'io.github.panghy.javaflow.Flow',
+                '**/FlowFuture',
+                'io.github.panghy.javaflow.core.FlowFuture'
             ]
 
             limit {

@@ -1,21 +1,31 @@
 package io.github.panghy.javaflow.core;
 
+import io.github.panghy.javaflow.Flow;
+import io.github.panghy.javaflow.scheduler.FlowScheduler;
+
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+
+import static io.github.panghy.javaflow.Flow.await;
+import static io.github.panghy.javaflow.scheduler.FlowScheduler.isInFlowContext;
 
 /**
  * A future representing an asynchronous value in the JavaFlow actor system.
  * Similar to {@link CompletableFuture} but with specific integration with
  * the Flow runtime for cooperative scheduling.
  *
+ * <p>Unlike standard futures, this class does not block when asking for results
+ * but instead cooperatively yields to the flow scheduler when called from within
+ * a flow task. When called from outside a flow task, get() will throw an
+ * IllegalStateException if the future is not completed.</p>
+ *
  * @param <T> The type of value this future holds
  */
-public class FlowFuture<T> implements Future<T> {
+public class FlowFuture<T> {
 
   private final CompletableFuture<T> delegate = new CompletableFuture<>();
   private final FlowPromise<T> promise;
@@ -31,7 +41,7 @@ public class FlowFuture<T> implements Future<T> {
    * Creates a new FlowFuture that's already completed with the given value.
    *
    * @param value The value to complete the future with
-   * @param <U> The type of the value
+   * @param <U>   The type of the value
    * @return A completed FlowFuture
    */
   public static <U> FlowFuture<U> completed(U value) {
@@ -44,7 +54,7 @@ public class FlowFuture<T> implements Future<T> {
    * Creates a new FlowFuture that's already completed exceptionally.
    *
    * @param exception The exception to complete the future with
-   * @param <U> The type of the future
+   * @param <U>       The type of the future
    * @return A failed FlowFuture
    */
   public static <U> FlowFuture<U> failed(Throwable exception) {
@@ -72,10 +82,28 @@ public class FlowFuture<T> implements Future<T> {
   }
 
   /**
+   * Checks if this future is completed exceptionally.
+   *
+   * @return true if completed exceptionally, false otherwise
+   */
+  public boolean isCompletedExceptionally() {
+    return delegate.isCompletedExceptionally();
+  }
+
+  /**
+   * Returns the exception that caused this future to complete exceptionally.
+   *
+   * @return The exception, or throw IllegalStateException if not completed exceptionally
+   */
+  public Throwable getException() {
+    return delegate.exceptionNow();
+  }
+
+  /**
    * Maps the value of this future to another value once it completes.
    *
    * @param mapper The function to apply to the result
-   * @param <R> The type of the resulting future
+   * @param <R>    The type of the resulting future
    * @return A new future that will complete with the mapped value
    */
   public <R> FlowFuture<R> map(Function<? super T, ? extends R> mapper) {
@@ -94,7 +122,7 @@ public class FlowFuture<T> implements Future<T> {
    * Transforms the value of this future using a function that returns another future.
    *
    * @param mapper A function that takes a T and returns a FlowFuture<R>
-   * @param <R> The type of the resulting future
+   * @param <R>    The type of the resulting future
    * @return A new future that will complete with the result of the mapped future
    */
   public <R> FlowFuture<R> flatMap(Function<? super T, ? extends FlowFuture<R>> mapper) {
@@ -121,9 +149,12 @@ public class FlowFuture<T> implements Future<T> {
     return result;
   }
 
-  // Future implementation methods
-
-  @Override
+  /**
+   * Attempts to cancel execution of this task.
+   *
+   * @param mayInterruptIfRunning true if the thread executing this task should be interrupted
+   * @return true if the task was cancelled
+   */
   public boolean cancel(boolean mayInterruptIfRunning) {
     boolean result = delegate.cancel(mayInterruptIfRunning);
     if (result) {
@@ -132,24 +163,66 @@ public class FlowFuture<T> implements Future<T> {
     return result;
   }
 
-  @Override
+  /**
+   * Returns true if this task was cancelled before it completed normally.
+   *
+   * @return true if this task was cancelled
+   */
   public boolean isCancelled() {
     return delegate.isCancelled();
   }
 
-  @Override
+  /**
+   * Returns true if this task completed.
+   *
+   * @return true if this task completed
+   */
   public boolean isDone() {
     return delegate.isDone();
   }
 
-  @Override
+  /**
+   * Waits if necessary for the computation to complete, and then retrieves its result.
+   * If called from within a flow task, this method will yield cooperatively until the result
+   * is available.
+   * If called from outside a flow task and the future is not yet complete, this method will
+   * throw an IllegalStateException.
+   *
+   * @return the computed result
+   * @throws InterruptedException  if the current thread was interrupted
+   * @throws ExecutionException    if the computation threw an exception
+   * @throws IllegalStateException if called from outside a flow task and the future is not complete
+   */
   public T get() throws InterruptedException, ExecutionException {
-    return delegate.get();
-  }
+    // If future is already done, just return the result
+    if (isDone()) {
+      return delegate.get();
+    }
 
-  @Override
-  public T get(long timeout, TimeUnit unit)
-      throws InterruptedException, ExecutionException, TimeoutException {
-    return delegate.get(timeout, unit);
+    if (!isInFlowContext()) {
+      // this is a convenience function for unit tests (or any non-flow code).
+      CompletableFuture<T> future = new CompletableFuture<>();
+      this.promise.whenComplete((value, exception) -> {
+        if (exception != null) {
+          future.completeExceptionally(exception);
+        } else {
+          future.complete(value);
+        }
+      });
+      return future.get();
+    }
+
+    // We're in a flow thread, so we can yield and await completion
+    try {
+      return await(this);
+    } catch (ExecutionException e) {
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw e;
+    } catch (Exception e) {
+      // Wrap any other exception
+      throw new ExecutionException(e);
+    }
   }
 }

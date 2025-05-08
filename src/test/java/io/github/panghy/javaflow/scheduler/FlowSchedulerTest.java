@@ -33,14 +33,14 @@ class FlowSchedulerTest {
   void testScheduleTask() throws Exception {
     FlowFuture<String> future = scheduler.schedule(() -> "hello");
     
-    assertEquals("hello", future.get(1, TimeUnit.SECONDS));
+    assertEquals("hello", future.get());
   }
 
   @Test
   void testScheduleTaskWithPriority() throws Exception {
     FlowFuture<Integer> future = scheduler.schedule(() -> 42, TaskPriority.HIGH);
     
-    assertEquals(42, future.get(1, TimeUnit.SECONDS));
+    assertEquals(42, future.get());
   }
 
   @Test
@@ -49,7 +49,7 @@ class FlowSchedulerTest {
     
     FlowFuture<Void> future = scheduler.scheduleDelay(0.1); // 100ms
     
-    future.get(1, TimeUnit.SECONDS);
+    future.get();
     
     long elapsed = System.currentTimeMillis() - start;
     assertTrue(elapsed >= 100, "Delay should be at least 100ms");
@@ -212,8 +212,8 @@ class FlowSchedulerTest {
     assertTrue(taskLatch.await(3, TimeUnit.SECONDS), "Not all tasks completed in time");
     
     // Get the results from futures (to propagate any exceptions)
-    firstTask.get(1, TimeUnit.SECONDS);
-    secondTask.get(1, TimeUnit.SECONDS);
+    firstTask.get();
+    secondTask.get();
     
     // Verify the counter and execution order
     assertEquals(6, counter.get(), "Counter should be incremented 6 times in total");

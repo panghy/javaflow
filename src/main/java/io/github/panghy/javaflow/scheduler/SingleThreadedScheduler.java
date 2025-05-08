@@ -12,7 +12,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -58,11 +57,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * Condition for signaling when tasks are added or when scheduler should wake up
    */
   private final Condition tasksAvailableCondition = taskLock.newCondition();
-
-  /**
-   * Currently running task
-   */
-  private final AtomicInteger runningTaskCount = new AtomicInteger(0);
 
   /**
    * Map to track continuations by their task ID
@@ -208,33 +202,33 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @return Future that completes when task resumes
    */
   public FlowFuture<Void> yield() {
-    // Need to find the task ID for the current continuation
-    Long taskId = null;
-    ContinuationScope currentScope = null;
+    return this.yield(null); // Maintain the same priority
+  }
 
-    // Look through all task scopes to find which one has a current continuation
-    for (Map.Entry<Long, ContinuationScope> entry : taskToScope.entrySet()) {
-      Continuation cont = Continuation.getCurrentContinuation(entry.getValue());
-      if (cont != null) {
-        taskId = entry.getKey();
-        currentScope = entry.getValue();
-        break;
-      }
+  /**
+   * Yields control from the current task to allow other tasks to run,
+   * and optionally changes the task's priority when it resumes.
+   *
+   * @param priority The new priority to use when rescheduling the task,
+   *                 or null to keep the current priority
+   * @return Future that completes when task resumes
+   */
+  public FlowFuture<Void> yield(Integer priority) {
+    if (!FlowScheduler.isInFlowContext()) {
+      throw new IllegalStateException("yield called outside of a flow task");
     }
 
-    if (taskId == null || currentScope == null) {
-      // Not a flow task, just complete immediately
-      FlowFuture<Void> future = new FlowFuture<>();
-      future.getPromise().complete(null);
-      return future;
+    // Need to find the task ID for the current continuation
+    final long taskId = FlowScheduler.CURRENT_TASK_ID.get();
+    ContinuationScope currentScope = taskToScope.get(taskId);
+
+    if (currentScope == null) {
+      throw new IllegalStateException("missing task scope");
     }
 
     Task task = idToTask.get(taskId);
     if (task == null) {
-      // Not a flow task, just complete immediately
-      FlowFuture<Void> future = new FlowFuture<>();
-      future.getPromise().complete(null);
-      return future;
+      throw new IllegalStateException("missing task");
     }
 
     debug(LOGGER, "task " + taskId + " yielding");
@@ -249,12 +243,17 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Store promise to be completed when task is resumed
     yieldPromises.put(taskId, promise);
 
-    // Create continuation task with same task ID but possibly different priority
-    // Lower priority yielding tasks allow higher priority ones to run first
-    // Using final to make it accessible in lambda
-    final Long finalTaskId = taskId;
-    Task resumeTask = new Task(task.getId(), task.getPriority(), (Callable<Void>) () -> {
-      resumeTask(finalTaskId);
+    // Create continuation task with same task ID 
+    // Using specified priority if provided, or the task's current priority if not
+    final int resumePriority = (priority != null) ? priority : task.getPriority();
+
+    if (priority != null && priority != task.getPriority()) {
+      debug(LOGGER, "task " + taskId + " changing priority from " + task.getPriority()
+                    + " to " + priority);
+    }
+
+    Task resumeTask = new Task(task.getId(), resumePriority, (Callable<Void>) () -> {
+      resumeTask(taskId);
       return null;
     });
 
@@ -292,8 +291,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
         promise.complete(null);
       }
 
-      // Resume the continuation
-      continuation.run();
+      try {
+        FlowScheduler.CURRENT_TASK_ID.set(taskId);
+
+        // Resume the continuation
+        continuation.run();
+      } finally {
+        FlowScheduler.CURRENT_TASK_ID.remove();
+      }
 
       // If the continuation is done, clean up
       if (continuation.isDone()) {
@@ -410,6 +415,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Create a continuation for the task
     Continuation continuation = new Continuation(taskScope, () -> {
       try {
+        // Set the flow context flag to true for this task
+        FlowScheduler.CURRENT_TASK_ID.set(task.getId());
+
         // Execute the task
         task.getCallable().call();
       } catch (InterruptedException e) {
@@ -419,6 +427,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
       } catch (Exception e) {
         task.setState(Task.TaskState.FAILED);
         warn(LOGGER, "task " + task.getId() + " failed: ", e);
+      } finally {
+        // Clear the flow context flag
+        FlowScheduler.CURRENT_TASK_ID.remove();
       }
     });
 

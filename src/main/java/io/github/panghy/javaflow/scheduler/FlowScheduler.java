@@ -11,7 +11,15 @@ import java.util.concurrent.Callable;
  * and true single-threaded execution.
  */
 public class FlowScheduler implements AutoCloseable {
-  // The delegate scheduler that does the actual work
+
+  /**
+   * ThreadLocal to track if we are in a flow context.
+   */
+  static final ThreadLocal<Long> CURRENT_TASK_ID = new ThreadLocal<>();
+
+  /**
+   * The delegate scheduler that does the actual work.
+   */
   private final SingleThreadedScheduler delegate;
 
   /**
@@ -61,6 +69,25 @@ public class FlowScheduler implements AutoCloseable {
    */
   public FlowFuture<Void> yield() {
     return delegate.yield();
+  }
+
+  /**
+   * Yields control from the current actor and reschedules it with the specified priority.
+   *
+   * @param priority The priority to use when rescheduling the current task
+   * @return A future that completes when the actor is resumed
+   */
+  public FlowFuture<Void> yield(int priority) {
+    return delegate.yield(priority);
+  }
+
+  /**
+   * Checks if the current thread is executing within a flow managed context.
+   *
+   * @return true if the current thread is managed by the flow scheduler
+   */
+  public static boolean isInFlowContext() {
+    return FlowScheduler.CURRENT_TASK_ID.get() != null;
   }
 
   /**
