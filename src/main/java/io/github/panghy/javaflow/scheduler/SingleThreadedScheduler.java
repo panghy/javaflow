@@ -2,119 +2,111 @@ package io.github.panghy.javaflow.scheduler;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
+import jdk.internal.vm.Continuation;
+import jdk.internal.vm.ContinuationScope;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static io.github.panghy.javaflow.util.LoggingUtil.debug;
+import static io.github.panghy.javaflow.util.LoggingUtil.error;
+import static io.github.panghy.javaflow.util.LoggingUtil.info;
+import static io.github.panghy.javaflow.util.LoggingUtil.warn;
 
 /**
  * SingleThreadedScheduler implements a cooperative multitasking scheduler
  * where only one task is active at a time and tasks must explicitly yield
  * to allow other tasks to run.
- * 
- * <p>This scheduler is designed to work efficiently with virtual threads 
- * and follows best practices for virtual thread usage:
+ *
+ * <p>This scheduler is designed to work with the JDK internal Continuation API
+ * to provide true single-threaded execution with explicit yielding:
  * <ul>
- *   <li>Using ReentrantLock instead of synchronized blocks to avoid carrier thread pinning</li>
- *   <li>Using proper blocking mechanisms for waiting rather than busy-spinning</li>
- *   <li>Using signaling conditions for efficient thread coordination</li>
+ *   <li>Using a single platform thread as the carrier thread</li>
+ *   <li>Using Continuation.yield() for cooperative task switching</li>
+ *   <li>Maintaining a priority queue for task scheduling</li>
  * </ul>
  * </p>
  */
 public class SingleThreadedScheduler implements AutoCloseable {
   private static final Logger LOGGER = Logger.getLogger(SingleThreadedScheduler.class.getName());
-  
+
   // Task ID counter
   private final AtomicLong taskIdCounter = new AtomicLong(0);
-  
-  // Configuration for this scheduler
-  private final FlowSchedulerConfig config;
-  
+
   /**
-   * Gets the scheduler's configuration.
-   * 
-   * @return Configuration
+   * Queue of ready tasks sorted by priority
    */
-  public FlowSchedulerConfig getConfig() {
-    return config;
-  }
-  
-  // Queue of ready tasks sorted by priority
   private final PriorityBlockingQueue<Task> readyTasks = new PriorityBlockingQueue<>();
-  
-  // Lock to protect access to readyTasks and related operations
-  // Using ReentrantLock instead of synchronized for better virtual thread performance
-  private final ReentrantLock taskLock = new ReentrantLock();
-  
-  // Condition for signaling when tasks are added or when scheduler should wake up
-  private final Condition tasksAvailableCondition = taskLock.newCondition();
-  
-  // Condition for signaling when a task is resumed
-  private final Condition taskResumedCondition = taskLock.newCondition();
-  
-  // Currently running task
-  private final AtomicInteger runningTaskCount = new AtomicInteger(0);
-  
-  // Map to track tasks by their thread
-  private final Map<Thread, Task> threadToTask = new ConcurrentHashMap<>();
-  
-  // Thread factory for creating virtual threads
-  // Virtual threads are lightweight and efficiently managed by the JVM
-  // They are ideal for I/O-bound or blocking operations as they don't consume OS threads
-  private final ThreadFactory virtualThreadFactory;
-  
-  // Thread for the scheduler loop
-  private Thread schedulerThread;
-  
-  // Flag to control scheduler running state
-  private final AtomicBoolean running = new AtomicBoolean(false);
-  
-  // Map of threads that are yielding to their resume callbacks
-  private final Map<Thread, List<Runnable>> yieldCallbacks = new ConcurrentHashMap<>();
-  
+
   /**
-   * Creates a new single-threaded scheduler with the specified configuration.
-   * 
-   * @param config Configuration options
+   * Lock to protect access to readyTasks and related operations
+   * Using ReentrantLock instead of synchronized for better thread safety
    */
-  public SingleThreadedScheduler(FlowSchedulerConfig config) {
-    this.config = config;
-    
-    // Create a virtual thread factory (using JDK 21+ API)
-    // Virtual threads are preferred over platform threads for tasks that may block
-    // as they have minimal overhead and don't consume OS resources when blocked
-    this.virtualThreadFactory = Thread.ofVirtual()
-        .name("flow-actor-", 0)
-        .factory();
-  }
-  
+  private final ReentrantLock taskLock = new ReentrantLock();
+
+  /**
+   * Condition for signaling when tasks are added or when scheduler should wake up
+   */
+  private final Condition tasksAvailableCondition = taskLock.newCondition();
+
+  /**
+   * Currently running task
+   */
+  private final AtomicInteger runningTaskCount = new AtomicInteger(0);
+
+  /**
+   * Map to track continuations by their task ID
+   */
+  private final Map<Long, Continuation> taskToContinuation = new ConcurrentHashMap<>();
+
+  /**
+   * Map to track tasks by their task ID
+   */
+  private final Map<Long, Task> idToTask = new ConcurrentHashMap<>();
+
+  /**
+   * Thread for the scheduler loop
+   */
+  private Thread schedulerThread;
+
+  /**
+   * Flag to control scheduler running state
+   */
+  private final AtomicBoolean running = new AtomicBoolean(false);
+
+  /**
+   * Map to store the continuation scope for each task
+   */
+  private final Map<Long, ContinuationScope> taskToScope = new HashMap<>();
+
+  /**
+   * Map of task IDs that are yielding to their resume futures
+   */
+  private final Map<Long, FlowPromise<Void>> yieldPromises = new HashMap<>();
+
   /**
    * Creates a new single-threaded scheduler with default configuration.
    */
   public SingleThreadedScheduler() {
-    this(FlowSchedulerConfig.DEFAULT);
   }
-  
+
   /**
    * Starts the scheduler if it hasn't been started yet.
    */
   public synchronized void start() {
     if (running.compareAndSet(false, true)) {
-      log("Starting scheduler");
-      
+      info(LOGGER, "starting flow scheduler");
+
       // Start scheduler thread
       schedulerThread = Thread.ofPlatform()
           .name("flow-scheduler")
@@ -122,32 +114,32 @@ public class SingleThreadedScheduler implements AutoCloseable {
           .start(this::schedulerLoop);
     }
   }
-  
+
   /**
    * Schedules a task to be executed with default priority.
-   * 
+   *
    * @param task Task to execute
    * @return Future for the task's result
    */
   public <T> FlowFuture<T> schedule(Callable<T> task) {
     return schedule(task, TaskPriority.DEFAULT);
   }
-  
+
   /**
    * Schedules a task to be executed with specified priority.
-   * 
-   * @param task Task to execute
+   *
+   * @param task     Task to execute
    * @param priority Priority level
    * @return Future for the task's result
    */
   public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
     // Start scheduler if not already running
     start();
-    
+
     // Create a future/promise pair for the result
     FlowFuture<T> future = new FlowFuture<>();
     FlowPromise<T> promise = future.getPromise();
-    
+
     // Create a task wrapper that completes the promise
     Callable<T> wrappedTask = () -> {
       try {
@@ -159,13 +151,16 @@ public class SingleThreadedScheduler implements AutoCloseable {
         throw t;
       }
     };
-    
+
     // Create and schedule the task
     long taskId = taskIdCounter.incrementAndGet();
     Task flowTask = new Task(taskId, priority, wrappedTask);
-    
-    log("Scheduling task " + flowTask);
-    
+
+    // Store task in the task map
+    idToTask.put(taskId, flowTask);
+
+    debug(LOGGER, "scheduling task " + taskId);
+
     taskLock.lock();
     try {
       readyTasks.add(flowTask);
@@ -173,22 +168,22 @@ public class SingleThreadedScheduler implements AutoCloseable {
     } finally {
       taskLock.unlock();
     }
-    
+
     return future;
   }
-  
+
   /**
    * Creates a delay task that completes after specified time.
-   * 
+   *
    * @param seconds Delay in seconds
    * @return Future that completes after the delay
    */
   public FlowFuture<Void> scheduleDelay(double seconds) {
     FlowFuture<Void> future = new FlowFuture<>();
-    
+
     // Convert to milliseconds
     long delayMs = (long) (seconds * 1000);
-    
+
     // Schedule a sleep task that completes the future
     schedule(() -> {
       try {
@@ -203,178 +198,173 @@ public class SingleThreadedScheduler implements AutoCloseable {
           future.getPromise().complete(null);
           return null;
         });
-    
+
     return future;
   }
-  
+
   /**
-   * Yields control from the current actor to allow other actors to run.
-   * 
-   * @return Future that completes when actor resumes
+   * Yields control from the current task to allow other tasks to run.
+   *
+   * @return Future that completes when task resumes
    */
   public FlowFuture<Void> yield() {
-    Thread currentThread = Thread.currentThread();
-    FlowFuture<Void> future = new FlowFuture<>();
-    FlowPromise<Void> promise = future.getPromise();
-    
-    Task task = threadToTask.get(currentThread);
-    if (task == null) {
+    // Need to find the task ID for the current continuation
+    Long taskId = null;
+    ContinuationScope currentScope = null;
+
+    // Look through all task scopes to find which one has a current continuation
+    for (Map.Entry<Long, ContinuationScope> entry : taskToScope.entrySet()) {
+      Continuation cont = Continuation.getCurrentContinuation(entry.getValue());
+      if (cont != null) {
+        taskId = entry.getKey();
+        currentScope = entry.getValue();
+        break;
+      }
+    }
+
+    if (taskId == null || currentScope == null) {
       // Not a flow task, just complete immediately
-      promise.complete(null);
+      FlowFuture<Void> future = new FlowFuture<>();
+      future.getPromise().complete(null);
       return future;
     }
-    
-    log("Task " + task + " yielding");
-    
+
+    Task task = idToTask.get(taskId);
+    if (task == null) {
+      // Not a flow task, just complete immediately
+      FlowFuture<Void> future = new FlowFuture<>();
+      future.getPromise().complete(null);
+      return future;
+    }
+
+    debug(LOGGER, "task " + taskId + " yielding");
+
     // Mark this task as yielding
     task.setState(Task.TaskState.SUSPENDED);
-    
-    // Atomic decrement of running count allows another task to start
-    runningTaskCount.decrementAndGet();
-    
-    // Create resume callback that completes the future
-    Runnable resumeCallback = () -> {
-      task.setState(Task.TaskState.RUNNING);
-      promise.complete(null);
-    };
-    
+
+    // Create future/promise for resumption
+    FlowFuture<Void> future = new FlowFuture<>();
+    FlowPromise<Void> promise = future.getPromise();
+
+    // Store promise to be completed when task is resumed
+    yieldPromises.put(taskId, promise);
+
+    // Create continuation task with same task ID but possibly different priority
+    // Lower priority yielding tasks allow higher priority ones to run first
+    // Using final to make it accessible in lambda
+    final Long finalTaskId = taskId;
+    Task resumeTask = new Task(task.getId(), task.getPriority(), (Callable<Void>) () -> {
+      resumeTask(finalTaskId);
+      return null;
+    });
+
     taskLock.lock();
     try {
-      // Store callback for when task is resumed
-      yieldCallbacks.computeIfAbsent(currentThread, k -> new ArrayList<>())
-          .add(resumeCallback);
-      
-      // Create continuation task with same task ID but possibly different priority
-      // Lower priority yielding tasks allow higher priority ones to run first
-      Task resumeTask = new Task(task.getId(), task.getPriority(), new Callable<Void>() {
-        @Override
-        public Void call() {
-          resumeTask(currentThread);
-          return null;
-        }
-      });
-      
       // Add to priority queue
       readyTasks.add(resumeTask);
       tasksAvailableCondition.signalAll(); // Wake up scheduler
-      
-      // Wait for task to be resumed - more efficient than spinning for virtual threads
-      // This avoids busy-waiting and allows the carrier thread to execute other virtual threads
-      while (task.getState() == Task.TaskState.SUSPENDED) {
-        try {
-          taskResumedCondition.await(); // Will release lock and re-acquire it when signaled
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          // Continue waiting if interrupted, as we need to be resumed
-        }
-      }
     } finally {
       taskLock.unlock();
     }
-    
+
+    // Actually yield the continuation - this is what returns control to the scheduler
+    Continuation.yield(currentScope);
+
     return future;
   }
-  
+
   /**
    * Resume a task that was yielded.
    */
-  private void resumeTask(Thread thread) {
-    taskLock.lock();
-    try {
-      // Mark thread as running again
-      Task task = threadToTask.get(thread);
-      if (task != null) {
-        task.setState(Task.TaskState.RUNNING);
+  private void resumeTask(long taskId) {
+    Continuation continuation = taskToContinuation.get(taskId);
+    Task task = idToTask.get(taskId);
+
+    if (continuation != null && task != null) {
+      debug(LOGGER, "resuming task " + taskId);
+
+      // Mark as running
+      task.setState(Task.TaskState.RUNNING);
+
+      // Complete the promise associated with the yield operation
+      FlowPromise<Void> promise = yieldPromises.remove(taskId);
+      if (promise != null) {
+        promise.complete(null);
       }
-      
-      // Process all callbacks for this thread
-      List<Runnable> callbacks = yieldCallbacks.remove(thread);
-      if (callbacks != null) {
-        for (Runnable callback : callbacks) {
-          callback.run();
-        }
+
+      // Resume the continuation
+      continuation.run();
+
+      // If the continuation is done, clean up
+      if (continuation.isDone()) {
+        debug(LOGGER, "task " + taskId + " completed");
+        task.setState(Task.TaskState.COMPLETED);
+        taskToContinuation.remove(taskId);
+        taskToScope.remove(taskId);
+        idToTask.remove(taskId);
       }
-      
-      // Increment running count
-      runningTaskCount.incrementAndGet();
-      
-      // Signal all waiting tasks in case this task was the one they were waiting for
-      taskResumedCondition.signalAll();
-    } finally {
-      taskLock.unlock();
     }
   }
-  
+
   /**
    * Main scheduler loop that processes tasks from the queue.
    */
   private void schedulerLoop() {
-    log("Scheduler loop starting");
-    
     while (running.get()) {
-      Task task = null;
+      Task task;
       boolean lockAcquired = false;
-      
+
       try {
         // Attempt to acquire the lock - if we can't, other operations may be in progress
         taskLock.lock();
         lockAcquired = true;
-        
-        // Wait until we can run a task or there's a task in the queue
-        while (readyTasks.isEmpty() || runningTaskCount.get() >= config.getCarrierThreadCount()) {
+
+        // Wait until there's a task in the queue
+        while (readyTasks.isEmpty()) {
           // Exit early if scheduler is stopping
           if (!running.get()) {
+            warn(LOGGER, "scheduler loop stopping");
             taskLock.unlock();
             lockAcquired = false;
             return;
           }
-          
-          // Await with a timeout to periodically check conditions
-          tasksAvailableCondition.await(100, TimeUnit.MILLISECONDS);
-          
+
+          tasksAvailableCondition.await();
+
           // Check again if we should exit
           if (!running.get()) {
+            warn(LOGGER, "scheduler loop stopping");
             taskLock.unlock();
             lockAcquired = false;
             return;
           }
         }
-        
+
         // Take next task if available
-        if (!readyTasks.isEmpty()) {
-          // If strict priority ordering is enabled, find highest priority task
-          if (config.isEnforcePriorities()) {
-            task = findHighestPriorityTask();
-          } else {
-            // Otherwise just take the next one from the queue
-            task = readyTasks.poll();
-          }
-        }
-        
+        task = findHighestPriorityTask();
+
         // We can release the lock once we have obtained a task
         taskLock.unlock();
         lockAcquired = false;
-        
+
         // Process task if we got one
         if (task != null) {
-          log("Processing task " + task);
-          
-          if (task.getThread() != null && threadToTask.containsKey(task.getThread())) {
-            // This is a resume task for an existing thread
-            resumeTask(task.getThread());
+          debug(LOGGER, "picking up task " + task.getId());
+
+          if (taskToContinuation.containsKey(task.getId())) {
+            // This is a resume task for an existing continuation
+            resumeTask(task.getId());
           } else {
-            // This is a new task - run in a new virtual thread
-            runningTaskCount.incrementAndGet();
+            // This is a new task - create and run a new continuation
             startTask(task);
           }
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        log("Scheduler thread interrupted");
+        warn(LOGGER, "scheduler thread interrupted", e);
         break;
       } catch (Exception e) {
-        log("Error in scheduler: " + e);
-        e.printStackTrace();
+        error(LOGGER, "error in scheduler", e);
       } finally {
         // Ensure we release the lock if we still hold it
         if (lockAcquired) {
@@ -382,115 +372,100 @@ public class SingleThreadedScheduler implements AutoCloseable {
         }
       }
     }
-    
-    log("Scheduler loop ending");
+
+    info(LOGGER, "scheduler loop ending");
   }
-  
+
   /**
    * Finds the highest priority task in the ready queue.
    * Note: This method should only be called when holding the taskLock.
-   * 
+   *
    * @return The highest priority task, or null if queue is empty
    */
   private Task findHighestPriorityTask() {
     if (readyTasks.isEmpty()) {
       return null;
     }
-    
+
     // Simply poll from the PriorityBlockingQueue which will return
     // the highest priority task based on the Task's natural ordering
     return readyTasks.poll();
   }
-  
+
   /**
-   * Start a new task in a virtual thread.
-   * 
-   * <p>This method creates and starts a new virtual thread for each task.
-   * Virtual threads have low overhead and are automatically managed by the JVM.
-   * When a virtual thread blocks (e.g., on I/O or when yielding), it doesn't
-   * block its carrier thread, allowing other virtual threads to execute.
-   * This makes them ideal for cooperative multitasking.</p>
+   * Start a new task using a Continuation.
+   *
+   * <p>This method creates and runs a new Continuation for the task.
+   * The continuation will run on the current thread (the scheduler thread)
+   * and yield when requested, allowing other tasks to run.</p>
    */
   private void startTask(Task task) {
-    Thread thread = virtualThreadFactory.newThread(new Runnable() {
-      @Override
-      public void run() {
-        Thread currentThread = Thread.currentThread();
-        
-        try {
-          // Register thread with task
-          threadToTask.put(currentThread, task);
-          task.setThread(currentThread);
-          task.setState(Task.TaskState.RUNNING);
-          
-          log("Task " + task + " starting");
-          
-          // Execute the task
-          task.getCallable().call();
-          
-          // Mark as completed
-          task.setState(Task.TaskState.COMPLETED);
-          log("Task " + task + " completed");
-        } catch (InterruptedException e) {
-          task.setState(Task.TaskState.CANCELLED);
-          log("Task " + task + " cancelled");
-          Thread.currentThread().interrupt();
-        } catch (Exception e) {
-          task.setState(Task.TaskState.FAILED);
-          log("Task " + task + " failed: " + e);
-          e.printStackTrace();
-        } finally {
-          // Unregister the thread
-          threadToTask.remove(currentThread);
-          
-          // Decrement running count
-          runningTaskCount.decrementAndGet();
-          
-          // Wake up scheduler
-          taskLock.lock();
-          try {
-            tasksAvailableCondition.signalAll();
-          } finally {
-            taskLock.unlock();
-          }
-        }
+    debug(LOGGER, "task " + task.getId() + " starting");
+    task.setState(Task.TaskState.RUNNING);
+
+    // Create a dedicated scope for this task
+    ContinuationScope taskScope = new ContinuationScope("flow-task-" + task.getId());
+    taskToScope.put(task.getId(), taskScope);
+
+    // Create a continuation for the task
+    Continuation continuation = new Continuation(taskScope, () -> {
+      try {
+        // Execute the task
+        task.getCallable().call();
+      } catch (InterruptedException e) {
+        task.setState(Task.TaskState.CANCELLED);
+        warn(LOGGER, "task " + task.getId() + " cancelled", e);
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        task.setState(Task.TaskState.FAILED);
+        warn(LOGGER, "task " + task.getId() + " failed: ", e);
       }
     });
-    
-    // Start the thread
-    thread.start();
-  }
-  
-  /**
-   * Logs a message if debug logging is enabled.
-   */
-  private void log(String message) {
-    if (config.isDebugLogging()) {
-      LOGGER.log(Level.INFO, message);
+
+    // Store the continuation for future yields/resumes
+    taskToContinuation.put(task.getId(), continuation);
+
+    // Run the continuation
+    Thread.currentThread().setName("flow-task-" + task.getId());
+    continuation.run();
+    Thread.currentThread().setName("flow-scheduler");
+
+    // If the continuation completed without yielding, clean up
+    if (continuation.isDone()) {
+      debug(LOGGER, "task " + task.getId() + " completed immediately");
+      task.setState(Task.TaskState.COMPLETED);
+      taskToContinuation.remove(task.getId());
+      taskToScope.remove(task.getId());
+      idToTask.remove(task.getId());
     }
   }
-  
+
   /**
    * Shuts down the scheduler.
    */
   @Override
   public void close() {
     if (running.compareAndSet(true, false)) {
-      log("Shutting down scheduler");
-      
+      info(LOGGER, "Shutting down scheduler");
+
       // Interrupt scheduler thread
       if (schedulerThread != null) {
         schedulerThread.interrupt();
       }
-      
+
       // Wake up waiting threads
       taskLock.lock();
       try {
         tasksAvailableCondition.signalAll();
-        taskResumedCondition.signalAll();
       } finally {
         taskLock.unlock();
       }
+
+      // Clear all task-related maps
+      taskToContinuation.clear();
+      taskToScope.clear();
+      idToTask.clear();
+      yieldPromises.clear();
     }
   }
 }
