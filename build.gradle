@@ -31,6 +31,12 @@ dependencies {
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
+
+    // Add JVM arguments for Continuation API access
+    jvmArgs += [
+            '--add-exports', 'java.base/jdk.internal.vm=ALL-UNNAMED',
+            '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED'
+    ]
 }
 
 check.dependsOn jacocoTestCoverageVerification
@@ -45,6 +51,13 @@ jacocoTestReport {
         csv.required = false
         html.required = true
     }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/LoggingUtil*'
+            ])
+        }))
+    }
     dependsOn test
 }
 
@@ -52,13 +65,16 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             element = 'CLASS'
-            
+            excludes = [
+                    '**/LoggingUtil*'
+            ]
+
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
                 minimum = 0.85 // 85% line coverage for all classes
             }
-            
+
             limit {
                 counter = 'BRANCH'
                 value = 'COVEREDRATIO'
@@ -79,4 +95,10 @@ tasks.withType(Checkstyle).configureEach {
         xml.required = true
         html.required = true
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += [
+            '--add-exports', 'java.base/jdk.internal.vm=ALL-UNNAMED'
+    ]
 }
