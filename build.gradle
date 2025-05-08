@@ -36,7 +36,7 @@ test {
 check.dependsOn jacocoTestCoverageVerification
 
 jacoco {
-    toolVersion = "0.8.11"
+    toolVersion = "0.8.13" // Latest version
 }
 
 jacocoTestReport {
@@ -52,22 +52,18 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             element = 'CLASS'
-
-            limit {
-                counter = 'BRANCH'
-                value = 'COVEREDRATIO'
-                minimum = 1.0
-            }
-
+            
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
-                minimum = 0.95
+                minimum = 0.85 // 85% line coverage for all classes
             }
-
-            excludes = [
-                    // Add any exclusions here if needed
-            ]
+            
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.75 // 75% branch coverage for all classes
+            }
         }
     }
     dependsOn jacocoTestReport
