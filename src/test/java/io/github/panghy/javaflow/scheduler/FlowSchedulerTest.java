@@ -21,12 +21,7 @@ class FlowSchedulerTest {
   @BeforeEach
   void setUp() {
     // Create a scheduler with debug logging enabled for testing
-    scheduler = new FlowScheduler(
-        FlowSchedulerConfig.builder()
-            .carrierThreadCount(1)
-            .enforcePriorities(true)
-            .debugLogging(true)
-            .build());
+    scheduler = new FlowScheduler();
   }
 
   @AfterEach
