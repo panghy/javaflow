@@ -1,13 +1,8 @@
 package io.github.panghy.javaflow.core;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.scheduler.FlowScheduler;
-
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import static io.github.panghy.javaflow.Flow.await;

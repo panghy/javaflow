@@ -27,7 +27,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | **Core Futures and Actors** - Basic async infrastructure | ✅ Completed |
-| 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | 🚧 In Progress |
+| 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | 📅 Planned |
 | 4 | **Asynchronous I/O Integration** - Network and disk operations as futures | 📅 Planned |
 | 5 | **Deterministic Simulation Mode** - Simulation environment | 📅 Planned |
@@ -37,7 +37,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 9 | **Performance Optimization and Polishing** - Optimization and refinement | 📅 Planned |
 | 10 | **Production Hardening and Documentation** - Production readiness | 📅 Planned |
 
-Phase 1 has been completed, establishing the core future and actor abstractions. We're now working on Phase 2 with the event loop and scheduling. Below are the detailed tasks that were completed in Phase 1:
+Phases 1 and 2 have been completed, establishing the core future and actor abstractions and implementing the cooperative scheduling system. Below are the detailed tasks that were completed in these phases:
 
 #### Phase 1: Core Futures and Actors
 
@@ -53,6 +53,21 @@ Phase 1 has been completed, establishing the core future and actor abstractions.
 | 1.8 | **Unit Tests** - Test harness for core components | ✅ Completed |
 | 1.9 | **Example Actors** - Sample actors demonstrating patterns | ✅ Completed |
 | 1.10 | **Basic Documentation** - Initial Javadoc and usage docs | ✅ Completed |
+
+#### Phase 2: Event Loop and Scheduling
+
+| Subtask | Description | Status |
+|---------|-------------|--------|
+| 2.1 | **Task Prioritization** - Priority-based task scheduling | ✅ Completed |
+| 2.2 | **Flow Context Tracking** - ThreadLocal-based context tracking | ✅ Completed |
+| 2.3 | **Non-blocking Get API** - Modified Future.get() to be non-blocking | ✅ Completed |
+| 2.4 | **Enhanced Yield** - Yield with priority changing capability | ✅ Completed |
+| 2.5 | **Cooperative Multitasking** - Interleaving of tasks with explicit yields | ✅ Completed |
+| 2.6 | **Improved Error Handling** - Better error propagation in futures | ✅ Completed |
+| 2.7 | **Scheduler Loop Optimization** - Efficient task selection and execution | ✅ Completed |
+| 2.8 | **Continuation Management** - Proper resumption of suspended tasks | ✅ Completed |
+| 2.9 | **Integration Tests** - Multi-actor coordination testing | ✅ Completed |
+| 2.10 | **Actor Example** - Example demonstrating cooperative scheduling | ✅ Completed |
 
 These subtasks represent the foundation of JavaFlow's actor model and form the building blocks for all subsequent phases.
 
