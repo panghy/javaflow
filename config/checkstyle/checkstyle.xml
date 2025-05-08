@@ -1,166 +1,81 @@
 <?xml version="1.0"?>
 <!DOCTYPE module PUBLIC
-          "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-          "https://checkstyle.org/dtds/configuration_1_3.dtd">
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    Checkstyle configuration based on the Google Java Style Guide
+    https://google.github.io/styleguide/javaguide.html
+ -->
 
 <module name="Checker">
-  <property name="charset" value="UTF-8"/>
-  <property name="severity" value="warning"/>
-  <property name="fileExtensions" value="java"/>
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java, properties, xml"/>
 
-  <!-- Excludes all 'module-info.java' files -->
-  <module name="BeforeExecutionExclusionFileFilter">
-    <property name="fileNamePattern" value="module\-info\.java$"/>
-  </module>
-
-  <!-- Use spaces instead of tabs -->
-  <module name="FileTabCharacter">
-    <property name="eachLine" value="true"/>
-  </module>
-
-  <!-- Line length limit -->
-  <module name="LineLength">
-    <property name="max" value="100"/>
-    <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
-  </module>
-  
-  <!-- Checks that file ends with a new line -->
-  <module name="NewlineAtEndOfFile"/>
-
-  <module name="TreeWalker">
-    <!-- Basic checks -->
-    <module name="OuterTypeFilename"/>
-    <module name="IllegalTokenText">
-      <property name="tokens" value="STRING_LITERAL, CHAR_LITERAL"/>
-      <property name="format"
-               value="\\u00(09|0(a|A)|0(c|C)|0(d|D)|22|27|5(C|c))|\\(0(10|11|12|14|15|42|47)|134)"/>
-      <property name="message"
-               value="Consider using special escape sequence instead of octal value or Unicode escaped value."/>
-    </module>
-    <module name="AvoidEscapedUnicodeCharacters">
-      <property name="allowEscapesForControlCharacters" value="true"/>
-      <property name="allowByTailComment" value="true"/>
-      <property name="allowNonPrintableEscapes" value="true"/>
-    </module>
-    <module name="AvoidStarImport"/>
-    <module name="OneTopLevelClass"/>
-    <module name="NoLineWrap"/>
-    <module name="EmptyBlock">
-      <property name="option" value="TEXT"/>
-      <property name="tokens" value="LITERAL_TRY, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH"/>
-    </module>
-    <module name="NeedBraces"/>
-    <module name="LeftCurly"/>
-    <module name="RightCurly"/>
-    <module name="WhitespaceAfter"/>
-    <module name="WhitespaceAround">
-      <property name="allowEmptyConstructors" value="true"/>
-      <property name="allowEmptyMethods" value="true"/>
-      <property name="allowEmptyTypes" value="true"/>
-      <property name="allowEmptyLoops" value="true"/>
-    </module>
-    <module name="Indentation">
-      <property name="basicOffset" value="2"/>
-      <property name="braceAdjustment" value="0"/>
-      <property name="caseIndent" value="2"/>
-      <property name="throwsIndent" value="4"/>
-      <property name="lineWrappingIndentation" value="4"/>
-      <property name="arrayInitIndent" value="2"/>
-    </module>
-    <module name="OneStatementPerLine"/>
-    <module name="MultipleVariableDeclarations"/>
-    <module name="ArrayTypeStyle"/>
-    <module name="MissingSwitchDefault"/>
-    <module name="FallThrough"/>
-    <module name="UpperEll"/>
-    <module name="ModifierOrder"/>
-    <module name="EmptyLineSeparator">
-      <property name="allowNoEmptyLineBetweenFields" value="true"/>
+    <!-- Excludes all 'module-info.java' files -->
+    <module name="BeforeExecutionExclusionFileFilter">
+        <property name="fileNamePattern" value="module\-info\.java$"/>
     </module>
 
-    <!-- Naming Conventions -->
-    <module name="PackageName">
-      <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+    <!-- Checks for whitespace -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
     </module>
-    <module name="TypeName"/>
-    <module name="MemberName">
-      <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9]*$"/>
+
+    <!-- Line length -->
+    <module name="LineLength">
+        <property name="max" value="100"/>
+        <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
     </module>
-    <module name="ParameterName">
-      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
+
+    <module name="TreeWalker">
+        <!-- Import ordering -->
+        <module name="AvoidStarImport"/>
+        <module name="IllegalImport"/> <!-- defaults to sun.* packages -->
+        <module name="RedundantImport"/>
+        <module name="UnusedImports"/>
+
+        <!-- Block checks -->
+        <module name="EmptyBlock">
+            <property name="option" value="TEXT"/>
+            <property name="tokens" value="LITERAL_TRY, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH"/>
+        </module>
+        <module name="NeedBraces"/>
+        <module name="LeftCurly"/>
+        <module name="RightCurly"/>
+
+        <!-- Indentation -->
+        <module name="Indentation">
+            <property name="basicOffset" value="2"/>
+            <property name="braceAdjustment" value="0"/>
+            <property name="caseIndent" value="2"/>
+            <property name="throwsIndent" value="4"/>
+            <property name="lineWrappingIndentation" value="4"/>
+            <property name="arrayInitIndent" value="2"/>
+        </module>
+
+        <!-- Whitespace -->
+        <module name="NoWhitespaceAfter"/>
+        <module name="NoWhitespaceBefore"/>
+        <module name="WhitespaceAfter"/>
+        <module name="WhitespaceAround"/>
+
+        <!-- Modifiers -->
+        <module name="ModifierOrder"/>
+        <module name="RedundantModifier"/>
+
+        <!-- Variable naming -->
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="MethodName"/>
+        <module name="PackageName"/>
+        <module name="ParameterName"/>
+        <module name="StaticVariableName"/>
+        <module name="TypeName"/>
+
+        <!-- Miscellaneous checks -->
+        <module name="ArrayTypeStyle"/>
+        <module name="UpperEll"/>
     </module>
-    <module name="LambdaParameterName">
-      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
-    </module>
-    <module name="CatchParameterName">
-      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
-    </module>
-    <module name="LocalVariableName">
-      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
-    </module>
-    <module name="MethodName">
-      <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9_]*$"/>
-    </module>
-    <module name="ClassTypeParameterName">
-      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
-    </module>
-    <module name="MethodTypeParameterName">
-      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
-    </module>
-    <module name="InterfaceTypeParameterName">
-      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
-    </module>
-    <module name="NoFinalizer"/>
-    <module name="GenericWhitespace"/>
-    <module name="OverloadMethodsDeclarationOrder"/>
-    <module name="MethodParamPad"/>
-    <module name="NoWhitespaceBefore"/>
-    <module name="ParenPad"/>
-    <module name="OperatorWrap"/>
-    <module name="AnnotationLocation">
-      <property name="id" value="AnnotationLocationMostCases"/>
-      <property name="tokens" value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, METHOD_DEF, CTOR_DEF"/>
-    </module>
-    <module name="AnnotationLocation">
-      <property name="id" value="AnnotationLocationVariables"/>
-      <property name="tokens" value="VARIABLE_DEF"/>
-      <property name="allowSamelineMultipleAnnotations" value="true"/>
-    </module>
-    <module name="NonEmptyAtclauseDescription"/>
-    <module name="InvalidJavadocPosition"/>
-    <module name="JavadocTagContinuationIndentation"/>
-    <module name="SummaryJavadoc">
-      <property name="forbiddenSummaryFragments" value="^@return the|^This method returns|^A [{][^}]*[}]$"/>
-    </module>
-    <module name="JavadocParagraph"/>
-    <module name="AtclauseOrder">
-      <property name="tagOrder" value="@param, @return, @throws, @deprecated"/>
-    </module>
-    <module name="JavadocMethod">
-      <property name="accessModifiers" value="public"/>
-      <property name="allowMissingParamTags" value="true"/>
-      <property name="allowMissingReturnTag" value="true"/>
-      <property name="allowedAnnotations" value="Override, Test"/>
-    </module>
-    <module name="CommentsIndentation"/>
-    <module name="VariableDeclarationUsageDistance"/>
-    
-    <!-- Import organization -->
-    <module name="CustomImportOrder">
-      <property name="sortImportsInGroupAlphabetically" value="true"/>
-      <property name="separateLineBetweenGroups" value="true"/>
-      <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE"/>
-    </module>
-    <module name="MethodLength">
-      <property name="tokens" value="METHOD_DEF"/>
-      <property name="max" value="60"/>
-      <property name="countEmpty" value="false"/>
-    </module>
-    <module name="AvoidNestedBlocks"/>
-    <module name="EmptyCatchBlock">
-      <property name="exceptionVariableName" value="expected"/>
-    </module>
-    <module name="UnusedImports"/>
-    <module name="RedundantImport"/>
-  </module>
 </module>
