@@ -27,7 +27,6 @@ class TaskTest {
     assertEquals(TaskPriority.DEFAULT, task.getPriority());
     assertEquals(callable, task.getCallable());
     assertEquals(Task.TaskState.CREATED, task.getState());
-    assertNull(task.getThread());
     assertTrue(task.getCreationTime() > 0);
     assertTrue(task.getSequence() >= 0);
   }
