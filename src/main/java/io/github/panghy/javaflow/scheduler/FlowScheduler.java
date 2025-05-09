@@ -1,5 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
+import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
 
 import java.util.concurrent.Callable;
@@ -15,18 +16,32 @@ public class FlowScheduler implements AutoCloseable {
   /**
    * ThreadLocal to track if we are in a flow context.
    */
-  static final ThreadLocal<Long> CURRENT_TASK_ID = new ThreadLocal<>();
+  static final ThreadLocal<Task> CURRENT_TASK = new ThreadLocal<>();
 
   /**
    * The delegate scheduler that does the actual work.
    */
-  private final SingleThreadedScheduler delegate;
+  final SingleThreadedScheduler delegate;
 
   /**
    * Creates a new FlowScheduler with the single threaded scheduler.
+   * The scheduler will use a carrier thread for automatic task processing.
    */
   public FlowScheduler() {
-    this.delegate = new SingleThreadedScheduler();
+    this(true);
+  }
+
+  /**
+   * Creates a new FlowScheduler with control over the carrier thread.
+   * This constructor is useful for testing when you want to control task execution
+   * manually using the pump() method.
+   *
+   * @param enableCarrierThread if false, the scheduler will not automatically start
+   *                            a carrier thread, and task execution will only happen
+   *                            through explicit calls to pump()
+   */
+  public FlowScheduler(boolean enableCarrierThread) {
+    this.delegate = new SingleThreadedScheduler(enableCarrierThread);
   }
 
   /**
@@ -72,13 +87,14 @@ public class FlowScheduler implements AutoCloseable {
   }
 
   /**
-   * Yields control from the current actor and reschedules it with the specified priority.
+   * Processes all ready tasks until they have yielded or completed.
+   * This is useful for testing, particularly when testing timers or other asynchronous operations,
+   * to ensure all ready tasks have been processed before checking results.
    *
-   * @param priority The priority to use when rescheduling the current task
-   * @return A future that completes when the actor is resumed
+   * @return The number of tasks that were processed
    */
-  public FlowFuture<Void> yield(int priority) {
-    return delegate.yield(priority);
+  public int pump() {
+    return delegate.pump();
   }
 
   /**
@@ -87,7 +103,29 @@ public class FlowScheduler implements AutoCloseable {
    * @return true if the current thread is managed by the flow scheduler
    */
   public static boolean isInFlowContext() {
-    return FlowScheduler.CURRENT_TASK_ID.get() != null;
+    return FlowScheduler.CURRENT_TASK.get() != null;
+  }
+
+  /**
+   * Checks if a task with the specified ID is cancelled.
+   * Static method to be used from the Flow API.
+   *
+   * @param taskId The ID of the task to check
+   * @return true if the task is cancelled, false otherwise
+   */
+  public static boolean isTaskCancelled(Long taskId) {
+    return Flow.scheduler().delegate.isTaskCancelled(taskId);
+  }
+
+  /**
+   * Awaits the completion of a future, suspending the current actor until the future completes.
+   *
+   * @param future The future to await
+   * @param <T>    The type of the future value
+   * @return The value of the completed future
+   */
+  public <T> T await(FlowFuture<T> future) throws Exception {
+    return delegate.await(future);
   }
 
   /**
