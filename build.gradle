@@ -11,9 +11,9 @@ repositories {
     mavenCentral()
 }
 
-// Configure for Java 24 compatibility
-sourceCompatibility = JavaVersion.VERSION_24
-targetCompatibility = JavaVersion.VERSION_24
+// Configure for Java 21 compatibility
+sourceCompatibility = JavaVersion.VERSION_21
+targetCompatibility = JavaVersion.VERSION_21
 
 checkstyle {
     toolVersion = '10.12.5'
@@ -69,8 +69,6 @@ jacocoTestCoverageVerification {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
                 '**/LoggingUtil*',
-                '**/Flow.class',
-                '**/FlowFuture.class'
             ])
         }))
     }
@@ -83,10 +81,6 @@ jacocoTestCoverageVerification {
                 '**/LoggingUtil*',
                 'io.github.panghy.javaflow.util.LoggingUtil',
                 'io/github/panghy/javaflow/util/LoggingUtil*',
-                '**/Flow',
-                'io.github.panghy.javaflow.Flow',
-                '**/FlowFuture',
-                'io.github.panghy.javaflow.core.FlowFuture'
             ]
 
             limit {
