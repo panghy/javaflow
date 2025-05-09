@@ -6,10 +6,14 @@ import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -84,28 +88,56 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final Map<Long, ContinuationScope> taskToScope = new HashMap<>();
 
   /**
-   * Map of task IDs that are yielding to their resume futures
+   * Flag to indicate whether the scheduler should start its carrier thread.
+   * Setting this to false is useful for testing to control task execution manually.
+   */
+  private final boolean enableCarrierThread;
+
+  /**
+   * Map to store promises for yield operations
    */
   private final Map<Long, FlowPromise<Void>> yieldPromises = new HashMap<>();
 
+
   /**
    * Creates a new single-threaded scheduler with default configuration.
+   * The scheduler will use a carrier thread for automatic task processing.
    */
   public SingleThreadedScheduler() {
+    this(true);
+  }
+
+  /**
+   * Creates a new single-threaded scheduler with control over the carrier thread.
+   * This constructor is useful for testing when you want to control task execution
+   * manually using the pump() method.
+   *
+   * @param enableCarrierThread if false, the scheduler will not automatically start
+   *                            a carrier thread, and task execution will only happen
+   *                            through explicit calls to pump()
+   */
+  public SingleThreadedScheduler(boolean enableCarrierThread) {
+    this.enableCarrierThread = enableCarrierThread;
   }
 
   /**
    * Starts the scheduler if it hasn't been started yet.
+   * If the carrier thread is disabled, this only marks the scheduler as running
+   * without starting the scheduler thread.
    */
   public synchronized void start() {
     if (running.compareAndSet(false, true)) {
       info(LOGGER, "starting flow scheduler");
 
-      // Start scheduler thread
-      schedulerThread = Thread.ofPlatform()
-          .name("flow-scheduler")
-          .daemon(true)
-          .start(this::schedulerLoop);
+      if (enableCarrierThread) {
+        // Start scheduler thread only if carrier thread is enabled
+        schedulerThread = Thread.ofPlatform()
+            .name("flow-scheduler")
+            .daemon(true)
+            .start(this::schedulerLoop);
+      } else {
+        debug(LOGGER, "carrier thread disabled, tasks will only execute via pump()");
+      }
     }
   }
 
@@ -130,6 +162,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Start scheduler if not already running
     start();
 
+    // Create and schedule the task
+    long taskId = taskIdCounter.incrementAndGet();
+
     // Create a future/promise pair for the result
     FlowFuture<T> future = new FlowFuture<>();
     FlowPromise<T> promise = future.getPromise();
@@ -146,9 +181,18 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
     };
 
-    // Create and schedule the task
-    long taskId = taskIdCounter.incrementAndGet();
-    Task flowTask = new Task(taskId, priority, wrappedTask);
+    // Create a task and associate it with the current task if any
+    Task currentTask = FlowScheduler.CURRENT_TASK.get();
+    Task flowTask = new Task(taskId, priority, wrappedTask, currentTask);
+    flowTask.setCancellationCallback(() -> cancelTask(taskId));
+    if (currentTask != null) {
+      currentTask.addChild(flowTask);
+    }
+    promise.whenComplete((_, t) -> {
+      if (t instanceof CancellationException) {
+        flowTask.cancel();
+      }
+    });
 
     // Store task in the task map
     idToTask.put(taskId, flowTask);
@@ -206,11 +250,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
   }
 
   /**
-   * Yields control from the current task to allow other tasks to run,
-   * and optionally changes the task's priority when it resumes.
+   * Yields control from the current task to allow other tasks to run.
    *
-   * @param priority The new priority to use when rescheduling the task,
-   *                 or null to keep the current priority
    * @return Future that completes when task resumes
    */
   public FlowFuture<Void> yield(Integer priority) {
@@ -219,55 +260,22 @@ public class SingleThreadedScheduler implements AutoCloseable {
     }
 
     // Need to find the task ID for the current continuation
-    final long taskId = FlowScheduler.CURRENT_TASK_ID.get();
-    ContinuationScope currentScope = taskToScope.get(taskId);
-
-    if (currentScope == null) {
-      throw new IllegalStateException("missing task scope");
-    }
-
-    Task task = idToTask.get(taskId);
+    final Task task = FlowScheduler.CURRENT_TASK.get();
     if (task == null) {
-      throw new IllegalStateException("missing task");
+      throw new IllegalStateException("yield called for unknown task");
     }
-
-    debug(LOGGER, "task " + taskId + " yielding");
-
-    // Mark this task as yielding
-    task.setState(Task.TaskState.SUSPENDED);
 
     // Create future/promise for resumption
     FlowFuture<Void> future = new FlowFuture<>();
     FlowPromise<Void> promise = future.getPromise();
 
     // Store promise to be completed when task is resumed
-    yieldPromises.put(taskId, promise);
+    yieldPromises.put(task.getId(), promise);
 
-    // Create continuation task with same task ID 
-    // Using specified priority if provided, or the task's current priority if not
-    final int resumePriority = (priority != null) ? priority : task.getPriority();
-
-    if (priority != null && priority != task.getPriority()) {
-      debug(LOGGER, "task " + taskId + " changing priority from " + task.getPriority()
-                    + " to " + priority);
-    }
-
-    Task resumeTask = new Task(task.getId(), resumePriority, (Callable<Void>) () -> {
-      resumeTask(taskId);
+    schedule(() -> {
+      promise.complete(null);
       return null;
-    });
-
-    taskLock.lock();
-    try {
-      // Add to priority queue
-      readyTasks.add(resumeTask);
-      tasksAvailableCondition.signalAll(); // Wake up scheduler
-    } finally {
-      taskLock.unlock();
-    }
-
-    // Actually yield the continuation - this is what returns control to the scheduler
-    Continuation.yield(currentScope);
+    }, priority == null ? task.getPriority() : priority);
 
     return future;
   }
@@ -292,12 +300,12 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
 
       try {
-        FlowScheduler.CURRENT_TASK_ID.set(taskId);
+        FlowScheduler.CURRENT_TASK.set(task);
 
         // Resume the continuation
         continuation.run();
       } finally {
-        FlowScheduler.CURRENT_TASK_ID.remove();
+        FlowScheduler.CURRENT_TASK.remove();
       }
 
       // If the continuation is done, clean up
@@ -416,20 +424,16 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Continuation continuation = new Continuation(taskScope, () -> {
       try {
         // Set the flow context flag to true for this task
-        FlowScheduler.CURRENT_TASK_ID.set(task.getId());
+        FlowScheduler.CURRENT_TASK.set(task);
 
         // Execute the task
         task.getCallable().call();
-      } catch (InterruptedException e) {
-        task.setState(Task.TaskState.CANCELLED);
-        warn(LOGGER, "task " + task.getId() + " cancelled", e);
-        Thread.currentThread().interrupt();
       } catch (Exception e) {
         task.setState(Task.TaskState.FAILED);
         warn(LOGGER, "task " + task.getId() + " failed: ", e);
       } finally {
         // Clear the flow context flag
-        FlowScheduler.CURRENT_TASK_ID.remove();
+        FlowScheduler.CURRENT_TASK.remove();
       }
     });
 
@@ -448,6 +452,170 @@ public class SingleThreadedScheduler implements AutoCloseable {
       taskToContinuation.remove(task.getId());
       taskToScope.remove(task.getId());
       idToTask.remove(task.getId());
+    }
+  }
+
+  /**
+   * Waits for a future to complete, resuming the current task when it does.
+   *
+   * @param future The future to wait for
+   * @param <T>    The type of the future value
+   */
+  public <T> T await(FlowFuture<T> future) throws Exception {
+    if (!FlowScheduler.isInFlowContext()) {
+      throw new IllegalStateException("await called outside of a flow task");
+    }
+
+    // Need to find the task ID for the current continuation
+    final Task task = FlowScheduler.CURRENT_TASK.get();
+    if (task == null) {
+      throw new IllegalStateException("missing task");
+    }
+    ContinuationScope currentScope = taskToScope.get(task.getId());
+
+    if (currentScope == null) {
+      throw new IllegalStateException("missing task scope");
+    }
+
+    if (task.getState() != Task.TaskState.RUNNING) {
+      throw new IllegalStateException("task is not running");
+    }
+
+    debug(LOGGER, "task " + task.getId() + " suspending");
+
+    // Mark this task as yielding
+    task.setState(Task.TaskState.SUSPENDED);
+
+    future.getPromise().whenComplete((_, _) -> {
+      taskLock.lock();
+      try {
+        readyTasks.add(task);
+        tasksAvailableCondition.signalAll(); // Wake up scheduler
+      } finally {
+        taskLock.unlock();
+      }
+    });
+
+    // Yield to allow other tasks to run.
+    Continuation.yield(currentScope);
+
+    // Code resumes here when future completes
+    if (task.isCancelled()) {
+      throw new CancellationException("task cancelled");
+    } else if (future.isCompletedExceptionally()) {
+      throw new ExecutionException(future.getException());
+    }
+    return future.getNow();
+  }
+
+  /**
+   * Processes all ready tasks until all have yielded or completed.
+   * This is useful for testing, where we want to ensure all tasks have a chance to run.
+   * In particular, when testing timers or other asynchronous operations, this method
+   * can be used to ensure all ready tasks are processed before checking the results.
+   *
+   * <p>This method processes tasks in a deterministic order based on task priority.</p>
+   *
+   * <p>The method ensures that all tasks in the ready queue at the start of the call
+   * are processed at least once, even if new tasks are added to the queue during processing.</p>
+   *
+   * @return The number of tasks that were processed
+   */
+  public int pump() {
+    if (enableCarrierThread) {
+      throw new IllegalStateException("pump() can only be called when carrier thread is disabled");
+    }
+    int processedTasks = 0;
+
+    taskLock.lock();
+    try {
+      // If there are no ready tasks, we're done
+      if (readyTasks.isEmpty()) {
+        return 0;
+      }
+
+      // Take a snapshot of all currently ready tasks
+      // This ensures we process all tasks that are ready now, but don't get stuck
+      // in an infinite loop if tasks keep yielding and adding themselves back to the queue
+      List<Task> tasksToProcess = new ArrayList<>();
+      while (!readyTasks.isEmpty()) {
+        Task task = findHighestPriorityTask();
+        if (task == null) {
+          break;
+        }
+        tasksToProcess.add(task);
+      }
+
+      // Process all tasks in the snapshot
+      for (Task task : tasksToProcess) {
+        // Release the lock while executing the task
+        taskLock.unlock();
+        try {
+          if (taskToContinuation.containsKey(task.getId())) {
+            // This is a resume task for an existing continuation
+            resumeTask(task.getId());
+          } else {
+            // This is a new task - create and run a new continuation
+            startTask(task);
+          }
+          processedTasks++;
+        } finally {
+          // Re-acquire the lock for the next iteration
+          taskLock.lock();
+        }
+      }
+
+      return processedTasks;
+    } finally {
+      if (taskLock.isHeldByCurrentThread()) {
+        taskLock.unlock();
+      }
+    }
+  }
+
+  /**
+   * Cancels a task with the specified ID.
+   * This will mark the task as cancelled, remove it from the ready queue, and complete
+   * any associated yield promises with an exceptional completion.
+   *
+   * @param taskId The ID of the task to cancel
+   */
+  private void cancelTask(long taskId) {
+    debug(LOGGER, "cancelling task " + taskId);
+
+    taskLock.lock();
+    try {
+      Task task = idToTask.get(taskId);
+      if (task == null) {
+        // Task doesn't exist or has already completed
+        return;
+      }
+
+      // If the task is yielding, we will complete its promise exceptionally.
+      FlowPromise<Void> promise = yieldPromises.remove(taskId);
+      if (promise != null) {
+        promise.completeExceptionally(new CancellationException());
+      }
+    } finally {
+      taskLock.unlock();
+    }
+  }
+
+  /**
+   * Checks if a task with the specified ID is cancelled.
+   * This method is thread-safe and can be called from any context,
+   * including from within a running task to check its own cancellation status.
+   *
+   * @param taskId The ID of the task to check
+   * @return true if the task exists and is cancelled, false otherwise
+   */
+  public boolean isTaskCancelled(long taskId) {
+    taskLock.lock();
+    try {
+      Task task = idToTask.get(taskId);
+      return task != null && task.isCancelled();
+    } finally {
+      taskLock.unlock();
     }
   }
 
