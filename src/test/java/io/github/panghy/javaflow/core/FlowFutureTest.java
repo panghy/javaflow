@@ -24,7 +24,7 @@ class FlowFutureTest {
 
     assertTrue(future.isDone());
     assertTrue(future.isCompleted());
-    assertEquals("test", future.get());
+    assertEquals("test", future.getNow());
   }
 
   @Test
@@ -37,7 +37,7 @@ class FlowFutureTest {
     future.getPromise().completeExceptionally(testException);
 
     assertTrue(future.isDone());
-    Exception e = assertThrows(Exception.class, future::get);
+    Exception e = assertThrows(Exception.class, future::getNow);
     assertEquals("Test exception", e.getCause().getMessage());
   }
 
@@ -46,7 +46,7 @@ class FlowFutureTest {
     FlowFuture<String> future = FlowFuture.completed("done");
 
     assertTrue(future.isDone());
-    assertEquals("done", future.get());
+    assertEquals("done", future.getNow());
   }
 
   @Test
@@ -55,7 +55,7 @@ class FlowFutureTest {
     FlowFuture<String> future = FlowFuture.failed(testException);
 
     assertTrue(future.isDone());
-    Exception e = assertThrows(Exception.class, future::get);
+    Exception e = assertThrows(Exception.class, future::getNow);
     assertEquals("Failed", e.getCause().getMessage());
   }
 
@@ -69,7 +69,7 @@ class FlowFutureTest {
 
     assertTrue(future.isCancelled());
     assertTrue(future.isDone());
-    assertThrows(CancellationException.class, future::get);
+    assertThrows(CancellationException.class, future::getNow);
   }
 
   @Test
@@ -97,7 +97,7 @@ class FlowFutureTest {
     future.getPromise().complete("test");
 
     assertTrue(mapped.isDone());
-    assertEquals(4, mapped.get());
+    assertEquals(4, mapped.getNow());
   }
 
   @Test
@@ -108,7 +108,7 @@ class FlowFutureTest {
     future.getPromise().completeExceptionally(new RuntimeException("Oops"));
 
     assertTrue(mapped.isDone());
-    Exception e = assertThrows(Exception.class, mapped::get);
+    Exception e = assertThrows(Exception.class, mapped::getNow);
     assertEquals("Oops", e.getCause().getMessage());
   }
 
@@ -122,7 +122,7 @@ class FlowFutureTest {
     future.getPromise().complete("test");
 
     assertTrue(mapped.isDone());
-    Exception e = assertThrows(Exception.class, mapped::get);
+    Exception e = assertThrows(Exception.class, mapped::getNow);
     assertTrue(e.getCause() instanceof IllegalArgumentException);
     assertEquals("Bad mapping", e.getCause().getMessage());
   }
@@ -137,7 +137,7 @@ class FlowFutureTest {
     future.getPromise().complete("hello");
 
     assertTrue(flatMapped.isDone());
-    assertEquals("hello world", flatMapped.get());
+    assertEquals("hello world", flatMapped.getNow());
   }
 
   @Test
@@ -150,7 +150,7 @@ class FlowFutureTest {
     future.getPromise().complete("test");
 
     assertTrue(flatMapped.isDone());
-    Exception e = assertThrows(Exception.class, flatMapped::get);
+    Exception e = assertThrows(Exception.class, flatMapped::getNow);
     assertEquals("Flat map exception", e.getCause().getMessage());
   }
 
@@ -162,7 +162,7 @@ class FlowFutureTest {
     future.getPromise().completeExceptionally(new RuntimeException("Source exception"));
 
     assertTrue(flatMapped.isDone());
-    Exception e = assertThrows(Exception.class, flatMapped::get);
+    Exception e = assertThrows(Exception.class, flatMapped::getNow);
     assertEquals("Source exception", e.getCause().getMessage());
   }
 
@@ -176,7 +176,7 @@ class FlowFutureTest {
     future.getPromise().complete("test");
 
     assertTrue(flatMapped.isDone());
-    Exception e = assertThrows(Exception.class, flatMapped::get);
+    Exception e = assertThrows(Exception.class, flatMapped::getNow);
     assertEquals("Target exception", e.getCause().getMessage());
   }
 
@@ -201,5 +201,36 @@ class FlowFutureTest {
     assertTrue(latch.await(1, TimeUnit.SECONDS));
     assertTrue(results.toString().contains("A:done"));
     assertTrue(results.toString().contains("B:done"));
+  }
+  
+  @Test
+  void testCancellationOfDependentFutures() throws Exception {
+    FlowFuture<String> future1 = new FlowFuture<>();
+    FlowFuture<String> future2 = future1.map(s -> s + " mapped");
+    
+    future1.cancel(true);
+    
+    assertTrue(future1.isCancelled());
+    assertTrue(future2.isCancelled());
+    assertThrows(CancellationException.class, future1::getNow);
+    assertThrows(CancellationException.class, future2::getNow);
+  }
+  
+  @Test
+  void testCancellationOfFlatMappedFutures() throws Exception {
+    FlowFuture<String> future1 = new FlowFuture<>();
+    FlowFuture<String> future2 = future1.flatMap(s -> {
+      FlowFuture<String> nestedFuture = new FlowFuture<>();
+      nestedFuture.getPromise().complete(s + " nested");
+      return nestedFuture;
+    });
+    
+    future1.cancel(true);
+    
+    assertTrue(future1.isCancelled());
+    assertTrue(future2.isCompletedExceptionally());
+    assertThrows(CancellationException.class, future1::getNow);
+    // The exception should be propagated to the dependent future
+    assertThrows(Exception.class, future2::getNow);
   }
 }

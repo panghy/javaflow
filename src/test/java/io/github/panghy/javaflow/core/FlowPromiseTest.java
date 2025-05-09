@@ -41,7 +41,7 @@ class FlowPromiseTest {
     assertFalse(promise.complete("new value"));
     
     try {
-      assertEquals("already done", future.get());
+      assertEquals("already done", future.getNow());
     } catch (Exception e) {
       throw new AssertionError("Should not throw", e);
     }
@@ -56,7 +56,7 @@ class FlowPromiseTest {
     
     assertTrue(result);
     assertTrue(promise.isCompleted());
-    assertEquals("success", future.get());
+    assertEquals("success", future.getNow());
   }
 
   @Test
@@ -70,7 +70,7 @@ class FlowPromiseTest {
     assertTrue(result);
     assertTrue(promise.isCompleted());
     try {
-      future.get();
+      future.getNow();
     } catch (Exception e) {
       assertEquals("failed", e.getCause().getMessage());
     }
@@ -88,7 +88,7 @@ class FlowPromiseTest {
     assertFalse(secondResult);
     
     try {
-      assertEquals("first", future.get());
+      assertEquals("first", future.getNow());
     } catch (Exception e) {
       throw new AssertionError("Should not throw", e);
     }
@@ -108,7 +108,7 @@ class FlowPromiseTest {
     assertFalse(secondResult);
     
     try {
-      future.get();
+      future.getNow();
     } catch (Exception e) {
       assertEquals("first error", e.getCause().getMessage());
     }
@@ -127,7 +127,7 @@ class FlowPromiseTest {
     assertFalse(secondResult);
     
     try {
-      future.get();
+      future.getNow();
     } catch (Exception e) {
       assertEquals("error first", e.getCause().getMessage());
     }
@@ -146,7 +146,7 @@ class FlowPromiseTest {
     assertFalse(secondResult);
     
     try {
-      assertEquals("success first", future.get());
+      assertEquals("success first", future.getNow());
     } catch (Exception e) {
       throw new AssertionError("Should not throw", e);
     }
@@ -222,7 +222,7 @@ class FlowPromiseTest {
     assertFalse(result);
     
     // Original value should be preserved
-    assertEquals("pre-completed", future.get());
+    assertEquals("pre-completed", future.getNow());
   }
   
   @Test
@@ -239,7 +239,7 @@ class FlowPromiseTest {
     assertFalse(promise.complete("should not work"));
     
     try {
-      Object result = future.get();
+      Object result = future.getNow();
       assertSame(null, result);
     } catch (Exception e) {
       throw new AssertionError("Should not throw", e);

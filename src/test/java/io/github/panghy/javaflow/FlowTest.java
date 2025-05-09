@@ -21,8 +21,8 @@ class FlowTest {
   void testStartCallable() throws Exception {
     FlowFuture<Integer> future = Flow.start(() -> 42);
 
-    Flow.start(() -> Flow.await(future)).get();
-    assertEquals(42, future.get());
+    Flow.start(() -> Flow.await(future)).toCompletableFuture().get();
+    assertEquals(42, future.toCompletableFuture().get());
   }
 
   @Test
@@ -30,7 +30,7 @@ class FlowTest {
     // Test the start method with priority parameter
     FlowFuture<Integer> future = Flow.start(() -> 42, 5);
 
-    assertEquals(42, future.get());
+    assertEquals(42, future.toCompletableFuture().get());
   }
 
   @Test
@@ -40,7 +40,7 @@ class FlowTest {
     FlowFuture<Void> future = Flow.start(latch::countDown);
 
     assertTrue(latch.await(1, TimeUnit.SECONDS));
-    future.get(); // Should not throw
+    future.toCompletableFuture().get(); // Should not throw
   }
 
   @Test
@@ -51,7 +51,7 @@ class FlowTest {
     FlowFuture<Void> future = Flow.start(latch::countDown, 5);
 
     assertTrue(latch.await(1, TimeUnit.SECONDS));
-    future.get(); // Should not throw
+    future.toCompletableFuture().get(); // Should not throw
   }
 
   @Test
@@ -60,21 +60,21 @@ class FlowTest {
 
     FlowFuture<Void> future = Flow.delay(0.1); // 100ms delay
 
-    future.get();
+    future.toCompletableFuture().get();
 
     long duration = System.currentTimeMillis() - start;
     assertTrue(duration >= 100, "Delay should be at least 100ms but was " + duration + "ms");
   }
 
   @Test
-  void testYield() throws Exception {
+  void testYieldF() throws Exception {
     // For now, just verify it returns a completed future
     FlowFuture<Void> future = Flow.start(() -> {
-      Flow.yield();
+      Flow.yieldF();
     });
 
     assertNotNull(future);
-    future.get(); // Should not throw
+    future.toCompletableFuture().get(); // Should not throw
   }
 
   @Test
@@ -114,7 +114,7 @@ class FlowTest {
   }
 
   @Test
-  void testStartCallableException() throws Exception {
+  void testStartCallableException() {
     // Test starting a callable that throws an exception
     RuntimeException testException = new RuntimeException("test failure");
     FlowFuture<Integer> future = Flow.start(() -> {
@@ -122,12 +122,12 @@ class FlowTest {
     });
 
     ExecutionException thrown =
-        assertThrows(ExecutionException.class, () -> future.get());
+        assertThrows(ExecutionException.class, () -> future.toCompletableFuture().get());
     assertEquals(testException, thrown.getCause());
   }
 
   @Test
-  void testStartRunnableException() throws Exception {
+  void testStartRunnableException() {
     // Test starting a runnable that throws an exception
     RuntimeException testException = new RuntimeException("test failure");
     AtomicBoolean exceptionThrown = new AtomicBoolean(false);
@@ -138,7 +138,7 @@ class FlowTest {
     });
 
     ExecutionException thrown =
-        assertThrows(ExecutionException.class, () -> future.get());
+        assertThrows(ExecutionException.class, () -> future.toCompletableFuture().get());
     assertEquals(testException, thrown.getCause());
     assertTrue(exceptionThrown.get(), "Runnable should have executed and thrown exception");
   }
@@ -194,5 +194,24 @@ class FlowTest {
 
     assertTrue(latch.await(1, TimeUnit.SECONDS));
     assertEquals("step1-step2", result.get());
+  }
+
+  @Test
+  void testCancellationPropagation() throws Exception {
+    // Simplified test that just verifies that cancellation works for dependent futures
+    FlowFuture<String> future1 = new FlowFuture<>();
+    FlowFuture<String> future2 = future1.map(s -> s + " mapped");
+
+    // When we cancel the first future
+    future1.cancel(true);
+
+    // Check that it was marked as cancelled
+    assertTrue(future1.isCancelled());
+
+    // Wait a bit for propagation
+    Thread.sleep(100);
+
+    // Check that the dependent future is completed exceptionally
+    assertTrue(future2.isCompletedExceptionally() || future2.isCancelled());
   }
 }

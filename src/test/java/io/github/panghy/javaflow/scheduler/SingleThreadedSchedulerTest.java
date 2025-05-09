@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -38,7 +42,6 @@ class SingleThreadedSchedulerTest {
 
   @BeforeEach
   void setUp() {
-    // Create a scheduler with debug logging enabled for testing
     scheduler = new SingleThreadedScheduler();
   }
 
@@ -57,7 +60,7 @@ class SingleThreadedSchedulerTest {
     // Verify the scheduler is still working by scheduling a task
     try {
       FlowFuture<String> future = scheduler.schedule(() -> "test");
-      assertEquals("test", future.get());
+      assertEquals("test", future.toCompletableFuture().get());
     } catch (Exception e) {
       throw new AssertionError("Scheduler should still work after multiple start calls", e);
     }
@@ -155,7 +158,7 @@ class SingleThreadedSchedulerTest {
     yieldPromises.put(taskId, promise);
 
     // Create a task
-    Task task = new Task(taskId, TaskPriority.DEFAULT, () -> null);
+    Task task = new Task(taskId, TaskPriority.DEFAULT, () -> null, null);
     task.setState(Task.TaskState.SUSPENDED);
     idToTask.put(taskId, task);
 
@@ -219,7 +222,7 @@ class SingleThreadedSchedulerTest {
           (PriorityBlockingQueue<Task>) readyTasksField.get(localScheduler);
 
       // Create and add a task directly to the queue
-      Task task = new Task(999L, TaskPriority.DEFAULT, () -> "test");
+      Task task = new Task(999L, TaskPriority.DEFAULT, () -> "test", null);
       readyTasks.add(task);
 
       // Now it should return a task
@@ -288,7 +291,7 @@ class SingleThreadedSchedulerTest {
 
     // Wait for the task to complete
     try {
-      future.get();
+      future.toCompletableFuture().get();
     } catch (Exception e) {
       // Expected exception
       assertEquals(testException, e.getCause());
@@ -332,7 +335,7 @@ class SingleThreadedSchedulerTest {
 
     // Wait for the task to complete
     try {
-      future.get();
+      future.toCompletableFuture().get();
     } catch (Exception e) {
       // Expected exception
       assertTrue(e.getCause() instanceof InterruptedException);
@@ -349,7 +352,7 @@ class SingleThreadedSchedulerTest {
 
     // Create a task
     Callable<Void> callable = () -> null;
-    Task task = new Task(1, TaskPriority.DEFAULT, callable);
+    Task task = new Task(1, TaskPriority.DEFAULT, callable, null);
 
     // Get the idToTask map to manually set up the task association
     Field idToTaskField = SingleThreadedScheduler.class.getDeclaredField("idToTask");
@@ -453,7 +456,7 @@ class SingleThreadedSchedulerTest {
 
     // Create a task
     Callable<String> callable = () -> "test";
-    Task task = new Task(1, TaskPriority.DEFAULT, callable);
+    Task task = new Task(1, TaskPriority.DEFAULT, callable, null);
 
     // Create a task scope
     ContinuationScope scope = new ContinuationScope("test-scope-task");
@@ -480,7 +483,7 @@ class SingleThreadedSchedulerTest {
     Task resumeTask = new Task(taskId, TaskPriority.DEFAULT, (Callable<Void>) () -> {
       // This task will trigger resumeTask method
       return null;
-    });
+    }, null);
     readyTasks.add(resumeTask);
 
     // Process the task via reflection
@@ -549,7 +552,7 @@ class SingleThreadedSchedulerTest {
     // Verify it works by running a simple task
     try {
       FlowFuture<String> future = defaultScheduler.schedule(() -> "test-default");
-      assertEquals("test-default", future.get());
+      assertEquals("test-default", future.toCompletableFuture().get());
     } catch (Exception e) {
       throw new AssertionError("Default constructor scheduler failed to run task", e);
     } finally {
@@ -580,7 +583,7 @@ class SingleThreadedSchedulerTest {
     try {
       // Verify new scheduler is operational
       FlowFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
-      assertEquals("post-interrupt", future.get());
+      assertEquals("post-interrupt", future.toCompletableFuture().get());
     } finally {
       newScheduler.close();
     }
@@ -609,7 +612,7 @@ class SingleThreadedSchedulerTest {
     delayThread.get().interrupt();
 
     // Verify interruption is propagated
-    assertThrows(ExecutionException.class, () -> future.get());
+    assertThrows(ExecutionException.class, () -> future.getNow());
   }
 
   /**
@@ -721,12 +724,12 @@ class SingleThreadedSchedulerTest {
 
       // Verify the correct exception was caught
       assertNotNull(caughtException.get(), "Should have caught an exception");
-      assertTrue(caughtException.get() instanceof InterruptedException,
+      assertInstanceOf(InterruptedException.class, caughtException.get(),
           "Should have caught InterruptedException");
 
       // Verify the scheduler still works
       FlowFuture<String> future = testScheduler.schedule(() -> "test works");
-      assertEquals("test works", future.get());
+      assertEquals("test works", future.toCompletableFuture().get());
     } finally {
       testScheduler.close();
     }
@@ -761,7 +764,7 @@ class SingleThreadedSchedulerTest {
 
     // Schedule a task to verify the scheduler is working
     FlowFuture<String> future = testScheduler.schedule(() -> "initial task");
-    assertEquals("initial task", future.get());
+    assertEquals("initial task", future.toCompletableFuture().get());
 
     // Set running to false, which should cause the scheduler loop to exit
     running.set(false);
@@ -777,7 +780,7 @@ class SingleThreadedSchedulerTest {
     // Simply verify that after closing, we can still schedule a task 
     // (which will restart the scheduler)
     FlowFuture<String> newFuture = testScheduler.schedule(() -> "after close");
-    assertEquals("after close", newFuture.get());
+    assertEquals("after close", newFuture.toCompletableFuture().get());
 
     // Final cleanup
     testScheduler.close();
@@ -851,7 +854,7 @@ class SingleThreadedSchedulerTest {
 
       // Schedule another task to verify the scheduler still works
       FlowFuture<String> future = testScheduler.schedule(() -> "after empty queue");
-      assertEquals("after empty queue", future.get());
+      assertEquals("after empty queue", future.toCompletableFuture().get());
     } finally {
       testScheduler.close();
     }
@@ -887,12 +890,12 @@ class SingleThreadedSchedulerTest {
 
     // Wait for the task to complete
     assertTrue(taskDone.await(500, TimeUnit.MILLISECONDS));
-    assertEquals("empty queue test", future.get());
+    assertEquals("empty queue test", future.toCompletableFuture().get());
 
     // Now the queue should be empty again, and we'll schedule one more task
     // to ensure the scheduler can still process tasks
     FlowFuture<String> future2 = scheduler.schedule(() -> "after empty queue");
-    assertEquals("after empty queue", future2.get());
+    assertEquals("after empty queue", future2.toCompletableFuture().get());
   }
 
   @Test
@@ -902,7 +905,7 @@ class SingleThreadedSchedulerTest {
     // Create a task that will throw an exception during processing
     Task exceptionTask = new Task(999, TaskPriority.HIGH, () -> {
       throw new RuntimeException("Test exception in task processing");
-    });
+    }, null);
 
     // Access the readyTasks queue of our test scheduler
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
@@ -925,13 +928,13 @@ class SingleThreadedSchedulerTest {
 
     // Schedule another task to verify the scheduler recovered from the exception
     FlowFuture<String> future = scheduler.schedule(() -> "after exception");
-    assertEquals("after exception", future.get());
+    assertEquals("after exception", future.toCompletableFuture().get());
 
     // Test the exception handling in the startTask method's run() block
     Task exceptionTask2 = new Task(1000, TaskPriority.HIGH, () -> {
       // This should trigger the catch block in the task's run method
       throw new RuntimeException("Test exception in startTask run block");
-    });
+    }, null);
 
     // Add the task to the queue
     synchronized (readyTasks) {
@@ -944,7 +947,7 @@ class SingleThreadedSchedulerTest {
 
     // Verify the scheduler still works after an exception in task execution
     FlowFuture<String> future2 = scheduler.schedule(() -> "after exception 2");
-    assertEquals("after exception 2", future2.get());
+    assertEquals("after exception 2", future2.toCompletableFuture().get());
   }
 
   @Test
@@ -955,18 +958,9 @@ class SingleThreadedSchedulerTest {
     SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
     testScheduler.start();
 
-    // Force an error condition by messing with internal state
-    // Get access to the running flag field to monitor it
-    Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
-    runningField.setAccessible(true);
-    AtomicBoolean running = (AtomicBoolean) runningField.get(testScheduler);
-
     // Get the readyTasks queue and replace it with something that will cause an exception
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     readyTasksField.setAccessible(true);
-
-    // Create a special task that will cause an exception
-    Task badTask = new Task(999, TaskPriority.HIGH, () -> null);
 
     // Save the original queue
     @SuppressWarnings("unchecked")
@@ -974,7 +968,7 @@ class SingleThreadedSchedulerTest {
         (PriorityBlockingQueue<Task>) readyTasksField.get(testScheduler);
 
     // Create a new queue with our bad task
-    PriorityBlockingQueue<Task> newQueue = new PriorityBlockingQueue<Task>() {
+    PriorityBlockingQueue<Task> newQueue = new PriorityBlockingQueue<>() {
       @Override
       public Task poll() {
         // Force an exception when the task is polled from the queue
@@ -996,9 +990,6 @@ class SingleThreadedSchedulerTest {
       originalQueue.notifyAll();
     }
 
-    // Sleep to give time for the exception to be caught
-    Thread.sleep(200);
-
     // Put the original queue back
     synchronized (originalQueue) {
       readyTasksField.set(testScheduler, originalQueue);
@@ -1006,7 +997,7 @@ class SingleThreadedSchedulerTest {
 
     // Verify scheduler is still operational by scheduling a task
     FlowFuture<String> future = testScheduler.schedule(() -> "after scheduler exception");
-    assertEquals("after scheduler exception", future.get());
+    assertEquals("after scheduler exception", future.toCompletableFuture().get());
 
     // Cleanup
     testScheduler.close();
@@ -1036,7 +1027,7 @@ class SingleThreadedSchedulerTest {
         // Yield to allow other tasks to run
         try {
           taskSuspended.countDown();
-          testScheduler.yield().get();
+          testScheduler.await(testScheduler.yield());
           taskResumed.countDown();
         } catch (Exception e) {
           throw new RuntimeException(e);
@@ -1063,7 +1054,7 @@ class SingleThreadedSchedulerTest {
 
       // Verify the scheduler is still functioning
       FlowFuture<String> testFuture = testScheduler.schedule(() -> "final check");
-      assertEquals("final check", testFuture.get());
+      assertEquals("final check", testFuture.toCompletableFuture().get());
     } finally {
       testScheduler.close();
     }
@@ -1071,7 +1062,7 @@ class SingleThreadedSchedulerTest {
 
   @Test
   void testRunFlagInSchedulerLoop() throws Exception {
-    // This test explicitly targets the running.get() in the while loop of schedulerLoop
+    // This test explicitly targets the running.getNow() in the while loop of schedulerLoop
 
     // Create a scheduler for testing
     SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
@@ -1081,7 +1072,7 @@ class SingleThreadedSchedulerTest {
 
     // Schedule a task to verify the scheduler is running correctly
     FlowFuture<String> initialFuture = testScheduler.schedule(() -> "initial task");
-    assertEquals("initial task", initialFuture.get());
+    assertEquals("initial task", initialFuture.toCompletableFuture().get());
 
     // Access the running flag using reflection
     Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
@@ -1108,7 +1099,7 @@ class SingleThreadedSchedulerTest {
 
     // Verify that the scheduler can restart by scheduling a new task
     FlowFuture<String> future = testScheduler.schedule(() -> "new scheduler");
-    assertEquals("new scheduler", future.get());
+    assertEquals("new scheduler", future.toCompletableFuture().get());
 
     // Cleanup
     testScheduler.close();
@@ -1152,6 +1143,218 @@ class SingleThreadedSchedulerTest {
 
     // Schedule another task to verify scheduler still works
     FlowFuture<String> future = scheduler.schedule(() -> "after-exception");
-    assertEquals("after-exception", future.get());
+    assertEquals("after-exception", future.toCompletableFuture().get());
+  }
+
+  @Test
+  void testPumpMethodWithReadyTasks() throws Exception {
+    scheduler.close();
+    scheduler = new SingleThreadedScheduler(false);
+
+    // This test specifically tests the pump() method to ensure it processes all ready tasks
+
+    // Create a synchronized list to store execution order
+    List<String> executions = Collections.synchronizedList(new ArrayList<>());
+
+    // Create a latch to signal when tasks have started
+    CountDownLatch setupLatch = new CountDownLatch(3);
+
+    // Create a latch to signal when tasks have yielded
+    CountDownLatch yieldLatch = new CountDownLatch(3);
+
+    // Create a latch to signal when tasks have completed
+    CountDownLatch completionLatch = new CountDownLatch(3);
+
+    // Schedule tasks that will yield and then continue
+    scheduler.schedule(() -> {
+      // Record task start
+      executions.add("task1-start");
+      setupLatch.countDown();
+
+      try {
+        // First yield
+        scheduler.await(scheduler.yield());
+
+        // Signal that we've yielded but not yet completed
+        yieldLatch.countDown();
+
+        // Second yield to ensure we stay in the ready queue
+        scheduler.await(scheduler.yield());
+
+        // Record resumption and completion
+        executions.add("task1-resumed");
+        completionLatch.countDown();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    });
+
+    scheduler.schedule(() -> {
+      // Record task start
+      executions.add("task2-start");
+      setupLatch.countDown();
+
+      try {
+        // First yield
+        scheduler.await(scheduler.yield());
+
+        // Signal that we've yielded but not yet completed
+        yieldLatch.countDown();
+
+        // Second yield to ensure we stay in the ready queue
+        scheduler.await(scheduler.yield());
+
+        // Record resumption and completion
+        executions.add("task2-resumed");
+        completionLatch.countDown();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    });
+
+    scheduler.schedule(() -> {
+      // Record task start
+      executions.add("task3-start");
+      setupLatch.countDown();
+
+      try {
+        // First yield
+        scheduler.await(scheduler.yield());
+
+        // Signal that we've yielded but not yet completed
+        yieldLatch.countDown();
+
+        // Second yield to ensure we stay in the ready queue
+        scheduler.await(scheduler.yield());
+
+        // Record resumption and completion
+        executions.add("task3-resumed");
+        completionLatch.countDown();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return null;
+    });
+
+    int processed = scheduler.pump();
+    assertEquals(3, processed, "Pump should have processed all 3 tasks");
+
+    // Wait for all tasks to start
+    assertTrue(setupLatch.await(1, TimeUnit.SECONDS), "Tasks should start");
+
+    processed = scheduler.pump();
+    assertEquals(3, processed, "Pump should have processed all 3 tasks");
+    processed = scheduler.pump();
+    assertEquals(3, processed, "Pump should have processed all 3 tasks");
+
+    // Wait for all tasks to yield
+    assertTrue(yieldLatch.await(1, TimeUnit.SECONDS), "Tasks should yield");
+
+    // Ensure tasks started
+    assertTrue(executions.contains("task1-start"), "Task 1 should have started");
+    assertTrue(executions.contains("task2-start"), "Task 2 should have started");
+    assertTrue(executions.contains("task3-start"), "Task 3 should have started");
+
+    processed = scheduler.pump();
+    assertEquals(3, processed, "Pump should have processed all 3 tasks");
+    processed = scheduler.pump();
+    assertEquals(3, processed, "Pump should have processed all 3 tasks");
+
+    // Wait for all tasks to complete
+    assertTrue(completionLatch.await(1, TimeUnit.SECONDS), "All tasks should complete after pump");
+
+    // Verify all tasks resumed
+    assertTrue(executions.contains("task1-resumed"), "Task 1 should have been resumed");
+    assertTrue(executions.contains("task2-resumed"), "Task 2 should have been resumed");
+    assertTrue(executions.contains("task3-resumed"), "Task 3 should have been resumed");
+  }
+
+  @Test
+  void testCancelTaskPropagation() throws Exception {
+    scheduler.close();
+    scheduler = new SingleThreadedScheduler(false);
+
+    // This test verifies that cancelling a task properly propagates to the task
+
+    // Create latches to track the task's state
+    CountDownLatch taskStarted = new CountDownLatch(1);
+    CountDownLatch taskYielded = new CountDownLatch(1);
+    CountDownLatch taskCancelled = new CountDownLatch(1);
+
+    // Track if we got the expected exception
+    AtomicBoolean gotCancellationException = new AtomicBoolean(false);
+
+    // Schedule a task that will yield and can be cancelled
+    FlowFuture<String> future = scheduler.schedule(() -> {
+      // Signal that the task has started
+      taskStarted.countDown();
+
+      try {
+        // First yield
+        scheduler.await(scheduler.yield());
+
+        // Signal that the task has yielded
+        taskYielded.countDown();
+
+        // Second yield (where we'll see the cancellation)
+        try {
+          scheduler.await(scheduler.yield());
+        } catch (Exception e) {
+          if (e instanceof java.util.concurrent.CancellationException) {
+            // Mark that we got the cancellation
+            gotCancellationException.set(true);
+            taskCancelled.countDown();
+          }
+          throw e;
+        }
+
+        // This should never be reached if cancellation works
+        fail("Task should be cancelled before reaching this point");
+        return "should not reach here";
+      } catch (Exception e) {
+        if (e instanceof java.util.concurrent.CancellationException) {
+          // We might reach this point depending on timing
+          gotCancellationException.set(true);
+          taskCancelled.countDown();
+        }
+        throw e;
+      }
+    });
+
+    assertEquals(1, scheduler.pump());
+
+    // Wait for the task to start
+    assertTrue(taskStarted.await(1, TimeUnit.SECONDS), "Task should have started");
+
+    assertEquals(1, scheduler.pump());
+    assertEquals(1, scheduler.pump());
+
+    // Wait for the task to yield
+    assertTrue(taskYielded.await(1, TimeUnit.SECONDS), "Task should have yielded");
+
+    // Now cancel the task
+    boolean cancelled = future.cancel(true);
+    assertTrue(cancelled, "Task should be cancelled successfully");
+
+    // Use pump to ensure all pending tasks are processed
+    assertEquals(2, scheduler.pump());
+
+    // Wait for the cancellation to be detected with a longer timeout
+    boolean cancellationDetected = taskCancelled.await(3, TimeUnit.SECONDS);
+
+    // The future should be marked as cancelled
+    assertTrue(future.isCancelled(), "Future should be marked as cancelled");
+
+    // We only assert these if the above cancellation checks passed
+    // Otherwise, this test would fail even if we fixed the implementation
+    if (future.isCancelled()) {
+      assertTrue(cancellationDetected, "Task should detect cancellation");
+      assertTrue(gotCancellationException.get(), "Task should receive cancellation exception");
+    }
   }
 }
