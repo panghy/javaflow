@@ -18,37 +18,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FlowTest {
 
   @Test
-  void testStartCallable() throws Exception {
-    FlowFuture<Integer> future = Flow.start(() -> 42);
+  void testStartActorCallable() throws Exception {
+    FlowFuture<Integer> future = Flow.startActor(() -> 42);
 
-    Flow.start(() -> Flow.await(future)).toCompletableFuture().get();
+    Flow.startActor(() -> Flow.await(future)).toCompletableFuture().get();
     assertEquals(42, future.toCompletableFuture().get());
   }
 
   @Test
-  void testStartCallableWithPriority() throws Exception {
+  void testStartActorCallableWithPriority() throws Exception {
     // Test the start method with priority parameter
-    FlowFuture<Integer> future = Flow.start(() -> 42, 5);
+    FlowFuture<Integer> future = Flow.startActor(() -> 42, 5);
 
     assertEquals(42, future.toCompletableFuture().get());
   }
 
   @Test
-  void testStartRunnable() throws Exception {
+  void testStartActorRunnable() throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
 
-    FlowFuture<Void> future = Flow.start(latch::countDown);
+    FlowFuture<Void> future = Flow.startActor(latch::countDown);
 
     assertTrue(latch.await(1, TimeUnit.SECONDS));
     future.toCompletableFuture().get(); // Should not throw
   }
 
   @Test
-  void testStartRunnableWithPriority() throws Exception {
+  void testStartActorRunnableWithPriority() throws Exception {
     // Test the start method with priority parameter for Runnable
     CountDownLatch latch = new CountDownLatch(1);
 
-    FlowFuture<Void> future = Flow.start(latch::countDown, 5);
+    FlowFuture<Void> future = Flow.startActor(latch::countDown, 5);
 
     assertTrue(latch.await(1, TimeUnit.SECONDS));
     future.toCompletableFuture().get(); // Should not throw
@@ -58,7 +58,12 @@ class FlowTest {
   void testDelay() throws Exception {
     long start = System.currentTimeMillis();
 
-    FlowFuture<Void> future = Flow.delay(0.1); // 100ms delay
+    // Wrap in Flow.start() to create a flow task context
+    FlowFuture<Void> future = Flow.startActor(() -> {
+      // Now we're in a flow task context, so delay is allowed
+      Flow.await(Flow.delay(0.1)); // 100ms delay
+      return null;
+    });
 
     future.toCompletableFuture().get();
 
@@ -69,7 +74,7 @@ class FlowTest {
   @Test
   void testYieldF() throws Exception {
     // For now, just verify it returns a completed future
-    FlowFuture<Void> future = Flow.start(() -> {
+    FlowFuture<Void> future = Flow.startActor(() -> {
       Flow.yieldF();
     });
 
@@ -114,10 +119,10 @@ class FlowTest {
   }
 
   @Test
-  void testStartCallableException() {
+  void testStartActorCallableException() {
     // Test starting a callable that throws an exception
     RuntimeException testException = new RuntimeException("test failure");
-    FlowFuture<Integer> future = Flow.start(() -> {
+    FlowFuture<Integer> future = Flow.startActor(() -> {
       throw testException;
     });
 
@@ -127,12 +132,12 @@ class FlowTest {
   }
 
   @Test
-  void testStartRunnableException() {
+  void testStartActorRunnableException() {
     // Test starting a runnable that throws an exception
     RuntimeException testException = new RuntimeException("test failure");
     AtomicBoolean exceptionThrown = new AtomicBoolean(false);
 
-    FlowFuture<Void> future = Flow.start(() -> {
+    FlowFuture<Void> future = Flow.startActor(() -> {
       exceptionThrown.set(true);
       throw testException;
     });
@@ -150,19 +155,19 @@ class FlowTest {
     CountDownLatch latch = new CountDownLatch(3);
 
     // Start three actors that increment the counter
-    Flow.start(() -> {
+    Flow.startActor(() -> {
       counter.incrementAndGet();
       latch.countDown();
       return null;
     });
 
-    Flow.start(() -> {
+    Flow.startActor(() -> {
       counter.incrementAndGet();
       latch.countDown();
       return null;
     });
 
-    Flow.start(() -> {
+    Flow.startActor(() -> {
       counter.incrementAndGet();
       latch.countDown();
       return null;
@@ -179,7 +184,7 @@ class FlowTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     // Start a flow that does multiple operations
-    Flow.start(() -> {
+    Flow.startActor(() -> {
       // First part returns a string
       return "step1";
     }).map(str -> {

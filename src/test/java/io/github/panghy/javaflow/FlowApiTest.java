@@ -23,7 +23,7 @@ class FlowApiTest {
     AtomicInteger counter = new AtomicInteger(0);
     
     // Start a task that will increment twice with a yield in between
-    FlowFuture<Integer> future = Flow.start(() -> {
+    FlowFuture<Integer> future = Flow.startActor(() -> {
       // First increment
       counter.incrementAndGet();
       
@@ -104,7 +104,7 @@ class FlowApiTest {
     
     // Start a task that will await the future
     AtomicBoolean awaited = new AtomicBoolean(false);
-    FlowFuture<String> resultFuture = Flow.start(() -> {
+    FlowFuture<String> resultFuture = Flow.startActor(() -> {
       // This will be a no-op initially since the future is not complete
       try {
         String result = Flow.await(future);

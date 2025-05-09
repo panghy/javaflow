@@ -5,11 +5,12 @@ import io.github.panghy.javaflow.core.FlowPromise;
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,10 +47,24 @@ public class SingleThreadedScheduler implements AutoCloseable {
   // Task ID counter
   private final AtomicLong taskIdCounter = new AtomicLong(0);
 
+  // Timer task ID counter
+  private final AtomicLong timerIdCounter = new AtomicLong(0);
+
   /**
    * Queue of ready tasks sorted by priority
    */
   private final PriorityBlockingQueue<Task> readyTasks = new PriorityBlockingQueue<>();
+
+  /**
+   * Queue of timer tasks sorted by execution time
+   * Map from execution time to TimerTask
+   */
+  private final NavigableMap<Long, List<TimerTask>> timerTasks = new TreeMap<>();
+
+  /**
+   * Map from timer ID to TimerTask for fast lookup/cancellation
+   */
+  private final Map<Long, TimerTask> timerIdToTask = new ConcurrentHashMap<>();
 
   /**
    * Lock to protect access to readyTasks and related operations
@@ -98,10 +113,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   private final Map<Long, FlowPromise<Void>> yieldPromises = new HashMap<>();
 
+  /**
+   * The clock used by this scheduler for timing operations
+   */
+  private final FlowClock clock;
 
   /**
    * Creates a new single-threaded scheduler with default configuration.
-   * The scheduler will use a carrier thread for automatic task processing.
+   * The scheduler will use a carrier thread for automatic task processing
+   * and a real-time clock for timing operations.
    */
   public SingleThreadedScheduler() {
     this(true);
@@ -117,7 +137,29 @@ public class SingleThreadedScheduler implements AutoCloseable {
    *                            through explicit calls to pump()
    */
   public SingleThreadedScheduler(boolean enableCarrierThread) {
+    this(enableCarrierThread, FlowClock.createRealClock());
+  }
+
+  /**
+   * Creates a new single-threaded scheduler with control over the carrier thread
+   * and a custom clock implementation for timing operations.
+   *
+   * @param enableCarrierThread if false, the scheduler will not automatically start
+   *                            a carrier thread
+   * @param clock               the clock to use for timing operations
+   */
+  public SingleThreadedScheduler(boolean enableCarrierThread, FlowClock clock) {
     this.enableCarrierThread = enableCarrierThread;
+    this.clock = clock;
+  }
+
+  /**
+   * Gets the clock being used by this scheduler.
+   *
+   * @return The clock instance
+   */
+  public FlowClock getClock() {
+    return clock;
   }
 
   /**
@@ -188,7 +230,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (currentTask != null) {
       currentTask.addChild(flowTask);
     }
-    promise.whenComplete((_, t) -> {
+    promise.whenComplete(($, t) -> {
       if (t instanceof CancellationException) {
         flowTask.cancel();
       }
@@ -217,27 +259,177 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @return Future that completes after the delay
    */
   public FlowFuture<Void> scheduleDelay(double seconds) {
+    return scheduleDelay(seconds, TaskPriority.LOW);
+  }
+
+  /**
+   * Creates a delay task that completes after specified time with the given priority.
+   *
+   * @param seconds  Delay in seconds
+   * @param priority Priority of the task
+   * @return Future that completes after the delay
+   */
+  public FlowFuture<Void> scheduleDelay(double seconds, int priority) {
+    if (seconds < 0) {
+      throw new IllegalArgumentException("Delay cannot be negative");
+    }
+
+    // Verify we're in a flow context, since delay (like yield) requires a flow context
+    if (!FlowScheduler.isInFlowContext()) {
+      throw new IllegalStateException("scheduleDelay called outside of a flow task");
+    }
+
+    // Get the current task - we know this won't be null due to the check above
+    final Task currentTask = FlowScheduler.CURRENT_TASK.get();
+    if (currentTask == null) {
+      throw new IllegalStateException("scheduleDelay called for unknown task");
+    }
+
+    // Start scheduler if not already running
+    start();
+
+    // Create a future/promise pair for the result
     FlowFuture<Void> future = new FlowFuture<>();
+    FlowPromise<Void> promise = future.getPromise();
 
     // Convert to milliseconds
     long delayMs = (long) (seconds * 1000);
 
-    // Schedule a sleep task that completes the future
-    schedule(() -> {
-      try {
-        Thread.sleep(Duration.ofMillis(delayMs));
-        return null;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw e;
-      }
-    }, TaskPriority.LOW)
-        .map(v -> {
-          future.getPromise().complete(null);
-          return null;
-        });
+    // Schedule the timer task
+    scheduleTimerTask(delayMs, promise, priority, currentTask);
 
     return future;
+  }
+
+  /**
+   * Schedules a timer task to execute after the specified delay.
+   *
+   * @param delayMs    Delay in milliseconds
+   * @param promise    Promise to complete when the timer fires
+   * @param priority   Priority of the task
+   * @param parentTask Parent task if any
+   */
+  private void scheduleTimerTask(long delayMs, FlowPromise<Void> promise, int priority,
+                                 Task parentTask) {
+    // Generate a unique timer ID
+    final long timerId = timerIdCounter.incrementAndGet();
+
+    // Calculate absolute execution time
+    final long executionTimeMs = clock.currentTimeMillis() + delayMs;
+
+    // Create a timer task
+    TimerTask timerTask = new TimerTask(
+        timerId,
+        executionTimeMs,
+        () -> {
+        },  // Empty runnable - we just need to complete the promise
+        priority,
+        promise,
+        parentTask
+    );
+
+    taskLock.lock();
+    try {
+      // Store in timer map for execution at the appropriate time
+      timerTasks.computeIfAbsent(executionTimeMs, $ -> new ArrayList<>()).add(timerTask);
+
+      // Store in ID map for cancellation
+      timerIdToTask.put(timerId, timerTask);
+
+      // Signal the scheduler thread to wake up and check for timer events
+      tasksAvailableCondition.signalAll();
+
+    } finally {
+      taskLock.unlock();
+    }
+  }
+
+  /**
+   * Cancels a scheduled timer task.
+   *
+   * @param timerId ID of the timer to cancel
+   * @return true if the timer was found and canceled, false otherwise
+   */
+  public boolean cancelTimer(long timerId) {
+    taskLock.lock();
+    try {
+      TimerTask task = timerIdToTask.remove(timerId);
+      if (task != null) {
+        // Remove from the execution map
+        List<TimerTask> tasksAtTime = timerTasks.get(task.getScheduledTimeMillis());
+        if (tasksAtTime != null) {
+          tasksAtTime.remove(task);
+          if (tasksAtTime.isEmpty()) {
+            timerTasks.remove(task.getScheduledTimeMillis());
+          }
+        }
+
+        // No need to cancel through the clock anymore - all timer management is in the scheduler
+
+        // Complete the promise exceptionally
+        task.getPromise().completeExceptionally(new CancellationException("Timer cancelled"));
+
+        return true;
+      }
+      return false;
+    } finally {
+      taskLock.unlock();
+    }
+  }
+
+  /**
+   * Processes any timer tasks that are due to execute.
+   * This is called during the scheduler loop to check for and execute timer tasks.
+   *
+   * @return The number of timer tasks processed
+   */
+  private int processTimerTasks() {
+    int processed = 0;
+    long now = clock.currentTimeMillis();
+
+    taskLock.lock();
+    try {
+      // Get all timer entries with execution time <= now
+      while (!timerTasks.isEmpty()) {
+        Map.Entry<Long, List<TimerTask>> entry = timerTasks.firstEntry();
+        if (entry == null || entry.getKey() > now) {
+          // No more timers ready to execute
+          break;
+        }
+
+        // Process all tasks at this time
+        List<TimerTask> tasksAtTime = entry.getValue();
+        for (TimerTask task : new ArrayList<>(tasksAtTime)) {
+          timerIdToTask.remove(task.getId());
+          task.execute();
+          processed++;
+        }
+
+        // Remove the processed time entry
+        timerTasks.remove(entry.getKey());
+      }
+    } finally {
+      taskLock.unlock();
+    }
+
+    return processed;
+  }
+
+  /**
+   * Gets the time when the next timer will fire, or Long.MAX_VALUE if no timers are scheduled.
+   *
+   * @return The time in milliseconds of the next timer event
+   */
+  public long getNextTimerTime() {
+    taskLock.lock();
+    try {
+      if (timerTasks.isEmpty()) {
+        return Long.MAX_VALUE;
+      }
+      return timerTasks.firstKey();
+    } finally {
+      taskLock.unlock();
+    }
   }
 
   /**
@@ -332,7 +524,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
         taskLock.lock();
         lockAcquired = true;
 
-        // Wait until there's a task in the queue
+        // Process any timer tasks that are ready
+        processTimerTasks();
+
+        // Wait until there's a task in the queue or a timer is due
         while (readyTasks.isEmpty()) {
           // Exit early if scheduler is stopping
           if (!running.get()) {
@@ -342,7 +537,32 @@ public class SingleThreadedScheduler implements AutoCloseable {
             return;
           }
 
-          tasksAvailableCondition.await();
+          // Check if we have timers to wait for
+          long nextTimer = getNextTimerTime();
+          long now = clock.currentTimeMillis();
+
+          if (nextTimer != Long.MAX_VALUE && nextTimer <= now) {
+            // Process timers before waiting
+            processTimerTasks();
+            // Check if any tasks became ready
+            if (!readyTasks.isEmpty()) {
+              break;
+            }
+            // Recalculate next timer time
+            nextTimer = getNextTimerTime();
+          }
+
+          if (nextTimer != Long.MAX_VALUE) {
+            // Wait until next timer or until signaled
+            long waitTime = nextTimer - now;
+            if (waitTime > 0) {
+              //noinspection ResultOfMethodCallIgnored
+              tasksAvailableCondition.await(waitTime, java.util.concurrent.TimeUnit.MILLISECONDS);
+            }
+          } else {
+            // No timers, wait indefinitely for tasks
+            tasksAvailableCondition.await();
+          }
 
           // Check again if we should exit
           if (!running.get()) {
@@ -350,6 +570,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
             taskLock.unlock();
             lockAcquired = false;
             return;
+          }
+
+          // Process any timer tasks that are ready after waiting
+          processTimerTasks();
+
+          // If any tasks were added or timer tasks made ready tasks, break out of wait loop
+          if (!readyTasks.isEmpty()) {
+            break;
           }
         }
 
@@ -486,7 +714,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Mark this task as yielding
     task.setState(Task.TaskState.SUSPENDED);
 
-    future.getPromise().whenComplete((_, _) -> {
+    future.getPromise().whenComplete(($, __) -> {
       taskLock.lock();
       try {
         readyTasks.add(task);
@@ -510,9 +738,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
   /**
    * Processes all ready tasks until all have yielded or completed.
+   * Also processes any timer tasks that are due based on the current time.
    * This is useful for testing, where we want to ensure all tasks have a chance to run.
-   * In particular, when testing timers or other asynchronous operations, this method
-   * can be used to ensure all ready tasks are processed before checking the results.
    *
    * <p>This method processes tasks in a deterministic order based on task priority.</p>
    *
@@ -527,11 +754,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
     }
     int processedTasks = 0;
 
+    // First process any timer tasks that are due
+    int timerTasksProcessed = processTimerTasks();
+
     taskLock.lock();
     try {
       // If there are no ready tasks, we're done
       if (readyTasks.isEmpty()) {
-        return 0;
+        return timerTasksProcessed;
       }
 
       // Take a snapshot of all currently ready tasks
@@ -565,7 +795,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
         }
       }
 
-      return processedTasks;
+      return processedTasks + timerTasksProcessed;
     } finally {
       if (taskLock.isHeldByCurrentThread()) {
         taskLock.unlock();
@@ -602,6 +832,60 @@ public class SingleThreadedScheduler implements AutoCloseable {
   }
 
   /**
+   * If using a simulated clock, advances the clock by the specified duration
+   * and processes any timer tasks that become due.
+   *
+   * @param millis The number of milliseconds to advance
+   * @return The number of timer tasks processed
+   * @throws IllegalStateException if the clock is not a simulated clock
+   */
+  public int advanceTime(long millis) {
+    if (!clock.isSimulated()) {
+      throw new IllegalStateException("advanceTime can only be called with a simulated clock");
+    }
+
+    SimulatedClock simulatedClock = (SimulatedClock) clock;
+
+    System.out.println(">>> SingleThreadedScheduler.advanceTime(" + millis + ") - start time: " +
+                       clock.currentTimeMillis() + "ms");
+
+    // First process any already-due timer tasks
+    int tasksExecuted = processTimerTasks();
+    System.out.println(">>> Initial processTimerTasks executed " + tasksExecuted + " tasks");
+
+    // Advance the clock without processing tasks (the clock no longer handles tasks)
+    simulatedClock.advanceTime(millis);
+    System.out.println(">>> Clock advanced to " + clock.currentTimeMillis() + "ms");
+
+    // Process any new timer tasks that are now due based on the new time
+    int additionalTimerTasks = processTimerTasks();
+    tasksExecuted += additionalTimerTasks;
+    System.out.println(">>> Timer tasks processed after advancing time: " +
+                       additionalTimerTasks + " tasks");
+
+    // Ensure callbacks are processed by doing multiple pump cycles
+    // This is important for tasks with cascading futures and delays
+    for (int i = 0; i < 3; i++) {
+      int pumpTasks = pump();
+      tasksExecuted += pumpTasks;
+      System.out.println(">>> Pump cycle #" + i + " executed " + pumpTasks + " tasks");
+
+      // Break early if no tasks were processed
+      if (pumpTasks == 0) {
+        break;
+      }
+
+      // Process any timer tasks that might have been scheduled during pumping
+      int moreTasks = processTimerTasks();
+      tasksExecuted += moreTasks;
+      System.out.println(">>> Additional timer tasks after pump #" + i + ": " + moreTasks);
+    }
+
+    System.out.println(">>> advanceTime complete - total tasks executed: " + tasksExecuted);
+    return tasksExecuted;
+  }
+
+  /**
    * Shuts down the scheduler.
    */
   @Override
@@ -627,6 +911,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
       taskToScope.clear();
       idToTask.clear();
       yieldPromises.clear();
+      timerTasks.clear();
+      timerIdToTask.clear();
     }
   }
 }

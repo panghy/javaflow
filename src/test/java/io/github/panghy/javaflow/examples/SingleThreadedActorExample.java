@@ -52,7 +52,7 @@ public class SingleThreadedActorExample {
     AtomicInteger processedCount = new AtomicInteger(0);
 
     // Generator actor - creates work and adds it to the queue
-    FlowFuture<Void> generator = Flow.start(() -> {
+    FlowFuture<Void> generator = Flow.startActor(() -> {
       try {
         System.out.println("Generator starting");
 
@@ -77,7 +77,7 @@ public class SingleThreadedActorExample {
     List<FlowFuture<Void>> workers = new ArrayList<>();
     for (int w = 0; w < workerCount; w++) {
       final int workerId = w;
-      FlowFuture<Void> worker = Flow.start(() -> {
+      FlowFuture<Void> worker = Flow.startActor(() -> {
         try {
           System.out.println("Worker " + workerId + " starting");
 
@@ -122,7 +122,7 @@ public class SingleThreadedActorExample {
     }
 
     // Logger actor - periodically logs progress
-    FlowFuture<Void> logger = Flow.start(() -> {
+    FlowFuture<Void> logger = Flow.startActor(() -> {
       try {
         System.out.println("Logger starting");
 

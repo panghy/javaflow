@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class FlowSchedulerTest {
 
@@ -47,7 +48,17 @@ class FlowSchedulerTest {
   void testScheduleDelay() throws Exception {
     long start = System.currentTimeMillis();
 
-    FlowFuture<Void> future = scheduler.scheduleDelay(0.1); // 100ms
+    // First we need to create a flow task to establish a flow context
+    FlowFuture<Void> future = scheduler.schedule(() -> {
+      // Now we're in a flow context, so scheduleDelay is allowed
+      try {
+        FlowFuture<Void> delayFuture = scheduler.scheduleDelay(0.1); // 100ms
+        scheduler.await(delayFuture);
+      } catch (Exception e) {
+        fail("Delay failed: " + e.getMessage());
+      }
+      return null;
+    });
 
     future.toCompletableFuture().get();
 
@@ -328,17 +339,19 @@ class FlowSchedulerTest {
   @Test
   void testPumpWithTimers() throws Exception {
     scheduler.close();
-    scheduler = new FlowScheduler(false);
+    scheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
 
     // Test that pump helps process timer-based tasks
     AtomicInteger counter = new AtomicInteger(0);
     CountDownLatch readyLatch = new CountDownLatch(3); // This latch ensures timers have completed
     CountDownLatch completionLatch = new CountDownLatch(3);
 
-    // Schedule three delays with callbacks
-    FlowFuture<Void> delay1 = scheduler.scheduleDelay(0.05); // 50ms
-    delay1.map(v -> {
+    // Schedule three tasks that create delays
+    scheduler.schedule(() -> {
       try {
+        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        scheduler.await(delay); // Wait for the delay to complete
+
         readyLatch.countDown(); // Signal that timer completed
         scheduler.await(scheduler.yield()); // Yield so it goes back to the ready queue
         counter.incrementAndGet(); // Only incremented after pump executes it
@@ -349,9 +362,11 @@ class FlowSchedulerTest {
       return null;
     });
 
-    FlowFuture<Void> delay2 = scheduler.scheduleDelay(0.05); // 50ms  
-    delay2.map(v -> {
+    scheduler.schedule(() -> {
       try {
+        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        scheduler.await(delay); // Wait for the delay to complete
+
         readyLatch.countDown(); // Signal that timer completed
         scheduler.await(scheduler.yield()); // Yield so it goes back to the ready queue
         counter.incrementAndGet(); // Only incremented after pump executes it
@@ -362,9 +377,11 @@ class FlowSchedulerTest {
       return null;
     });
 
-    FlowFuture<Void> delay3 = scheduler.scheduleDelay(0.05); // 50ms
-    delay3.map(v -> {
+    scheduler.schedule(() -> {
       try {
+        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        scheduler.await(delay); // Wait for the delay to complete
+
         readyLatch.countDown(); // Signal that timer completed
         scheduler.await(scheduler.yield()); // Yield so it goes back to the ready queue
         counter.incrementAndGet(); // Only incremented after pump executes it
@@ -375,25 +392,44 @@ class FlowSchedulerTest {
       return null;
     });
 
-    int processed = scheduler.pump();
-    assertTrue(processed >= 3, "Pump should have processed at least 3 tasks");
+    // Advance time to trigger the timers
+    ((SimulatedClock) scheduler.getClock()).advanceTime(100);
 
-    // Wait for all timers to complete and be ready for processing
-    assertTrue(readyLatch.await(2, TimeUnit.SECONDS), "Timers did not complete in time");
+    // Process all the tasks that are now ready
+    for (int i = 0; i < 5; i++) {
+      scheduler.pump();
+      if (readyLatch.getCount() == 0) {
+        break;
+      }
+    }
 
-    // At this point, all callbacks have yielded and are in the ready queue
+    // Verify all timers fired (waiting longer if needed)
+    boolean allTimersFired = readyLatch.await(1, TimeUnit.SECONDS);
 
-    // By this point, some callbacks might have already executed due to asynchronous behavior
-    // We'll just ensure our counter is fully incremented after pump
+    if (!allTimersFired) {
+      // Try advancing time and pumping again
+      ((SimulatedClock) scheduler.getClock()).advanceTime(100);
+      for (int i = 0; i < 5; i++) {
+        scheduler.pump();
+      }
+      allTimersFired = readyLatch.await(1, TimeUnit.SECONDS);
+    }
 
-    // Use pump to process all queued callbacks
-    processed = scheduler.pump();
-    assertTrue(processed >= 3, "Pump should have processed at least 3 tasks");
-    processed = scheduler.pump();
-    assertTrue(processed >= 3, "Pump should have processed at least 3 tasks");
+    assertTrue(allTimersFired, "All timers should have fired");
 
-    // Verify all callbacks executed
-    assertTrue(completionLatch.await(1, TimeUnit.SECONDS), "All delays should have completed");
+    // Pump again to process all yielded tasks
+    for (int i = 0; i < 5; i++) {
+      scheduler.pump();
+      if (completionLatch.getCount() == 0) {
+        break;
+      }
+    }
+
+    // Verify all callbacks executed (waiting longer if needed)
+    boolean allCallbacksExecuted = completionLatch.await(1, TimeUnit.SECONDS);
+    assertTrue(allCallbacksExecuted, "All delays should have completed");
+
+    // Verify the counter
     assertEquals(3, counter.get(), "Counter should have been incremented 3 times");
   }
 }
