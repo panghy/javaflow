@@ -139,10 +139,18 @@ public class Task implements Comparable<Task> {
 
   /**
    * Adds a child task.
+   * This operation will be rejected if the task is already cancelled or completed/failed.
    *
    * @param child The child task
+   * @throws IllegalStateException if this task is already cancelled or completed/failed
    */
   public void addChild(Task child) {
+    if (isCancelled()) {
+      throw new IllegalStateException("Cannot add child to cancelled task");
+    }
+    if (state == TaskState.COMPLETED || state == TaskState.FAILED) {
+      throw new IllegalStateException("Cannot add child to completed or failed task");
+    }
     children.updateAndGet(list -> {
       if (list == null) {
         list = new HashSet<>();

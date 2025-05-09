@@ -3,16 +3,14 @@ package io.github.panghy.javaflow.scheduler;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests specifically for the Task cancellation behavior, focusing on
@@ -87,18 +85,17 @@ class TaskCancellationTest {
     // Verify that the ConcurrentModificationException didn't occur
     // We can't assert exact order since those tasks might not be processed at all
     // But we know that cancelOrder should have at least the parent and the first 2 child tasks
-    assertTrue(cancelOrder.size() >= 3, 
-        "At least parent and non-removed children should have their callbacks called");
+    assertTrue(cancelOrder.size() >= 3, "Parent and non-removed children have callbacks");
   }
   
   @Test
-  void testCancellationWithSelfModifyingChildren() throws Exception {
+  void testCannotAddChildrenDuringCancellation() throws Exception {
     // Create a parent task
     Task parentTask = new Task(1, TaskPriority.DEFAULT, () -> "parent", null);
     
     // Track which tasks are cancelled
     AtomicInteger initialChildrenCancelled = new AtomicInteger(0);
-    AtomicInteger newChildrenCancelled = new AtomicInteger(0);
+    AtomicInteger addChildExceptions = new AtomicInteger(0);
     AtomicBoolean parentCancelled = new AtomicBoolean(false);
     
     // Create initial children
@@ -107,20 +104,25 @@ class TaskCancellationTest {
       final int childId = i;
       Task child = new Task(childId, TaskPriority.DEFAULT, () -> "child" + childId, parentTask);
       
-      // Set cancellation callback that adds a new child
+      // Set cancellation callback that tries to add a new child (which should fail)
       child.setCancellationCallback(() -> {
         initialChildrenCancelled.incrementAndGet();
         
-        // When cancelled, add a new child to the parent
+        // When cancelled, try to add a new child to the parent (should fail)
         final int newChildId = childId + 10;
-        Task newChild = new Task(newChildId, TaskPriority.DEFAULT, 
-            () -> "dynamic-child" + newChildId, parentTask);
+        Task newChild = new Task(
+            newChildId, 
+            TaskPriority.DEFAULT, 
+            () -> "dynamic-child" + newChildId, 
+            parentTask);
         
-        // Set callback for the new child
-        newChild.setCancellationCallback(() -> newChildrenCancelled.incrementAndGet());
-        
-        // Add the new child to the parent
-        parentTask.addChild(newChild);
+        // Try to add the new child to the parent, which should fail
+        try {
+          parentTask.addChild(newChild);
+        } catch (IllegalStateException e) {
+          // Expected exception - parent is cancelled
+          addChildExceptions.incrementAndGet();
+        }
       });
       
       initialChildren.add(child);
@@ -146,8 +148,8 @@ class TaskCancellationTest {
       assertTrue(child.isCancelled(), "Initial child should be cancelled");
     }
     
-    // The new children added during cancellation should not necessarily be cancelled
-    // because Java's implementation of forEach isn't guaranteed to see modifications during iteration
+    // Verify that attempts to add children during cancellation failed
+    assertEquals(3, addChildExceptions.get(), "All attempts to add children should have failed");
   }
   
   @Test
@@ -181,8 +183,7 @@ class TaskCancellationTest {
     parentTask.cancel();
     
     // Verify cancellation callbacks were called for parent and all children
-    assertEquals(5, cancellationCallCount.get(), 
-        "Cancellation callbacks should be called for parent and all children");
+    assertEquals(5, cancellationCallCount.get(), "Callbacks called for parent and children");
     
     // Verify parent is marked as cancelled
     assertTrue(parentTask.isCancelled(), "Parent task should be marked as cancelled");
@@ -217,12 +218,14 @@ class TaskCancellationTest {
     child1.addChild(grandchild1);
     
     // Create great-grandchild 1
-    Task greatGrandchild1 = new Task(4, TaskPriority.DEFAULT, () -> "greatGrandchild1", grandchild1);
+    Task greatGrandchild1 = new Task(
+        4, TaskPriority.DEFAULT, () -> "greatGrandchild1", grandchild1);
     greatGrandchild1.setCancellationCallback(() -> cancellationOrder.add(greatGrandchild1.getId()));
     grandchild1.addChild(greatGrandchild1);
     
     // Create great-grandchild 2
-    Task greatGrandchild2 = new Task(5, TaskPriority.DEFAULT, () -> "greatGrandchild2", grandchild1);
+    Task greatGrandchild2 = new Task(
+        5, TaskPriority.DEFAULT, () -> "greatGrandchild2", grandchild1);
     greatGrandchild2.setCancellationCallback(() -> cancellationOrder.add(greatGrandchild2.getId()));
     grandchild1.addChild(greatGrandchild2);
     

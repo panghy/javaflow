@@ -96,6 +96,42 @@ FlowJava will employ a **single-threaded, cooperative scheduling** model to run 
   }
   ```
 
+* **Deterministic Task Processing with Pump Method:** For testing and deterministic execution, FlowJava will provide a **pump method** that allows manual processing of ready tasks without relying on the carrier thread. This method will be especially useful for simulation and testing scenarios where fine-grained control over task execution is needed. In pseudocode, the pump method might look like this:
+
+  ```java
+  public int pump() {
+    if (enableCarrierThread) {
+      throw new IllegalStateException("pump() can only be called when carrier thread is disabled");
+    }
+    int processedTasks = 0;
+    
+    // Take a snapshot of all currently ready tasks
+    List<Task> tasksToProcess = new ArrayList<>();
+    while (!readyQueue.isEmpty()) {
+      Task task = findHighestPriorityTask();  // get highest priority task
+      if (task == null) {
+        break;
+      }
+      tasksToProcess.add(task);
+    }
+    
+    // Process all tasks in the snapshot
+    for (Task task : tasksToProcess) {
+      task.resume();  // resume the task's execution
+      processedTasks++;
+    }
+    
+    return processedTasks;  // return the number of tasks processed
+  }
+  ```
+
+  The pump method provides several critical benefits:
+  - **Deterministic ordering**: Tasks are processed in a predictable order based on priority.
+  - **Manual control**: Tests can control exactly when tasks are executed.
+  - **Batch processing**: All ready tasks are processed in a single call, ensuring that the system reaches a stable state.
+  - **Cancellation integration**: Cancelled tasks are automatically removed from processing.
+  - **No unwanted concurrency**: The carrier thread can be disabled, preventing background task execution during tests.
+
   This structure ensures that CPU-bound actor tasks and external events (like network or disk readiness) are processed in a controlled, alternating manner. In practice, the implementation might be more complex (to batch multiple actor runs before checking I/O, etc.), but the requirement is that **all sources of wake-ups funnel through the FlowJava scheduler**. For instance, when a socket becomes readable or a timer expires, that triggers an event which enqueues a corresponding promise’s completion; the actual handling of that event (resuming whatever actor was waiting on it) happens via the event loop. This way, even external events don’t interrupt running actors arbitrarily – they wait their turn. This approach closely mirrors the proven design where an external I/O library was polled for at most one event per loop iteration, giving the framework control over interleaving. FlowJava should use Java’s own facilities (see I/O section) to achieve the same effect.
 
 * **Integration with Loom (Virtual Threads):** FlowJava will create each actor as a Loom **virtual thread** but ensure they execute cooperatively on one carrier thread. The scheduler design will likely involve a custom `Executor` for virtual threads that never runs two tasks in parallel. One strategy is: create a single-threaded executor (with an unbounded queue) and configure `Thread.ofVirtual().scheduler(executor)` when launching actor threads. This way, when an actor calls `Flow.await(someFuture)`, the Loom runtime will park that virtual thread and free the carrier (the single executor thread) to run another task from its queue. That other task could be another actor that’s ready. When the awaited future completes, its promise fulfillment will enqueue the continuation of the waiting actor back into the executor’s queue. This effectively implements our event loop using Loom’s scheduling. **Requirement:** The implementation must confirm that only one carrier thread is active (for determinism), except possibly for separate threads handling actual OS I/O waits (discussed later) which will communicate back to this scheduler in a synchronized way. By leveraging Loom, we avoid writing our own context-switching or stack management – the JVM handles pausing and resuming the actors as virtual threads, which simplifies the implementation enormously (and avoids any need for bytecode instrumentation or code generation). The execution model described (single-thread, cooperative) is thus enforced by the combination of using one carrier thread and the natural blocking points of virtual threads.

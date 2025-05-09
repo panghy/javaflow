@@ -68,6 +68,7 @@ Phases 1 and 2 have been completed, establishing the core future and actor abstr
 | 2.8 | **Continuation Management** - Proper resumption of suspended tasks | ✅ Completed |
 | 2.9 | **Integration Tests** - Multi-actor coordination testing | ✅ Completed |
 | 2.10 | **Actor Example** - Example demonstrating cooperative scheduling | ✅ Completed |
+| 2.11 | **Pump Method** - Manual task processing for deterministic testing | ✅ Completed |
 
 #### Phase 3: Timers and Clock
 
@@ -149,6 +150,7 @@ JavaFlow provides:
 - **SingleThreadedScheduler**: Cooperative multitasking with one task active at a time
 - **Task & TaskPriority**: Prioritized operations for optimal scheduling
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
+- **Pump Method**: Deterministic task processing for testing and simulation
 - **FlowClock & Timers**: Time-based operations and controllable clock for testing
 
 ### Design Principles

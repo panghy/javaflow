@@ -5,12 +5,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the SingleThreadedScheduler constructor options, particularly
@@ -66,7 +69,7 @@ class SingleThreadedSchedulerConstructorTest {
     
     // Wait a moment - the task should NOT execute automatically
     Thread.sleep(200);
-    assertFalse(executed.get(), "Task should not execute automatically with carrier thread disabled");
+    assertFalse(executed.get(), "Task should not execute automatically with carrier thread off");
     
     // Now manually pump the scheduler
     int tasksProcessed = scheduler.pump();
@@ -113,8 +116,8 @@ class SingleThreadedSchedulerConstructorTest {
     scheduler = new SingleThreadedScheduler(true);
     
     // Should throw an exception when trying to pump with carrier thread enabled
-    assertThrows(IllegalStateException.class, () -> scheduler.pump(),
-        "Pump should throw an exception when carrier thread is enabled");
+    assertThrows(IllegalStateException.class, () -> scheduler.pump(), 
+        "Pump should throw exception when carrier thread enabled");
   }
   
   /**
