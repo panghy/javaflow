@@ -208,7 +208,7 @@ class FlowTest {
     FlowFuture<String> future2 = future1.map(s -> s + " mapped");
 
     // When we cancel the first future
-    future1.cancel(true);
+    future1.cancel();
 
     // Check that it was marked as cancelled
     assertTrue(future1.isCancelled());

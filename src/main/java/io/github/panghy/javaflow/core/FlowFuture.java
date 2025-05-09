@@ -142,21 +142,16 @@ public class FlowFuture<T> {
           } else if (!result.isDone()) {
             // Complete with the first successful result
             result.promise.complete(value);
+            // cancel all other futures
+            for (FlowFuture<U> other : futures) {
+              if (other != future) {
+                other.cancel();
+              }
+            }
           }
         }
       });
     }
-
-    // Handle edge case: if all futures are already done with exceptions
-    CompletableFuture.runAsync(() -> {
-      synchronized (lock) {
-        if (!result.isDone() && failureCount[0] == futures.size()) {
-          result.promise.completeExceptionally(
-              new RuntimeException("All futures completed exceptionally"));
-        }
-      }
-    });
-
     return result;
   }
 
@@ -177,6 +172,7 @@ public class FlowFuture<T> {
           result.promise.completeExceptionally(exception);
         } else {
           result.promise.complete(null);
+          other.cancel();
         }
       }
     });
@@ -188,6 +184,7 @@ public class FlowFuture<T> {
           result.promise.completeExceptionally(exception);
         } else {
           result.promise.complete(null);
+          this.cancel();
         }
       }
     });
@@ -266,7 +263,7 @@ public class FlowFuture<T> {
         result.promise.completeExceptionally(exception);
       } else if (isCancelled()) {
         // Propagate cancellation from parent to child
-        result.cancel(true);
+        result.cancel();
       } else {
         // Map the value
         try {
@@ -295,7 +292,7 @@ public class FlowFuture<T> {
       try {
         if (isCancelled()) {
           // If the parent is cancelled, propagate to result
-          result.cancel(true);
+          result.cancel();
           return CompletableFuture.failedFuture(
               new CancellationException("Parent future was cancelled"));
         }
@@ -331,11 +328,10 @@ public class FlowFuture<T> {
    * CancellationException.
    * If an actor is awaiting this future, the awaiting actor's task will also be cancelled.
    *
-   * @param mayInterruptIfRunning true if the thread executing this task should be interrupted
    * @return true if the task was cancelled
    */
-  public boolean cancel(boolean mayInterruptIfRunning) {
-    boolean result = delegate.cancel(mayInterruptIfRunning);
+  public boolean cancel() {
+    boolean result = delegate.cancel(false);
     if (result) {
       CancellationException ce = new CancellationException("Future was cancelled");
       promise.completeExceptionally(ce);

@@ -4,6 +4,7 @@ import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Callable;
 
@@ -174,12 +175,46 @@ class TimerTaskTest {
   void testToString() {
     // Create a timer task
     TimerTask task = new TimerTask(42, 1000, () -> { }, TaskPriority.HIGH, createPromise(), null);
-    
+
     // Verify toString contains key information
     String str = task.toString();
     assertNotNull(str);
     assertTrue(str.contains("id=42"));
     assertTrue(str.contains("scheduledTime=1000"));
     assertTrue(str.contains("priority=" + TaskPriority.HIGH));
+  }
+
+  @Test
+  void testParentTaskCancellation() {
+    // Create a parent task
+    Task parentTask = new Task(1, TaskPriority.DEFAULT, (Callable<Void>) () -> null, null);
+
+    // Create a promise to detect cancellation
+    FlowPromise<Void> promise = createPromise();
+    AtomicBoolean promiseCancelled = new AtomicBoolean(false);
+
+    // Set up to detect cancellation completion
+    // We'll use a lambda when completing the promise exceptionally to check if it's a cancellation
+
+    // Create a timer task with the parent task
+    TimerTask timerTask = new TimerTask(42, 1000, () -> { }, TaskPriority.DEFAULT, promise, parentTask);
+
+    // Register the timer with the parent (normally done by scheduler)
+    parentTask.registerTimerTask(timerTask.getId());
+
+    // Set up cancellation callback (normally done by scheduler)
+    parentTask.setCancellationCallback(() -> {
+      // Complete the promise exceptionally with cancellation
+      CancellationException ce = new CancellationException("Parent task cancelled");
+      promise.completeExceptionally(ce);
+      // Mark that we detected the cancellation
+      promiseCancelled.set(true);
+    });
+
+    // Cancel the parent task
+    parentTask.cancel();
+
+    // Verify the promise was completed with cancellation
+    assertTrue(promiseCancelled.get(), "Promise should be cancelled when parent task is cancelled");
   }
 }

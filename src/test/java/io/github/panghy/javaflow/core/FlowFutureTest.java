@@ -65,7 +65,7 @@ class FlowFutureTest {
 
     assertFalse(future.isCancelled());
 
-    future.cancel(true);
+    future.cancel();
 
     assertTrue(future.isCancelled());
     assertTrue(future.isDone());
@@ -80,7 +80,7 @@ class FlowFutureTest {
     assertFalse(future.isCancelled());
 
     // Should return false since future is already completed
-    boolean result = future.cancel(true);
+    boolean result = future.cancel();
 
     assertFalse(result);
     assertFalse(future.isCancelled());
@@ -208,7 +208,7 @@ class FlowFutureTest {
     FlowFuture<String> future1 = new FlowFuture<>();
     FlowFuture<String> future2 = future1.map(s -> s + " mapped");
     
-    future1.cancel(true);
+    future1.cancel();
     
     assertTrue(future1.isCancelled());
     assertTrue(future2.isCancelled());
@@ -225,7 +225,7 @@ class FlowFutureTest {
       return nestedFuture;
     });
     
-    future1.cancel(true);
+    future1.cancel();
     
     assertTrue(future1.isCancelled());
     assertTrue(future2.isCompletedExceptionally());

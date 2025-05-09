@@ -257,7 +257,7 @@ class PumpMethodTest {
     assertTrue(yielded.get(), "Task should have reached the yield point");
     
     // Cancel the task
-    future.cancel(true);
+    future.cancel();
     
     // Pump multiple times to ensure the task has a chance to process the cancellation
     for (int i = 0; i < 3 && !cancelLatch.await(100, TimeUnit.MILLISECONDS); i++) {
