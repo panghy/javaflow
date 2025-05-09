@@ -1,5 +1,7 @@
 package io.github.panghy.javaflow.core;
 
+import io.github.panghy.javaflow.Flow;
+
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -220,6 +222,17 @@ public class FlowFuture<T> {
       }
     }
     throw new IllegalStateException("Future is not done");
+  }
+
+  /**
+   * Waits for the future to complete and returns its value. This method
+   * should only be called from within a flow task.
+   *
+   * @return The value of the future
+   * @throws Exception if the future completed exceptionally
+   */
+  public T await() throws Exception {
+    return Flow.await(this);
   }
 
   /**
