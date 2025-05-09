@@ -3,7 +3,9 @@ package io.github.panghy.javaflow.scheduler;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,6 +27,9 @@ public class Task implements Comparable<Task> {
   private final Task parent;
   private final AtomicReference<HashSet<Task>> children = new AtomicReference<>();
   private final AtomicReference<Runnable> cancellationCallback = new AtomicReference<>();
+
+  // Track timer tasks associated with this task for cancellation propagation
+  private final Set<Long> associatedTimerIds = ConcurrentHashMap.newKeySet();
 
   /**
    * Task state enum.
@@ -175,31 +180,119 @@ public class Task implements Comparable<Task> {
   }
 
   /**
+   * Gets the current cancellation callback if one exists.
+   *
+   * @return The current cancellation callback or null if none is set
+   */
+  public Runnable getCancellationCallback() {
+    return cancellationCallback.get();
+  }
+
+  /**
    * Sets the cancellation callback.
    *
    * @param callback The cancellation callback.
    */
   public void setCancellationCallback(Runnable callback) {
-    cancellationCallback.set(callback);
+    cancellationCallback.updateAndGet(existing -> {
+      if (existing == null) {
+        return callback;
+      } else {
+        // Chain the callbacks to preserve multiple registrations
+        return () -> {
+          existing.run();
+          callback.run();
+        };
+      }
+    });
   }
 
   /**
-   * Cancels the task. This will also cancel all child tasks.
+   * Registers a timer task with this task for cancellation propagation.
+   *
+   * @param timerId The ID of the timer task to register
+   */
+  public void registerTimerTask(long timerId) {
+    associatedTimerIds.add(timerId);
+  }
+
+  /**
+   * Unregisters a timer task from this task.
+   *
+   * @param timerId The ID of the timer task to unregister
+   */
+  public void unregisterTimerTask(long timerId) {
+    associatedTimerIds.remove(timerId);
+  }
+
+  /**
+   * Gets the set of timer task IDs associated with this task.
+   *
+   * @return An unmodifiable set of timer task IDs
+   */
+  public Set<Long> getAssociatedTimerIds() {
+    return Set.copyOf(associatedTimerIds);
+  }
+
+  /**
+   * Cancels the task. This will also cancel all child tasks and associated timer tasks.
    */
   public void cancel() {
     if (!isCancelled.getAndSet(true)) {
+      System.out.println("DEBUG: Cancelling task " + id + ", has callback: " +
+          (cancellationCallback.get() != null) + ", timer count: " + associatedTimerIds.size());
+
+      // Run the cancellation callback if one is set
       Runnable callback = cancellationCallback.get();
       if (callback != null) {
-        callback.run();
+        try {
+          System.out.println("DEBUG: Running cancellation callback for task " + id);
+          callback.run();
+          System.out.println("DEBUG: Completed cancellation callback for task " + id);
+        } catch (Exception e) {
+          System.out.println("DEBUG: Exception in cancellation callback for task " + id + ": " + e.getMessage());
+          e.printStackTrace();
+        }
       }
+
+      // Cancel all child tasks
       HashSet<Task> children = this.children.get();
       if (children != null) {
+        System.out.println("DEBUG: Cancelling " + children.size() + " child tasks for task " + id);
         Arrays.stream(children.toArray(Task[]::new)).
             forEach(Task::cancel);
       }
+
+      // Remove this task from its parent
       if (parent != null) {
+        System.out.println("DEBUG: Removing task " + id + " from parent " + parent.getId());
         parent.removeChild(this);
       }
+
+      // Print debug info about associated timers
+      System.out.println("DEBUG: Task " + id + " cancelled with " + associatedTimerIds.size() + " associated timers");
+
+      // Cancel all associated timer tasks
+      if (!associatedTimerIds.isEmpty()) {
+        // Create a copy of the IDs to avoid ConcurrentModificationException
+        Set<Long> timerIds = new HashSet<>(associatedTimerIds);
+        System.out.println("DEBUG: Cancelling " + timerIds.size() + " timer tasks associated with task " + id);
+
+        try {
+          // Get a reference to the scheduler's cancelTimer method
+          // We need to use the Flow class to get access to the scheduler
+          for (Long timerId : timerIds) {
+            System.out.println("DEBUG: Cancelling timer task " + timerId + " for task " + id);
+            io.github.panghy.javaflow.Flow.scheduler().cancelTimer(timerId);
+          }
+          System.out.println("DEBUG: Timer cancellation complete for task " + id);
+        } catch (Exception e) {
+          System.out.println("DEBUG: Error cancelling timer tasks: " + e.getMessage());
+          e.printStackTrace();
+        }
+      }
+    } else {
+      System.out.println("DEBUG: Task " + id + " already cancelled");
     }
   }
 

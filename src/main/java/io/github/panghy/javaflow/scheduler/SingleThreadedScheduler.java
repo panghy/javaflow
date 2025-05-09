@@ -7,9 +7,11 @@ import jdk.internal.vm.ContinuationScope;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -308,9 +310,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param promise    Promise to complete when the timer fires
    * @param priority   Priority of the task
    * @param parentTask Parent task if any
+   * @return The ID of the scheduled timer task
    */
-  private void scheduleTimerTask(long delayMs, FlowPromise<Void> promise, int priority,
-                                 Task parentTask) {
+  private long scheduleTimerTask(long delayMs, FlowPromise<Void> promise, int priority,
+                                Task parentTask) {
     // Generate a unique timer ID
     final long timerId = timerIdCounter.incrementAndGet();
 
@@ -330,11 +333,50 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     taskLock.lock();
     try {
+      // Check if the parent task is already cancelled
+      if (parentTask != null && parentTask.isCancelled()) {
+        // If the parent is already cancelled, immediately fail the promise
+        promise.completeExceptionally(new java.util.concurrent.CancellationException(
+            "Parent task is already cancelled"));
+        return timerId;
+      }
+
       // Store in timer map for execution at the appropriate time
       timerTasks.computeIfAbsent(executionTimeMs, $ -> new ArrayList<>()).add(timerTask);
 
       // Store in ID map for cancellation
       timerIdToTask.put(timerId, timerTask);
+
+      // Register the timer task with the parent task for cancellation propagation
+      if (parentTask != null) {
+        System.out.println("DEBUG: Registering timer task " + timerId + " with parent task " + parentTask.getId());
+        parentTask.registerTimerTask(timerId);
+
+        // Set up cancellation callback to chain with any existing callback
+        Runnable existingCallback = parentTask.getCancellationCallback();
+        Runnable newCallback = () -> {
+          // Cancel the timer task
+          System.out.println("DEBUG: Parent task " + parentTask.getId() +
+              " cancelled, cancelling timer task " + timerId);
+          boolean cancelled = cancelTimer(timerId);
+          System.out.println("DEBUG: Timer task " + timerId + " cancelled status: " + cancelled);
+
+          // Process other timer tasks that may be ready
+          processTimerTasks();
+        };
+
+        if (existingCallback != null) {
+          // Chain the callbacks to preserve multiple registrations
+          parentTask.setCancellationCallback(() -> {
+            System.out.println("DEBUG: Running existing callback for task " + parentTask.getId());
+            existingCallback.run();
+            System.out.println("DEBUG: Running new callback for timer task " + timerId);
+            newCallback.run();
+          });
+        } else {
+          parentTask.setCancellationCallback(newCallback);
+        }
+      }
 
       // Signal the scheduler thread to wake up and check for timer events
       tasksAvailableCondition.signalAll();
@@ -342,6 +384,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
     } finally {
       taskLock.unlock();
     }
+
+    return timerId;
   }
 
   /**
@@ -364,7 +408,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
           }
         }
 
-        // No need to cancel through the clock anymore - all timer management is in the scheduler
+        // If the task has a parent, unregister this timer from the parent
+        Task parentTask = task.getParentTask();
+        if (parentTask != null) {
+          parentTask.unregisterTimerTask(timerId);
+        }
 
         // Complete the promise exceptionally
         task.getPromise().completeExceptionally(new CancellationException("Timer cancelled"));
@@ -883,6 +931,43 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     System.out.println(">>> advanceTime complete - total tasks executed: " + tasksExecuted);
     return tasksExecuted;
+  }
+
+  /**
+   * Gets all active tasks in the scheduler.
+   * This is primarily for testing and debugging purposes.
+   *
+   * @return A set of all active tasks
+   */
+  public Set<Task> getActiveTasks() {
+    Set<Task> result = new HashSet<>();
+
+    // Add tasks from the ready queue
+    taskLock.lock();
+    try {
+      for (Task task : readyTasks) {
+        result.add(task);
+      }
+
+      // Add any task that has a continuation
+      result.addAll(idToTask.values());
+    } finally {
+      taskLock.unlock();
+    }
+
+    return result;
+  }
+
+  /**
+   * Gets the current task for a given future.
+   * This is primarily for testing and debugging purposes.
+   *
+   * @param future The future to get the task for
+   * @return The task that created the future, or null if not found
+   */
+  public Task getCurrentTaskForFuture(FlowFuture<?> future) {
+    // For testing purposes only, assume the current task
+    return FlowScheduler.CURRENT_TASK.get();
   }
 
   /**

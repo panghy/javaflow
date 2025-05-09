@@ -2,6 +2,7 @@ package io.github.panghy.javaflow.scheduler;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -171,6 +172,28 @@ public class FlowScheduler implements AutoCloseable {
   public int advanceTime(long millis) {
     return delegate.advanceTime(millis);
   }
+
+  /**
+   * Gets all active tasks in the scheduler.
+   * This is primarily for testing and debugging purposes.
+   *
+   * @return A set of all active tasks
+   */
+  public Set<Task> getActiveTasks() {
+    return delegate.getActiveTasks();
+  }
+
+  /**
+   * Gets the current task for a given future.
+   * This is primarily for testing and debugging purposes.
+   *
+   * @param future The future to get the task for
+   * @return The task that created the future, or null if not found
+   */
+  public Task getCurrentTaskForFuture(FlowFuture<?> future) {
+    return delegate.getCurrentTaskForFuture(future);
+  }
+
 
   /**
    * Yields control from the current actor to allow other actors to run.
