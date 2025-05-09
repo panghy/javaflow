@@ -2,11 +2,9 @@ package io.github.panghy.javaflow.core;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
-
-import static io.github.panghy.javaflow.Flow.await;
-import static io.github.panghy.javaflow.scheduler.FlowScheduler.isInFlowContext;
 
 /**
  * A future representing an asynchronous value in the JavaFlow actor system.
@@ -103,13 +101,25 @@ public class FlowFuture<T> {
    */
   public <R> FlowFuture<R> map(Function<? super T, ? extends R> mapper) {
     FlowFuture<R> result = new FlowFuture<>();
-    delegate.thenApply(mapper).whenComplete((value, exception) -> {
+
+    delegate.whenComplete((value, exception) -> {
       if (exception != null) {
+        // Propagate exception to the result
         result.promise.completeExceptionally(exception);
+      } else if (isCancelled()) {
+        // Propagate cancellation from parent to child
+        result.cancel(true);
       } else {
-        result.promise.complete(value);
+        // Map the value
+        try {
+          R mappedValue = mapper.apply(value);
+          result.promise.complete(mappedValue);
+        } catch (Throwable ex) {
+          result.promise.completeExceptionally(ex);
+        }
       }
     });
+
     return result;
   }
 
@@ -122,9 +132,19 @@ public class FlowFuture<T> {
    */
   public <R> FlowFuture<R> flatMap(Function<? super T, ? extends FlowFuture<R>> mapper) {
     FlowFuture<R> result = new FlowFuture<>();
+
     delegate.thenCompose(value -> {
       try {
+        if (isCancelled()) {
+          // If the parent is cancelled, propagate to result
+          result.cancel(true);
+          return CompletableFuture.failedFuture(
+              new CancellationException("Parent future was cancelled"));
+        }
+
         FlowFuture<R> mapped = mapper.apply(value);
+
+        // Link mapped future and result for value/exception propagation
         mapped.delegate.whenComplete((mappedValue, mappedException) -> {
           if (mappedException != null) {
             result.promise.completeExceptionally(mappedException);
@@ -132,6 +152,7 @@ public class FlowFuture<T> {
             result.promise.complete(mappedValue);
           }
         });
+
         return mapped.delegate;
       } catch (Throwable ex) {
         result.promise.completeExceptionally(ex);
@@ -141,11 +162,16 @@ public class FlowFuture<T> {
       result.promise.completeExceptionally(ex);
       return null;
     });
+
     return result;
   }
 
   /**
    * Attempts to cancel execution of this task.
+   * If the future is already completed, this method has no effect.
+   * If the future is not completed, it will be completed exceptionally with a
+   * CancellationException.
+   * If an actor is awaiting this future, the awaiting actor's task will also be cancelled.
    *
    * @param mayInterruptIfRunning true if the thread executing this task should be interrupted
    * @return true if the task was cancelled
@@ -153,7 +179,8 @@ public class FlowFuture<T> {
   public boolean cancel(boolean mayInterruptIfRunning) {
     boolean result = delegate.cancel(mayInterruptIfRunning);
     if (result) {
-      promise.completeExceptionally(new CancellationException("Future was cancelled"));
+      CancellationException ce = new CancellationException("Future was cancelled");
+      promise.completeExceptionally(ce);
     }
     return result;
   }
@@ -177,44 +204,30 @@ public class FlowFuture<T> {
   }
 
   /**
-   * Waits if necessary for the computation to complete, and then retrieves its result.
-   * If called from within a flow task, this method will yield cooperatively until the result
-   * is available.
-   * If called from outside a flow task and the future is not yet complete, this method will
-   * throw an IllegalStateException.
+   * Returns the value of this future if it has already completed,
+   * or throws an exception if it completed exceptionally.
    *
-   * @return the computed result
-   * @throws InterruptedException  if the current thread was interrupted
-   * @throws ExecutionException    if the computation threw an exception
-   * @throws IllegalStateException if called from outside a flow task and the future is not complete
+   * @return the value
+   * @throws ExecutionException    if the future completed exceptionally
+   * @throws IllegalStateException if the future is not done
    */
-  public T get() throws InterruptedException, ExecutionException {
-    // If future is already done, just return the result
+  public T getNow() throws ExecutionException {
     if (isDone()) {
-      return delegate.get();
+      try {
+        return delegate.getNow(null);
+      } catch (CompletionException e) {
+        throw new ExecutionException(e.getCause());
+      }
     }
+    throw new IllegalStateException("Future is not done");
+  }
 
-    if (!isInFlowContext()) {
-      // this is a convenience function for unit tests (or any non-flow code).
-      CompletableFuture<T> future = new CompletableFuture<>();
-      this.promise.whenComplete((value, exception) -> {
-        if (exception != null) {
-          future.completeExceptionally(exception);
-        } else {
-          future.complete(value);
-        }
-      });
-      return future.get();
-    }
-
-    // We're in a flow thread, so we can yield and await completion
-    try {
-      return await(this);
-    } catch (ExecutionException e) {
-      throw e;
-    } catch (Exception e) {
-      // Wrap any other exception
-      throw new ExecutionException(e);
-    }
+  /**
+   * Converts this FlowFuture to a CompletableFuture.
+   *
+   * @return The CompletableFuture representation of this FlowFuture
+   */
+  public CompletableFuture<T> toCompletableFuture() {
+    return delegate;
   }
 }
