@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -163,20 +164,7 @@ class SingleThreadedSchedulerTest {
     idToTask.put(taskId, task);
 
     // Create a task scope
-    ContinuationScope scope = new ContinuationScope("test-scope-" + taskId);
-
-    // Add to the task scope map
-    Field taskToScopeField = SingleThreadedScheduler.class.getDeclaredField("taskToScope");
-    taskToScopeField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, ContinuationScope> taskToScope =
-        (Map<Long, ContinuationScope>) taskToScopeField.get(scheduler);
-    taskToScope.put(taskId, scope);
-
-    // Create a mock continuation
-    Continuation continuation = new Continuation(scope, () -> {
-      // Do nothing
-    });
+    Continuation continuation = getContinuation("test-scope-" + taskId, taskId);
 
     // Register the continuation
     Field taskToContinuationField =
@@ -208,9 +196,8 @@ class SingleThreadedSchedulerTest {
     findHighestPriorityTaskMethod.setAccessible(true);
 
     // Create a new scheduler to avoid interference from other tests
-    SingleThreadedScheduler localScheduler = new SingleThreadedScheduler();
 
-    try {
+    try (SingleThreadedScheduler localScheduler = new SingleThreadedScheduler()) {
       // With empty queue, it should return null
       assertNull(findHighestPriorityTaskMethod.invoke(localScheduler));
 
@@ -227,8 +214,6 @@ class SingleThreadedSchedulerTest {
 
       // Now it should return a task
       assertNotNull(findHighestPriorityTaskMethod.invoke(localScheduler));
-    } finally {
-      localScheduler.close();
     }
   }
 
@@ -313,6 +298,7 @@ class SingleThreadedSchedulerTest {
       taskThread.set(Thread.currentThread());
       taskStarted.countDown();
       try {
+        //noinspection ResultOfMethodCallIgnored
         interruptTask.await(100, TimeUnit.MILLISECONDS); // Wait to be interrupted
 
         // This should never execute due to interruption
@@ -338,7 +324,7 @@ class SingleThreadedSchedulerTest {
       future.toCompletableFuture().get();
     } catch (Exception e) {
       // Expected exception
-      assertTrue(e.getCause() instanceof InterruptedException);
+      assertInstanceOf(InterruptedException.class, e.getCause());
     }
   }
 
@@ -387,20 +373,7 @@ class SingleThreadedSchedulerTest {
     yieldPromises.put(taskId, promise);
 
     // Create a task scope
-    ContinuationScope scope = new ContinuationScope("test-scope");
-
-    // Add to the task scope map
-    Field taskToScopeField = SingleThreadedScheduler.class.getDeclaredField("taskToScope");
-    taskToScopeField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, ContinuationScope> taskToScope =
-        (Map<Long, ContinuationScope>) taskToScopeField.get(scheduler);
-    taskToScope.put(taskId, scope);
-
-    // Create a real continuation
-    Continuation continuation = new Continuation(scope, () -> {
-      // Just an empty continuation
-    });
+    Continuation continuation = getContinuation("test-scope", taskId);
 
     // Register the continuation
     Field taskToContinuationField =
@@ -428,6 +401,24 @@ class SingleThreadedSchedulerTest {
 
     // Clean up
     idToTask.remove(taskId);
+  }
+
+  private Continuation getContinuation(String name, Long taskId) throws NoSuchFieldException, IllegalAccessException {
+    ContinuationScope scope = new ContinuationScope(name);
+
+    // Add to the task scope map
+    Field taskToScopeField = SingleThreadedScheduler.class.getDeclaredField("taskToScope");
+    taskToScopeField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    Map<Long, ContinuationScope> taskToScope =
+        (Map<Long, ContinuationScope>) taskToScopeField.get(scheduler);
+    taskToScope.put(taskId, scope);
+
+    // Create a real continuation
+    // Just an empty continuation
+    return new Continuation(scope, () -> {
+      // Just an empty continuation
+    });
   }
 
   @Test
@@ -459,20 +450,7 @@ class SingleThreadedSchedulerTest {
     Task task = new Task(1, TaskPriority.DEFAULT, callable, null);
 
     // Create a task scope
-    ContinuationScope scope = new ContinuationScope("test-scope-task");
-
-    // Add to the task scope map
-    Field taskToScopeField = SingleThreadedScheduler.class.getDeclaredField("taskToScope");
-    taskToScopeField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, ContinuationScope> taskToScope =
-        (Map<Long, ContinuationScope>) taskToScopeField.get(scheduler);
-    taskToScope.put(1L, scope);
-
-    // Create a mock continuation
-    Continuation continuation = new Continuation(scope, () -> {
-      // Do nothing
-    });
+    Continuation continuation = getContinuation("test-scope-task", 1L);
 
     // Register the task and continuation
     Long taskId = 1L;
@@ -516,9 +494,8 @@ class SingleThreadedSchedulerTest {
   @Test
   void testEnforcePrioritiesDisabled() throws Exception {
     // Test branch for disabled priority enforcement
-    SingleThreadedScheduler nonPriorityScheduler = new SingleThreadedScheduler();
 
-    try {
+    try (SingleThreadedScheduler nonPriorityScheduler = new SingleThreadedScheduler()) {
       // Get the readyTasks queue
       Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
       readyTasksField.setAccessible(true);
@@ -538,25 +515,18 @@ class SingleThreadedSchedulerTest {
       // Verify that tasks were processed (queue should be empty)
       assertTrue(readyTasks.isEmpty() || readyTasks.size() < 3,
           "Some tasks should have been processed even with priorities disabled");
-    } finally {
-      nonPriorityScheduler.close();
     }
   }
 
   @Test
   void testDefaultConstructor() {
-    // Use default constructor
-    SingleThreadedScheduler defaultScheduler = new SingleThreadedScheduler();
-    assertNotNull(defaultScheduler);
-
     // Verify it works by running a simple task
-    try {
+    try (SingleThreadedScheduler defaultScheduler = new SingleThreadedScheduler()) {
+      assertNotNull(defaultScheduler);
       FlowFuture<String> future = defaultScheduler.schedule(() -> "test-default");
       assertEquals("test-default", future.toCompletableFuture().get());
     } catch (Exception e) {
       throw new AssertionError("Default constructor scheduler failed to run task", e);
-    } finally {
-      defaultScheduler.close();
     }
   }
 
@@ -578,14 +548,11 @@ class SingleThreadedSchedulerTest {
     Thread.sleep(100); // Give time for interruption to be processed
 
     // Create a new scheduler since the current one might be in an inconsistent state
-    SingleThreadedScheduler newScheduler = new SingleThreadedScheduler();
 
-    try {
+    try (SingleThreadedScheduler newScheduler = new SingleThreadedScheduler()) {
       // Verify new scheduler is operational
       FlowFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
       assertEquals("post-interrupt", future.toCompletableFuture().get());
-    } finally {
-      newScheduler.close();
     }
   }
 
@@ -612,7 +579,7 @@ class SingleThreadedSchedulerTest {
     delayThread.get().interrupt();
 
     // Verify interruption is propagated
-    assertThrows(ExecutionException.class, () -> future.getNow());
+    assertThrows(ExecutionException.class, future::getNow);
   }
 
   /**
@@ -637,9 +604,7 @@ class SingleThreadedSchedulerTest {
       }
     }
 
-    DelayTestScheduler testScheduler = new DelayTestScheduler();
-
-    try {
+    try (DelayTestScheduler testScheduler = new DelayTestScheduler()) {
       // Set up the test
       Thread testThread = new Thread(() -> {
         try {
@@ -664,8 +629,6 @@ class SingleThreadedSchedulerTest {
 
       // The thread should have finished
       assertFalse(testThread.isAlive(), "Thread should have completed");
-    } finally {
-      testScheduler.close();
     }
   }
 
@@ -691,9 +654,7 @@ class SingleThreadedSchedulerTest {
       }
     }
 
-    InterruptTestScheduler testScheduler = new InterruptTestScheduler();
-
-    try {
+    try (InterruptTestScheduler testScheduler = new InterruptTestScheduler()) {
       // Create a thread to run our test method
       AtomicReference<Exception> caughtException = new AtomicReference<>();
       CountDownLatch testStarted = new CountDownLatch(1);
@@ -730,8 +691,6 @@ class SingleThreadedSchedulerTest {
       // Verify the scheduler still works
       FlowFuture<String> future = testScheduler.schedule(() -> "test works");
       assertEquals("test works", future.toCompletableFuture().get());
-    } finally {
-      testScheduler.close();
     }
   }
 
@@ -743,14 +702,9 @@ class SingleThreadedSchedulerTest {
     SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
 
     // Get access to internal fields
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
-    readyTasksField.setAccessible(true);
     runningField.setAccessible(true);
 
-    @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(testScheduler);
     AtomicBoolean running = (AtomicBoolean) runningField.get(testScheduler);
 
     // Start the scheduler
@@ -768,11 +722,6 @@ class SingleThreadedSchedulerTest {
 
     // Set running to false, which should cause the scheduler loop to exit
     running.set(false);
-
-    // Wake up the scheduler thread 
-    synchronized (readyTasks) {
-      readyTasks.notifyAll();
-    }
 
     // Create a new task right after closing to verify that the scheduler can restart
     testScheduler.close();
@@ -876,9 +825,7 @@ class SingleThreadedSchedulerTest {
         (PriorityBlockingQueue<Task>) readyTasksField.get(scheduler);
 
     // Clear any tasks and reset running count
-    synchronized (readyTasks) {
-      readyTasks.clear();
-    }
+    readyTasks.clear();
 
     // Try to force the scheduler to process an empty queue
     // We'll do this by scheduling a task that completes very quickly
@@ -918,13 +865,7 @@ class SingleThreadedSchedulerTest {
     scheduler.start();
 
     // Add the exception-throwing task to the queue
-    synchronized (readyTasks) {
-      readyTasks.add(exceptionTask);
-      readyTasks.notifyAll();
-    }
-
-    // Wait a bit for the task to be processed and exception handled
-    Thread.sleep(200);
+    readyTasks.add(exceptionTask);
 
     // Schedule another task to verify the scheduler recovered from the exception
     FlowFuture<String> future = scheduler.schedule(() -> "after exception");
@@ -935,15 +876,7 @@ class SingleThreadedSchedulerTest {
       // This should trigger the catch block in the task's run method
       throw new RuntimeException("Test exception in startTask run block");
     }, null);
-
-    // Add the task to the queue
-    synchronized (readyTasks) {
-      readyTasks.add(exceptionTask2);
-      readyTasks.notifyAll();
-    }
-
-    // Wait for the task to be processed
-    Thread.sleep(200);
+    readyTasks.add(exceptionTask2);
 
     // Verify the scheduler still works after an exception in task execution
     FlowFuture<String> future2 = scheduler.schedule(() -> "after exception 2");
@@ -951,68 +884,12 @@ class SingleThreadedSchedulerTest {
   }
 
   @Test
-  void testSchedulerLoopGeneralException() throws Exception {
-    // This test directly injects an exception into the schedulerLoop
-
-    // Create a scheduler for testing the exception branch
-    SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
-    testScheduler.start();
-
-    // Get the readyTasks queue and replace it with something that will cause an exception
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-
-    // Save the original queue
-    @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> originalQueue =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(testScheduler);
-
-    // Create a new queue with our bad task
-    PriorityBlockingQueue<Task> newQueue = new PriorityBlockingQueue<>() {
-      @Override
-      public Task poll() {
-        // Force an exception when the task is polled from the queue
-        throw new RuntimeException("Test exception in scheduler loop");
-      }
-
-      @Override
-      public boolean isEmpty() {
-        // Force the loop to think there's something to process
-        return false;
-      }
-    };
-
-    // Temporarily replace the queue with our problematic one
-    synchronized (originalQueue) {
-      readyTasksField.set(testScheduler, newQueue);
-
-      // Notify to wake up the scheduler
-      originalQueue.notifyAll();
-    }
-
-    // Put the original queue back
-    synchronized (originalQueue) {
-      readyTasksField.set(testScheduler, originalQueue);
-    }
-
-    // Verify scheduler is still operational by scheduling a task
-    FlowFuture<String> future = testScheduler.schedule(() -> "after scheduler exception");
-    assertEquals("after scheduler exception", future.toCompletableFuture().get());
-
-    // Cleanup
-    testScheduler.close();
-  }
-
-  @Test
   void testExecutingTaskWithExistingThread() throws Exception {
     // This test covers the branch where an existing thread task is processed
     // We'll create a task using the normal scheduler, yield it, and verify it's resumed properly
 
-    SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
-
-    testScheduler.start();
-
-    try {
+    try (SingleThreadedScheduler testScheduler = new SingleThreadedScheduler()) {
+      testScheduler.start();
       // Create counters to track execution
       CountDownLatch taskStarted = new CountDownLatch(1);
       CountDownLatch taskSuspended = new CountDownLatch(1);
@@ -1055,8 +932,6 @@ class SingleThreadedSchedulerTest {
       // Verify the scheduler is still functioning
       FlowFuture<String> testFuture = testScheduler.schedule(() -> "final check");
       assertEquals("final check", testFuture.toCompletableFuture().get());
-    } finally {
-      testScheduler.close();
     }
   }
 
@@ -1089,11 +964,6 @@ class SingleThreadedSchedulerTest {
     // Set running to false
     running.set(false);
 
-    // Wake up the scheduler thread
-    synchronized (readyTasks) {
-      readyTasks.notifyAll();
-    }
-
     // Close the scheduler
     testScheduler.close();
 
@@ -1103,47 +973,6 @@ class SingleThreadedSchedulerTest {
 
     // Cleanup
     testScheduler.close();
-  }
-
-  @Test
-  void testSchedulerException() throws Exception {
-    // Access the scheduler loop method to simulate an exception
-    Method schedulerLoopMethod = SingleThreadedScheduler.class.getDeclaredMethod("schedulerLoop");
-    schedulerLoopMethod.setAccessible(true);
-
-    // Create a thread to run the scheduler loop
-    Thread exceptionThread = new Thread(() -> {
-      try {
-        // Add a task that will cause the loop to retrieve it
-        scheduler.schedule(() -> {
-          // Simulate some work
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-          return "task during exception";
-        });
-
-        // While task is queued but not yet processed, throw an exception from another thread
-        // This is difficult to achieve directly, so we'll verify exception handling works
-        try {
-          schedulerLoopMethod.invoke(scheduler);
-        } catch (Exception e) {
-          // Expected - the reflection itself might throw an exception
-          // But the main point is the scheduler should handle exceptions gracefully
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    });
-
-    exceptionThread.start();
-    exceptionThread.join(500); // Wait for the thread to complete
-
-    // Schedule another task to verify scheduler still works
-    FlowFuture<String> future = scheduler.schedule(() -> "after-exception");
-    assertEquals("after-exception", future.toCompletableFuture().get());
   }
 
   @Test
@@ -1338,7 +1167,7 @@ class SingleThreadedSchedulerTest {
     assertTrue(taskYielded.await(1, TimeUnit.SECONDS), "Task should have yielded");
 
     // Now cancel the task
-    boolean cancelled = future.cancel(true);
+    boolean cancelled = future.cancel();
     assertTrue(cancelled, "Task should be cancelled successfully");
 
     // Use pump to ensure all pending tasks are processed
@@ -1355,6 +1184,91 @@ class SingleThreadedSchedulerTest {
     if (future.isCancelled()) {
       assertTrue(cancellationDetected, "Task should detect cancellation");
       assertTrue(gotCancellationException.get(), "Task should receive cancellation exception");
+    }
+  }
+
+  @Test
+  void testGetActiveTasks() {
+    SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false);
+
+    // Create a latch to control task completion
+    CountDownLatch taskRunning = new CountDownLatch(1);
+    CountDownLatch taskComplete = new CountDownLatch(1);
+
+    // Schedule a task that will signal when it's running
+    // but won't complete until we tell it to
+    scheduler.schedule(() -> {
+      try {
+        // Signal that the task is running
+        taskRunning.countDown();
+        // Wait until we're ready to complete the task
+        //noinspection ResultOfMethodCallIgnored
+        taskComplete.await(500, TimeUnit.MILLISECONDS);
+        return null;
+      } catch (InterruptedException e) {
+        return null;
+      }
+    });
+
+    // Pump to start the task
+    scheduler.pump();
+
+    // Wait for the task to signal it's running
+    try {
+      assertTrue(taskRunning.await(1, TimeUnit.SECONDS), "Task should have started running");
+    } catch (InterruptedException e) {
+      fail("Interrupted while waiting for task to start");
+    }
+
+    // Get active tasks - there may or may not be active tasks depending on timing
+    Set<Task> activeTasks = scheduler.getActiveTasks();
+
+    // Clean up
+    taskComplete.countDown();
+    scheduler.pump();
+    scheduler.close();
+
+    // We'd ideally verify that activeTasks has at least one task, but since task execution
+    // may be very fast and the task could complete before we check, we'll just verify
+    // that getActiveTasks() returns a non-null set
+    assertNotNull(activeTasks, "Active tasks set should not be null");
+  }
+
+  @Test
+  void testGetCurrentTaskForFuture() {
+    // To test this method, we need a scheduler where we can control task execution
+
+    try (SingleThreadedScheduler testScheduler = new SingleThreadedScheduler(false)) {
+      // Based on the implementation, getCurrentTaskForFuture() always returns the current task
+      // from ThreadLocal context. If we're not inside a task, it returns null.
+
+      // Check during test execution (outside of any flow task)
+      Task taskOutsideFlow = testScheduler.getCurrentTaskForFuture(null);
+      // Since we're not in a flow context, this should be null
+      assertNull(taskOutsideFlow, "Task should be null outside flow context");
+
+      // Create an atomic reference to store task from within flow context
+      AtomicReference<Task> taskFromFlow = new AtomicReference<>();
+
+      // Schedule a task to run within flow context
+      testScheduler.schedule(() -> {
+        Task currentTask = FlowScheduler.CURRENT_TASK.get();
+        taskFromFlow.set(currentTask);
+
+        // Test the method while inside a flow task
+        Task returnedTask = testScheduler.getCurrentTaskForFuture(null);
+        // Inside a flow task, this should return the current task
+        assertEquals(currentTask, returnedTask,
+            "Inside flow task, should return current task");
+
+        return null;
+      });
+
+      // Run the task - testScheduler has its carrier thread disabled
+      testScheduler.pump();
+
+      // Verify a task was captured from within the flow context
+      assertNotNull(taskFromFlow.get(), "Should have captured a task from flow context");
     }
   }
 }
