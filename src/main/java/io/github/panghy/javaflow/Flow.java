@@ -208,16 +208,6 @@ public final class Flow {
   }
 
   /**
-   * Cancels a scheduled timer.
-   *
-   * @param timerId The ID of the timer to cancel
-   * @return true if the timer was found and canceled, false otherwise
-   */
-  public static boolean cancelTimer(long timerId) {
-    return scheduler.cancelTimer(timerId);
-  }
-
-  /**
    * Checks if the current thread is executing within a flow managed context.
    *
    * @return true if the current thread is managed by the flow scheduler
