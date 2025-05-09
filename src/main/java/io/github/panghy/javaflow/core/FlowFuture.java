@@ -1,7 +1,8 @@
 package io.github.panghy.javaflow.core;
 
-import io.github.panghy.javaflow.Flow;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -59,6 +60,142 @@ public class FlowFuture<T> {
   }
 
   /**
+   * Returns a new FlowFuture that completes when all the given futures complete.
+   * If any of the futures completes exceptionally, the resulting future also completes
+   * exceptionally.
+   *
+   * @param futures The futures to wait for
+   * @param <U>     The type of the futures
+   * @return A future that completes when all the given futures complete
+   */
+  public static <U> FlowFuture<List<U>> allOf(Collection<FlowFuture<U>> futures) {
+    if (futures.isEmpty()) {
+      return completed(new ArrayList<>());
+    }
+
+    FlowFuture<List<U>> result = new FlowFuture<>();
+    List<U> results = new ArrayList<>(futures.size());
+
+    // We need to count completions to know when all futures are done
+    int[] completionCount = new int[1];
+
+    // Create a handler for each future
+    for (FlowFuture<U> future : futures) {
+      int index = results.size();
+      results.add(null); // Placeholder
+
+      future.delegate.whenComplete((value, exception) -> {
+        synchronized (completionCount) {
+          if (exception != null) {
+            // If not already completed, complete with exception
+            if (!result.isDone()) {
+              result.promise.completeExceptionally(exception);
+            }
+          } else if (!result.isDone()) {
+            // Store the result
+            results.set(index, value);
+            completionCount[0]++;
+
+            // If all futures are complete, complete the result
+            if (completionCount[0] == futures.size()) {
+              result.promise.complete(results);
+            }
+          }
+        }
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Returns a new FlowFuture that completes when any of the given futures completes.
+   * If all futures complete exceptionally, the resulting future also completes exceptionally
+   * with the exception from the last future to complete.
+   *
+   * @param futures The futures to wait for
+   * @param <U>     The type of the futures
+   * @return A future that completes when any of the given futures completes
+   */
+  public static <U> FlowFuture<U> anyOf(Collection<FlowFuture<U>> futures) {
+    if (futures.isEmpty()) {
+      throw new IllegalArgumentException("No futures provided");
+    }
+
+    FlowFuture<U> result = new FlowFuture<>();
+
+    // We need to count failures to know if all futures failed
+    int[] failureCount = new int[1];
+    Object lock = new Object(); // Dedicated lock object
+
+    // Create a handler for each future
+    for (FlowFuture<U> future : futures) {
+      future.delegate.whenComplete((value, exception) -> {
+        synchronized (lock) {
+          if (exception != null) {
+            failureCount[0]++;
+
+            // If all futures failed, complete with the last exception
+            if (failureCount[0] == futures.size()) {
+              result.promise.completeExceptionally(exception);
+            }
+          } else if (!result.isDone()) {
+            // Complete with the first successful result
+            result.promise.complete(value);
+          }
+        }
+      });
+    }
+
+    // Handle edge case: if all futures are already done with exceptions
+    CompletableFuture.runAsync(() -> {
+      synchronized (lock) {
+        if (!result.isDone() && failureCount[0] == futures.size()) {
+          result.promise.completeExceptionally(
+              new RuntimeException("All futures completed exceptionally"));
+        }
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Returns a new FlowFuture that completes when either this future or the other future completes.
+   * This is useful for implementing timeout patterns, where you race a task against a timer.
+   *
+   * @param other The other future to race against
+   * @return A future that completes when either this future or the other future completes
+   */
+  public FlowFuture<Void> or(FlowFuture<?> other) {
+    FlowFuture<Void> result = new FlowFuture<>();
+
+    // Handle completion of this future
+    this.delegate.whenComplete((value, exception) -> {
+      if (!result.isDone()) {
+        if (exception != null) {
+          result.promise.completeExceptionally(exception);
+        } else {
+          result.promise.complete(null);
+        }
+      }
+    });
+
+    // Handle completion of the other future
+    other.delegate.whenComplete((value, exception) -> {
+      if (!result.isDone()) {
+        if (exception != null) {
+          result.promise.completeExceptionally(exception);
+        } else {
+          result.promise.complete(null);
+        }
+      }
+    });
+
+    return result;
+  }
+
+  /**
    * Returns the promise associated with this future.
    *
    * @return The promise that can complete this future
@@ -92,6 +229,25 @@ public class FlowFuture<T> {
    */
   public Throwable getException() {
     return delegate.exceptionNow();
+  }
+
+  /**
+   * Attaches a callback to be invoked when this future completes.
+   *
+   * @param action The action to invoke when this future completes
+   * @return This future
+   */
+  public FlowFuture<T> whenComplete(FlowBiConsumer<? super T, ? super Throwable> action) {
+    delegate.whenComplete((result, exception) -> {
+      try {
+        action.accept(result, exception);
+      } catch (Exception e) {
+        // Log but don't propagate exceptions from callbacks
+        System.err.println("Exception in whenComplete callback: " + e.getMessage());
+        e.printStackTrace();
+      }
+    });
+    return this;
   }
 
   /**
@@ -222,17 +378,6 @@ public class FlowFuture<T> {
       }
     }
     throw new IllegalStateException("Future is not done");
-  }
-
-  /**
-   * Waits for the future to complete and returns its value. This method
-   * should only be called from within a flow task.
-   *
-   * @return The value of the future
-   * @throws Exception if the future completed exceptionally
-   */
-  public T await() throws Exception {
-    return Flow.await(this);
   }
 
   /**

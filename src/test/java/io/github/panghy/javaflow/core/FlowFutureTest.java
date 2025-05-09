@@ -143,7 +143,7 @@ class FlowFutureTest {
   @Test
   void testFlatMapWithException() {
     FlowFuture<String> future = new FlowFuture<>();
-    FlowFuture<String> flatMapped = future.flatMap(_ -> {
+    FlowFuture<String> flatMapped = future.flatMap($ -> {
       throw new RuntimeException("Flat map exception");
     });
 
@@ -186,12 +186,12 @@ class FlowFutureTest {
     CountDownLatch latch = new CountDownLatch(2);
     StringBuilder results = new StringBuilder();
 
-    future.getPromise().whenComplete((result, _) -> {
+    future.getPromise().whenComplete((result, $) -> {
       results.append("A:").append(result);
       latch.countDown();
     });
 
-    future.getPromise().whenComplete((result, _) -> {
+    future.getPromise().whenComplete((result, $) -> {
       results.append(",B:").append(result);
       latch.countDown();
     });
