@@ -2,7 +2,7 @@
 
 > A Java-based actor concurrency framework designed to support highly concurrent, asynchronous programming with deterministic execution for testing.
 
-JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK virtual threads and structured concurrency instead of any custom compiler or preprocessor.
+JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK Continuations and structured concurrency instead of any custom compiler or preprocessor.
 
 ## Overview
 
@@ -10,13 +10,13 @@ JavaFlow allows you to write asynchronous code in a linear, sequential style thr
 
 ### Key Features
 
-- **Actor Model & Futures**: Lightweight actors (implemented as virtual threads) communicate via futures and promises for asynchronous operations
+- **Actor Model & Futures**: Lightweight actors (implemented using JDK Continuations) communicate via futures and promises for asynchronous operations
 - **Cooperative Scheduling**: Single-threaded event loop that schedules actors in a cooperative manner
 - **Prioritized Execution**: Task prioritization to ensure time-critical actors run before lower-priority work
 - **Non-blocking I/O**: All I/O is integrated via asynchronous operations that yield futures
 - **Deterministic Simulation**: Run the entire system in a controlled scheduler and clock for reproducible testing
 - **Error Handling & Cancellation**: Integrated exception handling and automatic cancellation for unwanted operations
-- **Idiomatic Java**: Pure Java implementation using JDK 25 features with minimal external dependencies
+- **Idiomatic Java**: Pure Java implementation using JDK 21 features with minimal external dependencies
 
 ## Project Status
 
@@ -29,7 +29,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 1 | **Core Futures and Actors** - Basic async infrastructure | ✅ Completed |
 | 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | ✅ Completed |
-| 4 | **Asynchronous I/O Integration** - Network and disk operations as futures | 📅 Planned |
+| 4 | **Asynchronous I/O Integration** - Network and disk operations as futures | 🔄 In Progress |
 | 5 | **Deterministic Simulation Mode** - Simulation environment | 📅 Planned |
 | 6 | **Error Handling and Propagation** - Error model | 📅 Planned |
 | 7 | **Advanced Actor Patterns and Library** - Enhanced API for usability | 📅 Planned |
@@ -45,7 +45,7 @@ Phases 1, 2 and 3 have been completed, establishing the core future and actor ab
 |---------|-------------|--------|
 | 1.1 | **Future/Promise API** - Core interfaces and implementation | ✅ Completed |
 | 1.2 | **Single-threaded Scheduler** - Thread control and scheduling | ✅ Completed |
-| 1.3 | **Actor Framework** - Virtual thread-based actor implementation | ✅ Completed |
+| 1.3 | **Actor Framework** - Continuation-based actor implementation | ✅ Completed |
 | 1.4 | **Await Mechanism** - Suspend/resume functionality | ✅ Completed |
 | 1.5 | **Basic Error Model** - Exception propagation through futures | ✅ Completed |
 | 1.6 | **Cooperative Yield** - Explicit yield mechanism | ✅ Completed |
@@ -87,12 +87,29 @@ Phases 1, 2 and 3 have been completed, establishing the core future and actor ab
 
 These subtasks represent the foundation of JavaFlow's actor model and form the building blocks for all subsequent phases.
 
+#### Phase 4: Asynchronous I/O Integration
+
+| Subtask | Description | Status |
+|---------|-------------|--------|
+| 4.1 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | 🔄 In Progress |
+| 4.2 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
+| 4.3 | **File I/O Operations** - Non-blocking file read/write operations | 📅 Planned |
+| 4.4 | **I/O Event Integration** - Integration of I/O events with the event loop | 📅 Planned |
+| 4.5 | **Flow Transport Layer** - Message-based communication between components | 📅 Planned |
+| 4.6 | **RPC Framework** - Promise/Future-based remote procedure calls | 📅 Planned |
+| 4.7 | **Serialization Infrastructure** - Data serialization for network operations | 📅 Planned |
+| 4.8 | **Timeout Handling** - I/O operation timeout management | 📅 Planned |
+| 4.9 | **I/O Error Propagation** - Proper error handling for I/O operations | 📅 Planned |
+| 4.10 | **Unit and Integration Tests** - Comprehensive test coverage for I/O components | 📅 Planned |
+| 4.11 | **I/O Examples** - Sample code demonstrating async I/O patterns | 📅 Planned |
+
+Phase 4 will focus on building the asynchronous I/O infrastructure, allowing network and disk operations to seamlessly integrate with the existing actor model. Following the Flow framework's design principles, all I/O operations will be non-blocking and will return futures that can be awaited by actors. The I/O system will be designed to support both real-world and simulated modes, paving the way for the deterministic simulation environment in Phase 5.
+
 ## Requirements
 
-- JDK 24 (updated from earlier versions)
+- JDK 21 or later
 - Gradle 8.14 or compatible version
-- Support for virtual threads (introduced in JDK 21 and improved in JDK 24)
-- Note: We plan to leverage more advanced features as they become available in JDK 25+
+- Requires JDK with Continuations support (uses internal JDK classes for continuation-based scheduling)
 
 ## Building and Testing
 
@@ -152,6 +169,8 @@ JavaFlow provides:
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
 - **Pump Method**: Deterministic task processing for testing and simulation
 - **FlowClock & Timers**: Time-based operations and controllable clock for testing
+- **I/O Interfaces** (coming in Phase 4): Non-blocking network and file operations
+- **FlowTransport** (coming in Phase 4): Message-passing layer for distributed communication
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -163,33 +182,66 @@ JavaFlow provides:
 
 ### Example Usage
 ```java
+// Using static imports for cleaner code
+import static io.github.panghy.javaflow.Flow.*;
+
 // Create a simple actor using Flow
-FlowFuture<String> result = Flow.start(() -> {
+FlowFuture<String> result = startActor(() -> {
     // Do some work
     String partialResult = doSomeWork();
-    
+
     // Yield to let other tasks run
-    Flow.yield().await();
-    
+    await(yieldF());
+
     // Continue processing after yielding
     return finalizeWork(partialResult);
 });
 
 // Use the result when it's ready
-result.thenAccept(System.out::println);
+result.whenComplete((value, error) -> {
+    if (error == null) {
+        System.out.println(value);
+    }
+});
 
 // Using timer functionality
-FlowFuture<Void> delayedOperation = Flow.start(() -> {
+FlowFuture<Void> delayedOperation = startActor(() -> {
     // Do initial work
     initialSetup();
-    
+
     // Wait for 5 seconds
-    Flow.delay(5.0).await();
-    
+    await(delay(5.0));
+
     // Perform operation after delay
     return finalOperation();
 });
+
+// Using asynchronous I/O (coming in Phase 4)
+FlowFuture<ByteBuffer> fileReadOperation = startActor(() -> {
+    // Open a file asynchronously
+    FlowAsyncFile file = await(openFile("/path/to/file"));
+
+    // Read data asynchronously
+    ByteBuffer data = await(file.read(0, 1024));
+
+    // Close the file
+    await(file.close());
+
+    return data;
+});
 ```
+
+### Asynchronous I/O Integration (Phase 4)
+
+In Phase 4, JavaFlow will implement non-blocking I/O operations that integrate seamlessly with the actor model. Key aspects of this phase include:
+
+1. **Java NIO Integration**: Leveraging Java's non-blocking I/O capabilities (java.nio) while ensuring all operations are properly managed by the Flow scheduler
+2. **Unified I/O Abstraction**: Providing a consistent API for all I/O operations that return futures which can be awaited by actors
+3. **Event Loop Integration**: Ensuring I/O events are processed by the single-threaded event loop in a deterministic manner
+4. **Location Transparency**: Using the same API for local and remote communication, enabling seamless transition to simulation mode
+5. **RPC Framework**: Building a robust, promise-based remote procedure call mechanism for actor communication across network boundaries
+
+I/O operations in JavaFlow will never block the main thread. When an actor awaits an I/O operation, it will yield control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable.
 
 ## Contributing
 
