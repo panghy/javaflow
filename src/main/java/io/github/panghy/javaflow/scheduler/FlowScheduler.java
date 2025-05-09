@@ -107,17 +107,6 @@ public class FlowScheduler implements AutoCloseable {
   }
 
   /**
-   * Checks if a task with the specified ID is cancelled.
-   * Static method to be used from the Flow API.
-   *
-   * @param taskId The ID of the task to check
-   * @return true if the task is cancelled, false otherwise
-   */
-  public static boolean isTaskCancelled(Long taskId) {
-    return Flow.scheduler().delegate.isTaskCancelled(taskId);
-  }
-
-  /**
    * Awaits the completion of a future, suspending the current actor until the future completes.
    *
    * @param future The future to await

@@ -602,24 +602,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
   }
 
   /**
-   * Checks if a task with the specified ID is cancelled.
-   * This method is thread-safe and can be called from any context,
-   * including from within a running task to check its own cancellation status.
-   *
-   * @param taskId The ID of the task to check
-   * @return true if the task exists and is cancelled, false otherwise
-   */
-  public boolean isTaskCancelled(long taskId) {
-    taskLock.lock();
-    try {
-      Task task = idToTask.get(taskId);
-      return task != null && task.isCancelled();
-    } finally {
-      taskLock.unlock();
-    }
-  }
-
-  /**
    * Shuts down the scheduler.
    */
   @Override
