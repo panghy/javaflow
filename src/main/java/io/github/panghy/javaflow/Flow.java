@@ -13,11 +13,11 @@ import java.util.concurrent.ExecutionException;
 public final class Flow {
 
   // Singleton scheduler instance
-  private static final FlowScheduler SCHEDULER = new FlowScheduler();
+  private static final FlowScheduler scheduler = new FlowScheduler();
 
   // Register shutdown hook to close the scheduler when the JVM exits
   static {
-    Runtime.getRuntime().addShutdownHook(new Thread(SCHEDULER::close));
+    Runtime.getRuntime().addShutdownHook(new Thread(scheduler::close));
   }
 
   private Flow() {
@@ -30,7 +30,7 @@ public final class Flow {
    * @return The flow scheduler
    */
   public static FlowScheduler scheduler() {
-    return SCHEDULER;
+    return scheduler;
   }
 
   /**
@@ -41,7 +41,7 @@ public final class Flow {
    * @return A future that will be completed with the actor's result
    */
   public static <T> FlowFuture<T> start(Callable<T> task) {
-    return SCHEDULER.schedule(task);
+    return scheduler.schedule(task);
   }
 
   /**
@@ -53,7 +53,7 @@ public final class Flow {
    * @return A future that will be completed with the actor's result
    */
   public static <T> FlowFuture<T> start(Callable<T> task, int priority) {
-    return SCHEDULER.schedule(task, priority);
+    return scheduler.schedule(task, priority);
   }
 
   /**
@@ -63,7 +63,7 @@ public final class Flow {
    * @return A future that will be completed when the actor finishes
    */
   public static FlowFuture<Void> start(Runnable task) {
-    return SCHEDULER.schedule(() -> {
+    return scheduler.schedule(() -> {
       task.run();
       return null;
     });
@@ -77,32 +77,10 @@ public final class Flow {
    * @return A future that will be completed when the actor finishes
    */
   public static FlowFuture<Void> start(Runnable task, int priority) {
-    return SCHEDULER.schedule(() -> {
+    return scheduler.schedule(() -> {
       task.run();
       return null;
     }, priority);
-  }
-
-  /**
-   * Awaits the completion of a future, suspending the current actor until the future completes.
-   * This method must be called from within an actor (a flow task managed by the flow scheduler).
-   *
-   * @param future The future to await
-   * @param <T>    The type of the future value
-   * @return The value of the completed future
-   * @throws Exception If the future completes exceptionally
-   */
-  public static <T> T await(FlowFuture<T> future) throws Exception {
-    if (futureReadyOrThrow(future)) {
-      return future.get();
-    }
-
-    // If not completed, we need to yield until it's done
-    while (!futureReadyOrThrow(future)) {
-      // Yield to the scheduler - this will suspend the current task
-      Flow.yield().get();
-    }
-    return future.get();
   }
 
   /**
@@ -113,7 +91,7 @@ public final class Flow {
    * @return true if the future is ready
    * @throws Exception If the future completed exceptionally
    */
-  private static <T> boolean futureReadyOrThrow(FlowFuture<T> future) throws Exception {
+  public static <T> boolean futureReadyOrThrow(FlowFuture<T> future) throws Exception {
     // If already completed, return the result immediately
     if (future.isDone()) {
       if (future.isCompletedExceptionally()) {
@@ -133,47 +111,18 @@ public final class Flow {
    * Awaits the completion of a future with a specified priority,
    * suspending the current actor until the future completes.
    * This method must be called from within an actor (a flow task managed by the flow scheduler).
+   * If the future is cancelled, the cancellation will propagate to the awaiting task.
    *
-   * @param future   The future to await
-   * @param priority The priority to use while waiting
-   * @param <T>      The type of the future value
+   * @param future The future to await
+   * @param <T>    The type of the future value
    * @return The value of the completed future
    * @throws Exception If the future completes exceptionally
    */
-  public static <T> T await(FlowFuture<T> future, int priority) throws Exception {
-    // If already completed, return the result immediately
-    if (future.isDone()) {
-      try {
-        return future.get();
-      } catch (ExecutionException e) {
-        // Unwrap the execution exception to propagate the original cause
-        Throwable cause = e.getCause();
-        if (cause instanceof Exception) {
-          throw (Exception) cause;
-        } else {
-          throw e;
-        }
-      }
+  public static <T> T await(FlowFuture<T> future) throws Exception {
+    if (futureReadyOrThrow(future)) {
+      return future.getNow();
     }
-
-    // If not completed, we need to yield until it's done
-    while (!future.isDone()) {
-      // Yield to the scheduler with the specified priority - this will suspend the current task
-      Flow.yield(priority).get();
-    }
-
-    // Now the future is completed, get the result
-    try {
-      return future.get();
-    } catch (ExecutionException e) {
-      // Unwrap the execution exception to propagate the original cause
-      Throwable cause = e.getCause();
-      if (cause instanceof Exception) {
-        throw (Exception) cause;
-      } else {
-        throw e;
-      }
-    }
+    return scheduler.await(future);
   }
 
   /**
@@ -183,7 +132,7 @@ public final class Flow {
    * @return A future that completes after the delay
    */
   public static FlowFuture<Void> delay(double seconds) {
-    return SCHEDULER.scheduleDelay(seconds);
+    return scheduler.scheduleDelay(seconds);
   }
 
   /**
@@ -192,19 +141,7 @@ public final class Flow {
    *
    * @return A future that completes when the actor is resumed
    */
-  public static FlowFuture<Void> yield() {
-    return SCHEDULER.yield();
-  }
-
-  /**
-   * Yields control from the current actor to allow other actors to run.
-   * The current actor will be rescheduled with the specified priority to continue execution
-   * in the next event loop cycle.
-   *
-   * @param priority The priority to use when rescheduling this task
-   * @return A future that completes when the actor is resumed
-   */
-  public static FlowFuture<Void> yield(int priority) {
-    return SCHEDULER.yield(priority);
+  public static FlowFuture<Void> yieldF() {
+    return scheduler.yield();
   }
 }
