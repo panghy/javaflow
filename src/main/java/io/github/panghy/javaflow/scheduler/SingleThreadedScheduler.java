@@ -121,6 +121,16 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final FlowClock clock;
 
   /**
+   * Minimum time in milliseconds between priority adjustments for a task
+   */
+  private final long priorityAgingIntervalMs;
+
+  /**
+   * Number of priority levels to boost when aging a task
+   */
+  private final int priorityAgingBoost;
+
+  /**
    * Creates a new single-threaded scheduler with default configuration.
    * The scheduler will use a carrier thread for automatic task processing
    * and a real-time clock for timing operations.
@@ -153,7 +163,12 @@ public class SingleThreadedScheduler implements AutoCloseable {
   public SingleThreadedScheduler(boolean enableCarrierThread, FlowClock clock) {
     this.enableCarrierThread = enableCarrierThread;
     this.clock = clock;
+
+    // Priority aging parameters with sensible defaults
+    this.priorityAgingIntervalMs = 100;  // 100ms between boosts
+    this.priorityAgingBoost = 1;  // Boost by 1 level each time
   }
+
 
   /**
    * Gets the clock being used by this scheduler.
@@ -650,9 +665,64 @@ public class SingleThreadedScheduler implements AutoCloseable {
       return null;
     }
 
+    applyPriorityAging();
+
     // Simply poll from the PriorityBlockingQueue which will return
     // the highest priority task based on the Task's natural ordering
     return readyTasks.poll();
+  }
+
+  /**
+   * Applies priority aging to tasks that have been waiting in the queue.
+   * Tasks that have been waiting for a long time will have their priority
+   * gradually increased to prevent starvation.
+   * <p>
+   * Note: This method should only be called when holding the taskLock.
+   */
+  private void applyPriorityAging() {
+    if (readyTasks.isEmpty()) {
+      return;
+    }
+
+    long currentTime = clock.currentTimeMillis();
+
+    // We need to reorder the tasks if we change priorities, so create a temporary copy
+    List<Task> tasksToRequeue = new ArrayList<>();
+
+    // Examine each task and see if it needs priority adjustment
+    while (!readyTasks.isEmpty()) {
+      Task task = readyTasks.poll();
+      if (task == null) {
+        break;
+      }
+
+      // Calculate how long it's been since this task was last adjusted
+      long timeSinceLastBoost = currentTime - task.getLastPriorityBoostTime();
+
+      // If it's time to boost the priority of this task
+      if (timeSinceLastBoost >= priorityAgingIntervalMs) {
+        // Calculate new priority (remember lower values = higher priority)
+        int newPriority = task.getPriority() - priorityAgingBoost;
+
+        // Don't go below CRITICAL priority level
+        if (newPriority < TaskPriority.CRITICAL) {
+          newPriority = TaskPriority.CRITICAL;
+        }
+
+        debug(LOGGER, "Task " + task.getId() + " priority boosted from " +
+                      task.getPriority() + " to " + newPriority +
+                      " (original: " + task.getOriginalPriority() + ")");
+
+        // Update the task's priority and last boost time
+        task.setEffectivePriority(newPriority, currentTime);
+      }
+
+      // Add task to our temporary list
+      tasksToRequeue.add(task);
+    }
+
+    // Put all tasks back in the queue (with their potentially updated priorities)
+    readyTasks.addAll(tasksToRequeue);
   }
 
   /**

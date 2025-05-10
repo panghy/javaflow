@@ -36,7 +36,7 @@ public class FlowScheduler implements AutoCloseable {
   /**
    * The delegate scheduler that does the actual work.
    */
-  final SingleThreadedScheduler delegate;
+  protected SingleThreadedScheduler delegate;
 
   /**
    * Creates a new FlowScheduler with the single threaded scheduler.
@@ -69,6 +69,7 @@ public class FlowScheduler implements AutoCloseable {
   public FlowScheduler(boolean enableCarrierThread, FlowClock clock) {
     this.delegate = new SingleThreadedScheduler(enableCarrierThread, clock);
   }
+
 
   /**
    * Gets the clock being used by this scheduler.

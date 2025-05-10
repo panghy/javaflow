@@ -18,7 +18,10 @@ public class Task implements Comparable<Task> {
   private static final AtomicLong SEQUENCE = new AtomicLong(0);
 
   private final long id;
-  private final int priority;
+  // Original priority as assigned during creation
+  private final int originalPriority;
+  // Current effective priority (may be adjusted by priority aging)
+  private volatile int effectivePriority;
   private final long creationTime;
   private final long sequence;
   private final Callable<?> callable;
@@ -27,6 +30,8 @@ public class Task implements Comparable<Task> {
   private final Task parent;
   private final AtomicReference<HashSet<Task>> children = new AtomicReference<>();
   private final AtomicReference<Runnable> cancellationCallback = new AtomicReference<>();
+  // Last time the priority was boosted
+  private volatile long lastPriorityBoostTime;
 
   // Track timer tasks associated with this task for cancellation propagation
   private final Set<Long> associatedTimerIds = ConcurrentHashMap.newKeySet();
@@ -52,9 +57,11 @@ public class Task implements Comparable<Task> {
    */
   public Task(long id, int priority, Callable<?> callable, Task parent) {
     this.id = id;
-    this.priority = priority;
+    this.originalPriority = priority;
+    this.effectivePriority = priority; // Start with the original priority
     this.parent = parent;
     this.creationTime = System.currentTimeMillis();
+    this.lastPriorityBoostTime = this.creationTime; // Initialize the last boost time
     this.sequence = SEQUENCE.getAndIncrement();
     this.callable = Objects.requireNonNull(callable, "Callable cannot be null");
     this.state = TaskState.CREATED;
@@ -70,12 +77,44 @@ public class Task implements Comparable<Task> {
   }
 
   /**
-   * Gets the task's priority.
+   * Gets the task's original priority as assigned during creation.
    *
-   * @return The priority
+   * @return The original priority
+   */
+  public int getOriginalPriority() {
+    return originalPriority;
+  }
+
+  /**
+   * Gets the task's current effective priority.
+   * This may be different from the original priority due to priority aging.
+   *
+   * @return The current effective priority
    */
   public int getPriority() {
-    return priority;
+    return effectivePriority;
+  }
+
+  /**
+   * Sets the effective priority of the task.
+   * This is used by the priority aging mechanism to boost the priority
+   * of tasks that have been waiting for a long time.
+   *
+   * @param priority    The new effective priority
+   * @param currentTime The current time when the priority is being boosted.
+   */
+  public void setEffectivePriority(int priority, long currentTime) {
+    this.effectivePriority = priority;
+    this.lastPriorityBoostTime = currentTime;
+  }
+
+  /**
+   * Gets the time when this task's priority was last boosted.
+   *
+   * @return The timestamp of the last priority boost
+   */
+  public long getLastPriorityBoostTime() {
+    return lastPriorityBoostTime;
   }
 
   /**
@@ -240,7 +279,7 @@ public class Task implements Comparable<Task> {
   public void cancel() {
     if (!isCancelled.getAndSet(true)) {
       System.out.println("DEBUG: Cancelling task " + id + ", has callback: " +
-          (cancellationCallback.get() != null) + ", timer count: " + associatedTimerIds.size());
+                         (cancellationCallback.get() != null) + ", timer count: " + associatedTimerIds.size());
 
       // Run the cancellation callback if one is set
       Runnable callback = cancellationCallback.get();
@@ -308,8 +347,8 @@ public class Task implements Comparable<Task> {
 
   @Override
   public int compareTo(Task other) {
-    // First compare by priority (lower value means higher priority)
-    int result = Integer.compare(this.priority, other.priority);
+    // First compare by effective priority (lower value means higher priority)
+    int result = Integer.compare(this.effectivePriority, other.effectivePriority);
     if (result != 0) {
       return result;
     }
@@ -326,7 +365,10 @@ public class Task implements Comparable<Task> {
 
   @Override
   public String toString() {
-    return "Task{id=" + id + ", priority=" + priority + ", state=" + state + "}";
+    return "Task{id=" + id +
+           ", priority=" + effectivePriority +
+           (effectivePriority != originalPriority ? " (original=" + originalPriority + ")" : "") +
+           ", state=" + state + "}";
   }
 
   @Override
