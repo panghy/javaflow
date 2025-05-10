@@ -621,6 +621,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Mark as running
       task.setState(Task.TaskState.RUNNING);
 
+      // Reset task priority back to original when it's resumed
+      // This ensures that a task that was boosted by priority aging doesn't
+      // permanently retain its boosted priority
+      if (task.getPriority() != task.getOriginalPriority()) {
+        debug(LOGGER, "Resetting task " + task.getId() + " priority from " +
+              task.getPriority() + " back to original " + task.getOriginalPriority());
+        task.setEffectivePriority(task.getOriginalPriority(), clock.currentTimeMillis());
+      }
+
       // Complete the promise associated with the yield operation
       FlowPromise<Void> promise = yieldPromises.remove(taskId);
       if (promise != null) {
@@ -867,6 +876,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private void startTask(Task task) {
     debug(LOGGER, "task " + task.getId() + " starting");
     task.setState(Task.TaskState.RUNNING);
+
+    // Reset the task's priority back to its original priority before executing
+    // This ensures that a task that was boosted by priority aging doesn't
+    // permanently retain its boosted priority
+    if (task.getPriority() != task.getOriginalPriority()) {
+      debug(LOGGER, "Resetting task " + task.getId() + " priority from " +
+            task.getPriority() + " back to original " + task.getOriginalPriority());
+      task.setEffectivePriority(task.getOriginalPriority(), clock.currentTimeMillis());
+    }
 
     // Create a dedicated scope for this task
     ContinuationScope taskScope = new ContinuationScope("flow-task-" + task.getId());
