@@ -2,7 +2,7 @@
 
 > A Java-based actor concurrency framework designed to support highly concurrent, asynchronous programming with deterministic execution for testing.
 
-JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK Continuations and structured concurrency instead of any custom compiler or preprocessor.
+JavaFlow reimagines the core ideas of [FoundationDB's Flow](https://github.com/apple/foundationdb/tree/main/flow) actor framework in idiomatic Java, leveraging JDK continuations instead of any custom compiler or preprocessor.
 
 ## Overview
 
