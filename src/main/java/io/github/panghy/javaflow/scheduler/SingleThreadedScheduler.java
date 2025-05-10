@@ -16,10 +16,12 @@ import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -100,6 +102,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
+   * Latch used to signal when the scheduler loop has exited
+   * This prevents the possibility of data structure cleanup happening while
+   * the scheduler thread is still accessing them.
+   * Using AtomicReference so we can replace the latch when restarting the scheduler.
+   */
+  private final AtomicReference<CountDownLatch> schedulerExitLatch =
+      new AtomicReference<>(new CountDownLatch(1));
+
+  /**
    * Map to store the continuation scope for each task
    */
   private final Map<Long, ContinuationScope> taskToScope = new HashMap<>();
@@ -129,6 +140,21 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * Number of priority levels to boost when aging a task
    */
   private final int priorityAgingBoost;
+
+  /**
+   * Tracks the highest priority (lowest numeric value) in the ready queue
+   */
+  private volatile int minPriorityInQueue = Integer.MAX_VALUE;
+
+  /**
+   * Tracks the lowest priority (highest numeric value) in the ready queue
+   */
+  private volatile int maxPriorityInQueue = Integer.MIN_VALUE;
+
+  /**
+   * Tracks the earliest time when a task might need aging
+   */
+  private volatile long nextAgingCheckTime = Long.MAX_VALUE;
 
   /**
    * Creates a new single-threaded scheduler with default configuration.
@@ -165,7 +191,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     this.clock = clock;
 
     // Priority aging parameters with sensible defaults
-    this.priorityAgingIntervalMs = 100;  // 100ms between boosts
+    this.priorityAgingIntervalMs = 1000;  // 1000ms between boosts
     this.priorityAgingBoost = 1;  // Boost by 1 level each time
   }
 
@@ -180,6 +206,67 @@ public class SingleThreadedScheduler implements AutoCloseable {
   }
 
   /**
+   * Updates the priority range tracking when a task is added or modified.
+   * This helps optimize priority aging by tracking if all tasks are at the same priority level.
+   *
+   * @param priority The priority of the task being added or modified
+   */
+  private void updatePriorityRange(int priority) {
+    // Update min priority (highest priority, lowest numeric value)
+    if (priority < minPriorityInQueue) {
+      minPriorityInQueue = priority;
+    }
+
+    // Update max priority (lowest priority, highest numeric value)
+    if (priority > maxPriorityInQueue) {
+      maxPriorityInQueue = priority;
+    }
+  }
+
+  /**
+   * Resets priority range tracking. Should be called when the queue is empty
+   * or when a full recomputation of priorities is needed.
+   */
+  private void resetPriorityTracking() {
+    minPriorityInQueue = Integer.MAX_VALUE;
+    maxPriorityInQueue = Integer.MIN_VALUE;
+    nextAgingCheckTime = Long.MAX_VALUE;
+  }
+
+  /**
+   * Recalculates the priority range by scanning all tasks in the ready queue.
+   * This is needed after priority aging to ensure our tracking is accurate.
+   * <p>
+   * Note: This method should only be called when holding the taskLock.
+   */
+  private void recalculatePriorityRange(List<Task> tasks) {
+    resetPriorityTracking();
+
+    if (tasks.isEmpty()) {
+      return;
+    }
+
+    for (Task task : tasks) {
+      updatePriorityRange(task.getPriority());
+
+      // Update next aging check time tracking
+      long taskAgingTime = task.getLastPriorityBoostTime() + priorityAgingIntervalMs;
+      if (taskAgingTime < nextAgingCheckTime) {
+        nextAgingCheckTime = taskAgingTime;
+      }
+    }
+  }
+
+  /**
+   * Resets the scheduler exit latch, creating a new latch.
+   * This is needed when restarting the scheduler after it has been closed.
+   */
+  private void resetSchedulerExitLatch() {
+    schedulerExitLatch.set(new CountDownLatch(1));
+    debug(LOGGER, "Reset scheduler exit latch");
+  }
+
+  /**
    * Starts the scheduler if it hasn't been started yet.
    * If the carrier thread is disabled, this only marks the scheduler as running
    * without starting the scheduler thread.
@@ -187,6 +274,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
   public synchronized void start() {
     if (running.compareAndSet(false, true)) {
       info(LOGGER, "starting flow scheduler");
+
+      // Reset the scheduler exit latch when restarting
+      resetSchedulerExitLatch();
 
       if (enableCarrierThread) {
         // Start scheduler thread only if carrier thread is enabled
@@ -260,6 +350,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     taskLock.lock();
     try {
+      // Update priority range tracking
+      updatePriorityRange(priority);
+
+      // Update next aging check time tracking
+      long taskAgingTime = flowTask.getLastPriorityBoostTime() + priorityAgingIntervalMs;
+      if (taskAgingTime < nextAgingCheckTime) {
+        nextAgingCheckTime = taskAgingTime;
+      }
+
       readyTasks.add(flowTask);
       tasksAvailableCondition.signalAll(); // Wake up scheduler
     } finally {
@@ -552,106 +651,114 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * Main scheduler loop that processes tasks from the queue.
    */
   private void schedulerLoop() {
-    while (running.get()) {
-      Task task;
-      boolean lockAcquired = false;
+    try {
+      while (running.get()) {
+        Task task;
+        boolean lockAcquired = false;
 
-      try {
-        // Attempt to acquire the lock - if we can't, other operations may be in progress
-        taskLock.lock();
-        lockAcquired = true;
+        try {
+          // Attempt to acquire the lock - if we can't, other operations may be in progress
+          taskLock.lock();
+          lockAcquired = true;
 
-        // Process any timer tasks that are ready
-        processTimerTasks();
+          // Process any timer tasks that are ready
+          processTimerTasks();
 
-        // Wait until there's a task in the queue or a timer is due
-        while (readyTasks.isEmpty()) {
-          // Exit early if scheduler is stopping
-          if (!running.get()) {
-            warn(LOGGER, "scheduler loop stopping");
-            taskLock.unlock();
-            lockAcquired = false;
-            return;
-          }
+          // Wait until there's a task in the queue or a timer is due
+          while (readyTasks.isEmpty()) {
+            // Exit early if scheduler is stopping
+            if (!running.get()) {
+              warn(LOGGER, "scheduler loop stopping");
+              taskLock.unlock();
+              lockAcquired = false;
+              return;
+            }
 
-          // Check if we have timers to wait for
-          long nextTimer = getNextTimerTime();
-          long now = clock.currentTimeMillis();
+            // Check if we have timers to wait for
+            long nextTimer = getNextTimerTime();
+            long now = clock.currentTimeMillis();
 
-          if (nextTimer != Long.MAX_VALUE && nextTimer <= now) {
-            // Process timers before waiting
+            if (nextTimer != Long.MAX_VALUE && nextTimer <= now) {
+              // Process timers before waiting
+              processTimerTasks();
+              // Check if any tasks became ready
+              if (!readyTasks.isEmpty()) {
+                break;
+              }
+              // Recalculate next timer time
+              nextTimer = getNextTimerTime();
+            }
+
+            if (nextTimer != Long.MAX_VALUE) {
+              // Wait until next timer or until signaled
+              long waitTime = nextTimer - now;
+              if (waitTime > 0) {
+                //noinspection ResultOfMethodCallIgnored
+                tasksAvailableCondition.await(waitTime, java.util.concurrent.TimeUnit.MILLISECONDS);
+              }
+            } else {
+              // No timers, wait indefinitely for tasks
+              tasksAvailableCondition.await();
+            }
+
+            // Check again if we should exit
+            if (!running.get()) {
+              warn(LOGGER, "scheduler loop stopping");
+              taskLock.unlock();
+              lockAcquired = false;
+              return;
+            }
+
+            // Process any timer tasks that are ready after waiting
             processTimerTasks();
-            // Check if any tasks became ready
+
+            // If any tasks were added or timer tasks made ready tasks, break out of wait loop
             if (!readyTasks.isEmpty()) {
               break;
             }
-            // Recalculate next timer time
-            nextTimer = getNextTimerTime();
           }
 
-          if (nextTimer != Long.MAX_VALUE) {
-            // Wait until next timer or until signaled
-            long waitTime = nextTimer - now;
-            if (waitTime > 0) {
-              //noinspection ResultOfMethodCallIgnored
-              tasksAvailableCondition.await(waitTime, java.util.concurrent.TimeUnit.MILLISECONDS);
-            }
-          } else {
-            // No timers, wait indefinitely for tasks
-            tasksAvailableCondition.await();
-          }
+          // Take next task if available
+          task = findHighestPriorityTask();
 
-          // Check again if we should exit
-          if (!running.get()) {
-            warn(LOGGER, "scheduler loop stopping");
-            taskLock.unlock();
-            lockAcquired = false;
-            return;
-          }
-
-          // Process any timer tasks that are ready after waiting
-          processTimerTasks();
-
-          // If any tasks were added or timer tasks made ready tasks, break out of wait loop
-          if (!readyTasks.isEmpty()) {
-            break;
-          }
-        }
-
-        // Take next task if available
-        task = findHighestPriorityTask();
-
-        // We can release the lock once we have obtained a task
-        taskLock.unlock();
-        lockAcquired = false;
-
-        // Process task if we got one
-        if (task != null) {
-          debug(LOGGER, "picking up task " + task.getId());
-
-          if (taskToContinuation.containsKey(task.getId())) {
-            // This is a resume task for an existing continuation
-            resumeTask(task.getId());
-          } else {
-            // This is a new task - create and run a new continuation
-            startTask(task);
-          }
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        warn(LOGGER, "scheduler thread interrupted", e);
-        break;
-      } catch (Exception e) {
-        error(LOGGER, "error in scheduler", e);
-      } finally {
-        // Ensure we release the lock if we still hold it
-        if (lockAcquired) {
+          // We can release the lock once we have obtained a task
           taskLock.unlock();
+          lockAcquired = false;
+
+          // Process task if we got one
+          if (task != null) {
+            debug(LOGGER, "picking up task " + task.getId());
+
+            if (taskToContinuation.containsKey(task.getId())) {
+              // This is a resume task for an existing continuation
+              resumeTask(task.getId());
+            } else {
+              // This is a new task - create and run a new continuation
+              startTask(task);
+            }
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          warn(LOGGER, "scheduler thread interrupted", e);
+          break;
+        } catch (Exception e) {
+          error(LOGGER, "error in scheduler", e);
+        } finally {
+          // Ensure we release the lock if we still hold it
+          if (lockAcquired) {
+            taskLock.unlock();
+          }
         }
       }
-    }
+    } finally {
+      info(LOGGER, "scheduler loop ending");
 
-    info(LOGGER, "scheduler loop ending");
+      // Signal that the scheduler loop has exited
+      CountDownLatch latch = schedulerExitLatch.get();
+      if (latch != null) {
+        latch.countDown();
+      }
+    }
   }
 
   /**
@@ -681,13 +788,23 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   private void applyPriorityAging() {
     if (readyTasks.isEmpty()) {
+      resetPriorityTracking();
       return;
     }
 
     long currentTime = clock.currentTimeMillis();
 
+    // Fast path - skip if:
+    // 1. All tasks are already at CRITICAL priority (nothing to boost)
+    // 2. It's not time for any task to be aged yet
+    if ((minPriorityInQueue == maxPriorityInQueue && minPriorityInQueue == TaskPriority.CRITICAL) ||
+        currentTime < nextAgingCheckTime) {
+      return;
+    }
+
     // We need to reorder the tasks if we change priorities, so create a temporary copy
-    List<Task> tasksToRequeue = new ArrayList<>();
+    List<Task> tasksToRequeue = new ArrayList<>(readyTasks.size());
+    boolean prioritiesChanged = false;
 
     // Examine each task and see if it needs priority adjustment
     while (!readyTasks.isEmpty()) {
@@ -701,20 +818,30 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
       // If it's time to boost the priority of this task
       if (timeSinceLastBoost >= priorityAgingIntervalMs) {
+        int oldPriority = task.getPriority();
+
         // Calculate new priority (remember lower values = higher priority)
-        int newPriority = task.getPriority() - priorityAgingBoost;
+        int newPriority = oldPriority - priorityAgingBoost;
 
         // Don't go below CRITICAL priority level
         if (newPriority < TaskPriority.CRITICAL) {
           newPriority = TaskPriority.CRITICAL;
         }
 
-        debug(LOGGER, "Task " + task.getId() + " priority boosted from " +
-                      task.getPriority() + " to " + newPriority +
-                      " (original: " + task.getOriginalPriority() + ")");
+        // Only log and update if priority actually changed
+        if (newPriority != oldPriority) {
+          debug(LOGGER, "Task " + task.getId() + " priority boosted from " +
+                        oldPriority + " to " + newPriority +
+                        " (original: " + task.getOriginalPriority() + ")");
 
-        // Update the task's priority and last boost time
-        task.setEffectivePriority(newPriority, currentTime);
+          // Update the task's priority and last boost time
+          task.setEffectivePriority(newPriority, currentTime);
+          prioritiesChanged = true;
+        } else {
+          // Even if priority didn't change, update the last boost time
+          // to avoid checking again too soon
+          task.setEffectivePriority(oldPriority, currentTime);
+        }
       }
 
       // Add task to our temporary list
@@ -723,6 +850,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // Put all tasks back in the queue (with their potentially updated priorities)
     readyTasks.addAll(tasksToRequeue);
+
+    // Recalculate priority ranges if any priorities were changed
+    if (prioritiesChanged) {
+      recalculatePriorityRange(tasksToRequeue);
+    }
   }
 
   /**
@@ -853,6 +985,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     try {
       // If there are no ready tasks, we're done
       if (readyTasks.isEmpty()) {
+        resetPriorityTracking(); // Reset tracking when queue is empty
         return timerTasksProcessed;
       }
 
@@ -885,6 +1018,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
           // Re-acquire the lock for the next iteration
           taskLock.lock();
         }
+      }
+
+      // After processing tasks, check if queue is now empty and reset tracking if needed
+      if (readyTasks.isEmpty()) {
+        resetPriorityTracking();
       }
 
       return processedTasks + timerTasksProcessed;
@@ -1030,12 +1168,53 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Wake up waiting threads
       taskLock.lock();
       try {
+        // Reset priority tracking
+        resetPriorityTracking();
+
         tasksAvailableCondition.signalAll();
       } finally {
         taskLock.unlock();
       }
 
-      // Clear all task-related maps
+      // Wait for the scheduler loop to exit before cleaning up data structures
+      if (schedulerThread != null) {
+        try {
+          debug(LOGGER, "Waiting for scheduler loop to exit...");
+          // Wait with a reasonable timeout to avoid hanging indefinitely if there's an issue
+          CountDownLatch latch = schedulerExitLatch.get();
+          boolean exited = latch != null && latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+
+          if (!exited) {
+            warn(LOGGER, "Scheduler loop did not exit within timeout period");
+
+            // Check if thread is still alive
+            if (schedulerThread.isAlive()) {
+              warn(LOGGER, "Scheduler thread is still alive, attempting to join it...");
+
+              // As a last resort, try to join the thread with a timeout
+              try {
+                schedulerThread.join(2000);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                warn(LOGGER, "Interrupted while joining scheduler thread", e);
+              }
+
+              if (schedulerThread.isAlive()) {
+                warn(LOGGER, "Scheduler thread is still alive after join attempt.");
+              } else {
+                debug(LOGGER, "Scheduler thread terminated after join.");
+              }
+            }
+          } else {
+            debug(LOGGER, "Scheduler loop exited successfully");
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          warn(LOGGER, "Interrupted while waiting for scheduler loop to exit", e);
+        }
+      }
+
+      // Clear all task-related maps now that we know the scheduler loop is not using them
       taskToContinuation.clear();
       taskToScope.clear();
       idToTask.clear();
