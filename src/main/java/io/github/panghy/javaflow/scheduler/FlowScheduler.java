@@ -135,16 +135,6 @@ public class FlowScheduler implements AutoCloseable {
   }
 
   /**
-   * Cancels a scheduled timer.
-   *
-   * @param timerId The ID of the timer to cancel
-   * @return true if the timer was found and canceled, false otherwise
-   */
-  boolean cancelTimer(long timerId) {
-    return delegate.cancelTimer(timerId);
-  }
-
-  /**
    * Gets the current time from the scheduler's clock.
    *
    * @return The current time in milliseconds

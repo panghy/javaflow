@@ -34,26 +34,26 @@ class TaskCancellationTest {
     Task childTask5 = new Task(6, TaskPriority.DEFAULT, () -> "child5", parentTask);
     
     // Set up cancellation callbacks that modify the parent's children collection
-    childTask1.setCancellationCallback(() -> {
+    childTask1.setCancellationCallback((timerIds) -> {
       cancelOrder.add(2);
       parentTask.removeChild(childTask3); // Remove a task that hasn't been processed yet
     });
     
-    childTask2.setCancellationCallback(() -> {
+    childTask2.setCancellationCallback((timerIds) -> {
       cancelOrder.add(3);
       parentTask.removeChild(childTask5); // Remove a task that hasn't been processed yet
     });
     
-    childTask3.setCancellationCallback(() -> {
+    childTask3.setCancellationCallback((timerIds) -> {
       cancelOrder.add(4);
       // This might not be called if childTask3 gets removed by childTask1's callback
     });
     
-    childTask4.setCancellationCallback(() -> {
+    childTask4.setCancellationCallback((timerIds) -> {
       cancelOrder.add(5);
     });
     
-    childTask5.setCancellationCallback(() -> {
+    childTask5.setCancellationCallback((timerIds) -> {
       cancelOrder.add(6);
       // This might not be called if childTask5 gets removed by childTask2's callback
     });
@@ -66,7 +66,7 @@ class TaskCancellationTest {
     parentTask.addChild(childTask5);
     
     // Set up parent cancellation callback
-    parentTask.setCancellationCallback(() -> cancelOrder.add(1));
+    parentTask.setCancellationCallback((timerIds) -> cancelOrder.add(1));
     
     // Cancel the parent - this should safely iterate over the children even if they're modified
     parentTask.cancel();
@@ -105,7 +105,7 @@ class TaskCancellationTest {
       Task child = new Task(childId, TaskPriority.DEFAULT, () -> "child" + childId, parentTask);
       
       // Set cancellation callback that tries to add a new child (which should fail)
-      child.setCancellationCallback(() -> {
+      child.setCancellationCallback((timerIds) -> {
         initialChildrenCancelled.incrementAndGet();
         
         // When cancelled, try to add a new child to the parent (should fail)
@@ -130,7 +130,7 @@ class TaskCancellationTest {
     }
     
     // Set parent cancellation callback
-    parentTask.setCancellationCallback(() -> parentCancelled.set(true));
+    parentTask.setCancellationCallback((timerIds) -> parentCancelled.set(true));
     
     // Cancel the parent - this should cancel all children
     parentTask.cancel();
@@ -170,14 +170,14 @@ class TaskCancellationTest {
       // due to the implementation in Task.cancel()
       
       // Add a cancellation callback to count completions
-      child.setCancellationCallback(() -> cancellationCallCount.incrementAndGet());
+      child.setCancellationCallback((timerIds) -> cancellationCallCount.incrementAndGet());
       
       // Add the child to the parent
       parentTask.addChild(child);
     }
     
     // Also add a cancellation callback to the parent
-    parentTask.setCancellationCallback(() -> cancellationCallCount.incrementAndGet());
+    parentTask.setCancellationCallback((timerIds) -> cancellationCallCount.incrementAndGet());
     
     // Cancel the parent - this will cancel all children
     parentTask.cancel();
@@ -205,38 +205,38 @@ class TaskCancellationTest {
     
     // Create the parent
     Task parent = new Task(1, TaskPriority.DEFAULT, () -> "parent", null);
-    parent.setCancellationCallback(() -> cancellationOrder.add(parent.getId()));
+    parent.setCancellationCallback((timerIds) -> cancellationOrder.add(parent.getId()));
     
     // Create child 1
     Task child1 = new Task(2, TaskPriority.DEFAULT, () -> "child1", parent);
-    child1.setCancellationCallback(() -> cancellationOrder.add(child1.getId()));
+    child1.setCancellationCallback((timerIds) -> cancellationOrder.add(child1.getId()));
     parent.addChild(child1);
     
     // Create grandchild 1
     Task grandchild1 = new Task(3, TaskPriority.DEFAULT, () -> "grandchild1", child1);
-    grandchild1.setCancellationCallback(() -> cancellationOrder.add(grandchild1.getId()));
+    grandchild1.setCancellationCallback((timerIds) -> cancellationOrder.add(grandchild1.getId()));
     child1.addChild(grandchild1);
     
     // Create great-grandchild 1
     Task greatGrandchild1 = new Task(
         4, TaskPriority.DEFAULT, () -> "greatGrandchild1", grandchild1);
-    greatGrandchild1.setCancellationCallback(() -> cancellationOrder.add(greatGrandchild1.getId()));
+    greatGrandchild1.setCancellationCallback((timerIds) -> cancellationOrder.add(greatGrandchild1.getId()));
     grandchild1.addChild(greatGrandchild1);
     
     // Create great-grandchild 2
     Task greatGrandchild2 = new Task(
         5, TaskPriority.DEFAULT, () -> "greatGrandchild2", grandchild1);
-    greatGrandchild2.setCancellationCallback(() -> cancellationOrder.add(greatGrandchild2.getId()));
+    greatGrandchild2.setCancellationCallback((timerIds) -> cancellationOrder.add(greatGrandchild2.getId()));
     grandchild1.addChild(greatGrandchild2);
     
     // Create grandchild 2
     Task grandchild2 = new Task(6, TaskPriority.DEFAULT, () -> "grandchild2", child1);
-    grandchild2.setCancellationCallback(() -> cancellationOrder.add(grandchild2.getId()));
+    grandchild2.setCancellationCallback((timerIds) -> cancellationOrder.add(grandchild2.getId()));
     child1.addChild(grandchild2);
     
     // Create child 2
     Task child2 = new Task(7, TaskPriority.DEFAULT, () -> "child2", parent);
-    child2.setCancellationCallback(() -> cancellationOrder.add(child2.getId()));
+    child2.setCancellationCallback((timerIds) -> cancellationOrder.add(child2.getId()));
     parent.addChild(child2);
     
     // Cancel the parent - should propagate to all descendants
@@ -280,8 +280,8 @@ class TaskCancellationTest {
     
     // Track cancellation callbacks
     AtomicInteger cancellationCallCount = new AtomicInteger(0);
-    child1.setCancellationCallback(() -> cancellationCallCount.incrementAndGet());
-    child2.setCancellationCallback(() -> cancellationCallCount.incrementAndGet());
+    child1.setCancellationCallback((timerIds) -> cancellationCallCount.incrementAndGet());
+    child2.setCancellationCallback((timerIds) -> cancellationCallCount.incrementAndGet());
     
     // Remove child1 from parent
     parent.removeChild(child1);

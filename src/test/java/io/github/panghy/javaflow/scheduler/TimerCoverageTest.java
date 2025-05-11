@@ -82,7 +82,7 @@ class TimerCoverageTest {
 
       // Create a parent task with an existing cancellation callback
       Task parentTask = new Task(1L, TaskPriority.DEFAULT, () -> "parent", null);
-      parentTask.setCancellationCallback(() -> callbackExecuted.set(true));
+      parentTask.setCancellationCallback((timerIds) -> callbackExecuted.set(true));
 
       // Set the parent task as current
       FlowScheduler.CURRENT_TASK.set(parentTask);

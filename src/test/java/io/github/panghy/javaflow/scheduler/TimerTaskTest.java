@@ -203,7 +203,7 @@ class TimerTaskTest {
     parentTask.registerTimerTask(timerTask.getId());
 
     // Set up cancellation callback (normally done by scheduler)
-    parentTask.setCancellationCallback(() -> {
+    parentTask.setCancellationCallback((timerIds) -> {
       // Complete the promise exceptionally with cancellation
       CancellationException ce = new CancellationException("Parent task cancelled");
       promise.completeExceptionally(ce);

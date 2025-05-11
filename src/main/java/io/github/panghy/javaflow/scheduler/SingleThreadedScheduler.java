@@ -200,7 +200,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     this.clock = clock;
 
     // Priority aging parameters with sensible defaults
-    this.priorityAgingIntervalMs = 1000;  // 1000ms between boosts
+    this.priorityAgingIntervalMs = 1000;  // 100ms between boosts
     this.priorityAgingBoost = 1;  // Boost by 1 level each time
   }
 
@@ -349,7 +349,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Create a task and associate it with the current task if any
     Task currentTask = FlowScheduler.CURRENT_TASK.get();
     Task flowTask = new Task(taskId, priority, wrappedTask, currentTask);
-    flowTask.setCancellationCallback(() -> cancelTask(taskId));
+    flowTask.setCancellationCallback((timerIds) -> {
+      cancelTask(taskId);
+      timerIds.forEach(this::cancelTimer);
+    });
     if (currentTask != null) {
       currentTask.addChild(flowTask);
     }
@@ -484,9 +487,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Register the timer task with the parent task for cancellation propagation
       if (parentTask != null) {
         parentTask.registerTimerTask(timerId);
-
-        // Set up cancellation callback to chain with any existing callback
-        parentTask.setCancellationCallback(() -> cancelTimer(timerId));
       }
 
       // Signal the scheduler thread to wake up and check for timer events
@@ -558,6 +558,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
         List<TimerTask> tasksAtTime = entry.getValue();
         for (TimerTask task : new ArrayList<>(tasksAtTime)) {
           timerIdToTask.remove(task.getId());
+          task.getParentTask().unregisterTimerTask(task.getId());
           task.execute();
           processed++;
         }
@@ -842,10 +843,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
     long currentTime = clock.currentTimeMillis();
 
     // Fast path - skip if:
-    // 1. All tasks are at the same priority level OR if we have a task at -1 priority (MUST_RUN)
+    // 1. All tasks are at the same priority level
     // 2. It's not time for any task to be aged yet
-    if ((minPriorityInQueue == maxPriorityInQueue || minPriorityInQueue == -1) ||
-        currentTime < nextAgingCheckTime) {
+    if (minPriorityInQueue == maxPriorityInQueue || currentTime < nextAgingCheckTime) {
       return;
     }
 
@@ -879,10 +879,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
           // Update the task's priority and last boost time
           task.setEffectivePriority(newPriority, currentTime);
           prioritiesChanged = true;
-        } else {
-          // Even if priority didn't change, update the last boost time
-          // to avoid checking again too soon
-          task.setEffectivePriority(oldPriority, currentTime);
         }
       }
 
@@ -1317,6 +1313,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
           debug(LOGGER, "Resuming suspended task " + task.getId() + " for cleanup");
           readyTasks.add(task);
         }
+        // mark all tasks as cancelled.
+        task.cancel();
       }
 
       // Signal the scheduler that tasks are available

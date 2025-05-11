@@ -225,6 +225,9 @@ public class FlowFuture<T> {
    * @return The exception, or throw IllegalStateException if not completed exceptionally
    */
   public Throwable getException() {
+    if (delegate.isCancelled()) {
+      return new CancellationException("future was cancelled");
+    }
     return delegate.exceptionNow();
   }
 

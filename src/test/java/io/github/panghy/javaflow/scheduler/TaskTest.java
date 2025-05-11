@@ -217,7 +217,7 @@ class TaskTest {
     
     // Create a parent task with a cancellation callback
     Task parentTask = new Task(1, TaskPriority.DEFAULT, () -> "parent", null);
-    parentTask.setCancellationCallback(() -> callbackCalled.set(true));
+    parentTask.setCancellationCallback((timerIds) -> callbackCalled.set(true));
     
     // Create two child tasks
     Task childTask1 = new Task(2, TaskPriority.DEFAULT, () -> "child1", parentTask);
@@ -257,11 +257,11 @@ class TaskTest {
     // Create two child tasks
     Task childTask1 = new Task(2, TaskPriority.DEFAULT, () -> "child1", parentTask);
     AtomicBoolean child1Cancelled = new AtomicBoolean(false);
-    childTask1.setCancellationCallback(() -> child1Cancelled.set(true));
+    childTask1.setCancellationCallback((timerIds) -> child1Cancelled.set(true));
     
     Task childTask2 = new Task(3, TaskPriority.DEFAULT, () -> "child2", parentTask);
     AtomicBoolean child2Cancelled = new AtomicBoolean(false);
-    childTask2.setCancellationCallback(() -> child2Cancelled.set(true));
+    childTask2.setCancellationCallback((timerIds) -> child2Cancelled.set(true));
     
     // Add children to parent
     parentTask.addChild(childTask1);
@@ -300,9 +300,9 @@ class TaskTest {
     AtomicBoolean parentCancelled = new AtomicBoolean(false);
     AtomicBoolean childCancelled = new AtomicBoolean(false);
     
-    grandparentTask.setCancellationCallback(() -> grandparentCancelled.set(true));
-    parentTask.setCancellationCallback(() -> parentCancelled.set(true));
-    childTask.setCancellationCallback(() -> childCancelled.set(true));
+    grandparentTask.setCancellationCallback((timerIds) -> grandparentCancelled.set(true));
+    parentTask.setCancellationCallback((timerIds) -> parentCancelled.set(true));
+    childTask.setCancellationCallback((timerIds) -> childCancelled.set(true));
     
     // Cancel the grandparent
     grandparentTask.cancel();

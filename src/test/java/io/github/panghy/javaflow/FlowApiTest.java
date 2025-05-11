@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow;
 
 import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.scheduler.FlowScheduler;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * and configuration options.
  */
 class FlowApiTest {
+
+  @AfterEach
+  void afterEach() {
+    Flow.shutdown();
+    Flow.setScheduler(new FlowScheduler());
+  }
   
   @Test
   void testFlowYieldF() throws Exception {

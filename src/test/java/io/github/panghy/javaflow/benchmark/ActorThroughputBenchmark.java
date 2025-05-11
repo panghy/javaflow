@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.ArrayList;
@@ -21,10 +20,6 @@ public class ActorThroughputBenchmark {
   private static final long BENCHMARK_DURATION_MS = 60_000; // 60 seconds
 
   public static void main(String[] args) throws Exception {
-    // Create a scheduler with a carrier thread
-    FlowScheduler scheduler = new FlowScheduler(true);
-    Flow.setScheduler(scheduler);
-
     // Counter for tracking total operations
     AtomicLong totalOperations = new AtomicLong(0);
 
@@ -40,26 +35,26 @@ public class ActorThroughputBenchmark {
         // Local variables for the reporting thread
         long localLastReportTime = startTime;
         long localLastReportCount = 0;
-        
+
         while (System.currentTimeMillis() - startTime < BENCHMARK_DURATION_MS) {
           // Sleep for a reporting interval
           Thread.sleep(1000);
-          
+
           long now = System.currentTimeMillis();
           long currentCount = totalOperations.get();
-          
+
           // Calculate operations per second since last report
           long timeElapsed = now - localLastReportTime;
           long opsCount = currentCount - localLastReportCount;
           double opsPerSec = (opsCount * 1000.0) / timeElapsed;
-          
+
           // Calculate overall operations per second
           long totalElapsed = now - startTime;
           double overallOpsPerSec = (currentCount * 1000.0) / totalElapsed;
-          
+
           System.out.printf("Throughput: %.2f ops/sec (Current) | %.2f ops/sec (Average) | %d total ops%n",
               opsPerSec, overallOpsPerSec, currentCount);
-          
+
           // Update for next iteration
           localLastReportTime = now;
           localLastReportCount = currentCount;
@@ -68,14 +63,14 @@ public class ActorThroughputBenchmark {
         Thread.currentThread().interrupt();
       }
     });
-    
+
     // Start the reporting thread as daemon
     reportingThread.setDaemon(true);
     reportingThread.start();
-    
+
     // Create actors with different priorities to better demonstrate aging effects
     List<FlowFuture<Void>> actors = new ArrayList<>(ACTOR_COUNT);
-    
+
     // Create actors with different priorities
     for (int i = 0; i < ACTOR_COUNT; i++) {
       // Assign different priorities to demonstrate aging
@@ -91,7 +86,7 @@ public class ActorThroughputBenchmark {
       } else { // 5% idle priority
         priority = TaskPriority.IDLE;
       }
-      
+
       // Each actor increments the counter and yields in a loop
       FlowFuture<Void> actor = Flow.startActor(() -> {
         while (true) {
@@ -99,7 +94,7 @@ public class ActorThroughputBenchmark {
           Flow.await(Flow.yieldF());
         }
       }, priority);
-      
+
       actors.add(actor);
     }
 
@@ -110,7 +105,7 @@ public class ActorThroughputBenchmark {
     } catch (InterruptedException e) {
       System.out.println("Benchmark interrupted");
     }
-    
+
     // Interrupt and wait for the reporting thread to finish
     reportingThread.interrupt();
     try {
@@ -132,7 +127,7 @@ public class ActorThroughputBenchmark {
 
     // Shutdown
     System.out.println("Shutting down scheduler...");
-    scheduler.shutdown();
+    Flow.shutdown();
     System.out.println("Benchmark complete.");
   }
 }

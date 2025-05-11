@@ -1,16 +1,15 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.Flow;
-
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Represents a schedulable task in the JavaFlow system.
@@ -31,12 +30,13 @@ public class Task implements Comparable<Task> {
   private final AtomicBoolean isCancelled = new AtomicBoolean(false);
   private final Task parent;
   private final AtomicReference<HashSet<Task>> children = new AtomicReference<>();
-  private final AtomicReference<Runnable> cancellationCallback = new AtomicReference<>();
+  private final AtomicReference<Consumer<Collection<Long>>> cancellationCallback =
+      new AtomicReference<>();
   // Last time the priority was boosted
   private volatile long lastPriorityBoostTime;
 
   // Track timer tasks associated with this task for cancellation propagation
-  private final Set<Long> associatedTimerIds = ConcurrentHashMap.newKeySet();
+  private final Collection<Long> associatedTimerIds = new HashSet<>();
 
   /**
    * Task state enum.
@@ -225,15 +225,15 @@ public class Task implements Comparable<Task> {
    *
    * @param callback The cancellation callback.
    */
-  public void setCancellationCallback(Runnable callback) {
+  public void setCancellationCallback(Consumer<Collection<Long>> callback) {
     cancellationCallback.updateAndGet(existing -> {
       if (existing == null) {
         return callback;
       } else {
         // Chain the callbacks to preserve multiple registrations
-        return () -> {
-          existing.run();
-          callback.run();
+        return (timerIds) -> {
+          existing.accept(timerIds);
+          callback.accept(timerIds);
         };
       }
     });
@@ -272,10 +272,10 @@ public class Task implements Comparable<Task> {
   public void cancel() {
     if (!isCancelled.getAndSet(true)) {
       // Run the cancellation callback if one is set
-      Runnable callback = cancellationCallback.get();
+      Consumer<Collection<Long>> callback = cancellationCallback.get();
       if (callback != null) {
         try {
-          callback.run();
+          callback.accept(associatedTimerIds);
         } catch (Exception e) {
           throw new RuntimeException("Error running cancellation callback for task " + id, e);
         }
@@ -291,22 +291,6 @@ public class Task implements Comparable<Task> {
       // Remove this task from its parent
       if (parent != null) {
         parent.removeChild(this);
-      }
-
-      // Cancel all associated timer tasks
-      if (!associatedTimerIds.isEmpty()) {
-        // Create a copy of the IDs to avoid ConcurrentModificationException
-        Set<Long> timerIds = new HashSet<>(associatedTimerIds);
-
-        try {
-          // Get a reference to the scheduler's cancelTimer method
-          // We need to use the Flow class to get access to the scheduler
-          for (Long timerId : timerIds) {
-            Flow.scheduler().cancelTimer(timerId);
-          }
-        } catch (Exception e) {
-          throw new RuntimeException("Error cancelling timer tasks for task " + id, e);
-        }
       }
     }
   }

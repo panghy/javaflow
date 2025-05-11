@@ -24,7 +24,7 @@ public class PriorityAgingBenchmark {
   private static final int HIGH_PRIORITY_ACTOR_BURSTS = 200;
   private static final int HIGH_PRIORITY_ACTORS_PER_BURST = 50;
   private static final long BURST_INTERVAL_MS = 50;  // Create new high-priority actors every 50ms
-  private static final long BENCHMARK_DURATION_MS = 60_000;  // 60 seconds
+  private static final long BENCHMARK_DURATION_MS = 15_000;  // 15 seconds
 
   public static void main(String[] args) throws Exception {
     // Create a scheduler with a carrier thread

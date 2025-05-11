@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.ArrayList;
@@ -21,7 +20,7 @@ public class ActorSchedulingBenchmark {
   private static final int TOTAL_ACTORS = 10_000;
   private static final long BENCHMARK_DURATION_MS = 60_000; // 60 seconds
   private static final long REPORTING_INTERVAL_MS = 1_000;  // 1 second
-  
+
   // Define actor priority groups (key: priority level, value: percentage of actors)
   private static final Map<Integer, Integer> PRIORITY_DISTRIBUTION = Map.of(
       TaskPriority.CRITICAL, 5,   // 5% of actors at CRITICAL priority
@@ -31,30 +30,27 @@ public class ActorSchedulingBenchmark {
       TaskPriority.IDLE, 5        // 5% of actors at IDLE priority
   );
 
-  public static void main(String[] args) throws Exception {
-    // Create a scheduler with a carrier thread
-    FlowScheduler scheduler = new FlowScheduler(true);
-    Flow.setScheduler(scheduler);
+  public static void main(String[] args) {
 
     // Create counters for each priority level
     Map<Integer, AtomicLong> priorityCounters = new ConcurrentHashMap<>();
     AtomicLong totalCounter = new AtomicLong(0);
-    
+
     // Initialize counters for each priority
-    PRIORITY_DISTRIBUTION.keySet().forEach(priority -> 
+    PRIORITY_DISTRIBUTION.keySet().forEach(priority ->
         priorityCounters.put(priority, new AtomicLong(0))
     );
 
     // Start time tracking immediately
     final long startTime = System.currentTimeMillis();
-    
+
     // Show the actor distribution
     System.out.println("Starting actors with the following distribution and measuring throughput:");
-    PRIORITY_DISTRIBUTION.forEach((priority, percentage) -> 
-        System.out.printf("- Priority %d: %d%% (%d actors)%n", 
+    PRIORITY_DISTRIBUTION.forEach((priority, percentage) ->
+        System.out.printf("- Priority %d: %d%% (%d actors)%n",
             priority, percentage, TOTAL_ACTORS * percentage / 100)
     );
-    
+
     // Launch actors for each priority level
     List<FlowFuture<Void>> actors = new ArrayList<>(TOTAL_ACTORS);
     PRIORITY_DISTRIBUTION.forEach((priority, percentage) -> {
@@ -62,13 +58,13 @@ public class ActorSchedulingBenchmark {
       for (int i = 0; i < actorCount; i++) {
         FlowFuture<Void> actor = Flow.startActor(() -> {
           // No need to signal startup
-          
+
           // Run until interrupted
           while (true) {
             // Update both the priority-specific counter and the total counter
             priorityCounters.get(priority).incrementAndGet();
             totalCounter.incrementAndGet();
-            
+
             // Yield to allow other actors to run
             Flow.await(Flow.yieldF());
           }
@@ -76,7 +72,7 @@ public class ActorSchedulingBenchmark {
         actors.add(actor);
       }
     });
-    
+
     // Start a reporting thread for continuous monitoring
     Thread reportingThread = new Thread(() -> {
       try {
@@ -161,34 +157,34 @@ public class ActorSchedulingBenchmark {
       System.out.println("Interrupted while waiting for reporting thread");
     }
     // Reporting is now handled by the reporting thread
-    
+
     // Final report
     long endTime = System.currentTimeMillis();
     long totalRuntime = endTime - startTime;
-    System.out.printf("%n%n=== Final Results (after %.1f seconds) ===%n", 
+    System.out.printf("%n%n=== Final Results (after %.1f seconds) ===%n",
         totalRuntime / 1000.0);
-    
+
     // Report total operations by priority
     System.out.println("Total operations by priority:");
     PRIORITY_DISTRIBUTION.keySet().stream().sorted().forEach(priority -> {
       long count = priorityCounters.get(priority).get();
       int actorCount = TOTAL_ACTORS * PRIORITY_DISTRIBUTION.get(priority) / 100;
       double percentage = 100.0 * count / totalCounter.get();
-      
-      System.out.printf("- Priority %d: %,d ops (%.2f%% of total, %,d ops/actor)%n", 
+
+      System.out.printf("- Priority %d: %,d ops (%.2f%% of total, %,d ops/actor)%n",
           priority, count, percentage, count / actorCount);
     });
-    
+
     // Report overall statistics
     long finalCount = totalCounter.get();
     double overallOpsPerSec = (finalCount * 1000.0) / totalRuntime;
     System.out.printf("%nTotal operations: %,d%n", finalCount);
-    System.out.printf("Overall throughput: %.2f ops/sec (%.2f ops/actor/sec)%n", 
+    System.out.printf("Overall throughput: %.2f ops/sec (%.2f ops/actor/sec)%n",
         overallOpsPerSec, overallOpsPerSec / TOTAL_ACTORS);
-    
+
     // Shutdown
     System.out.println("Shutting down scheduler...");
-    scheduler.shutdown();
+    Flow.shutdown();
     System.out.println("Benchmark complete.");
   }
 }

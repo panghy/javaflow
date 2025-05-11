@@ -296,4 +296,11 @@ public final class Flow {
     validateUserPriority(priority);
     return scheduler.yield(priority);
   }
+
+  /**
+   * Shuts down the flow scheduler.
+   */
+  public static void shutdown() {
+    scheduler.shutdown();
+  }
 }
