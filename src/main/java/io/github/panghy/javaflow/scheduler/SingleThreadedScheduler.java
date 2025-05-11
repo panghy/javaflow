@@ -621,7 +621,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Mark as running
       task.setState(Task.TaskState.RUNNING);
 
-      // Reset task priority back to original when it's resumed
+      // Reset the task's priority back to its original priority after it's been picked
       // This ensures that a task that was boosted by priority aging doesn't
       // permanently retain its boosted priority
       if (task.getPriority() != task.getOriginalPriority()) {
@@ -804,9 +804,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
     long currentTime = clock.currentTimeMillis();
 
     // Fast path - skip if:
-    // 1. All tasks are already at CRITICAL priority (nothing to boost)
+    // 1. All tasks are already at MUST_RUN priority (nothing to boost)
     // 2. It's not time for any task to be aged yet
-    if ((minPriorityInQueue == maxPriorityInQueue && minPriorityInQueue == TaskPriority.CRITICAL) ||
+    if ((minPriorityInQueue == maxPriorityInQueue && minPriorityInQueue == TaskPriority.MUST_RUN) ||
         currentTime < nextAgingCheckTime) {
       return;
     }
@@ -832,9 +832,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
         // Calculate new priority (remember lower values = higher priority)
         int newPriority = oldPriority - priorityAgingBoost;
 
-        // Don't go below CRITICAL priority level
-        if (newPriority < TaskPriority.CRITICAL) {
-          newPriority = TaskPriority.CRITICAL;
+        // Allow boosting beyond CRITICAL all the way to MUST_RUN
+        // This ensures that even the lowest priority tasks will eventually run
+        if (newPriority < TaskPriority.MUST_RUN) {
+          newPriority = TaskPriority.MUST_RUN;
         }
 
         // Only log and update if priority actually changed
@@ -857,7 +858,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       tasksToRequeue.add(task);
     }
 
-    // Put all tasks back in the queue (with their potentially updated priorities)
+    // Put all tasks back in txhe queue (with their potentially updated priorities)
     readyTasks.addAll(tasksToRequeue);
 
     // Recalculate priority ranges if any priorities were changed
@@ -877,7 +878,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     debug(LOGGER, "task " + task.getId() + " starting");
     task.setState(Task.TaskState.RUNNING);
 
-    // Reset the task's priority back to its original priority before executing
+    // Reset the task's priority back to its original priority after it's been picked
     // This ensures that a task that was boosted by priority aging doesn't
     // permanently retain its boosted priority
     if (task.getPriority() != task.getOriginalPriority()) {

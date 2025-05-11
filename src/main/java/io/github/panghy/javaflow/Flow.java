@@ -3,6 +3,7 @@ package io.github.panghy.javaflow;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
+import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -91,11 +92,14 @@ public final class Flow {
    * Starts a new actor with the given task and priority.
    *
    * @param task     The task to run in the actor
-   * @param priority The priority of the actor
+   * @param priority The priority of the actor (must be non-negative)
    * @param <T>      The return type of the actor
    * @return A future that will be completed with the actor's result
+   * @throws IllegalArgumentException if the priority is negative
    */
   public static <T> FlowFuture<T> startActor(Callable<T> task, int priority) {
+    // Validate that user-provided priority isn't negative
+    priority = TaskPriority.validateUserPriority(priority);
     return scheduler.schedule(task, priority);
   }
 
@@ -116,10 +120,13 @@ public final class Flow {
    * Starts a new actor with the given task and priority.
    *
    * @param task     The task to run in the actor (returns void)
-   * @param priority The priority of the actor
+   * @param priority The priority of the actor (must be non-negative)
    * @return A future that will be completed when the actor finishes
+   * @throws IllegalArgumentException if the priority is negative
    */
   public static FlowFuture<Void> startActor(Runnable task, int priority) {
+    // Validate that user-provided priority isn't negative
+    priority = TaskPriority.validateUserPriority(priority);
     return scheduler.schedule(() -> {
       task.run();
       return null;
@@ -278,10 +285,13 @@ public final class Flow {
    * Yields control from the current actor to allow other actors to run with the specified priority.
    * The current actor will be rescheduled with this priority to continue execution in the next event loop cycle.
    *
-   * @param priority The priority to use when rescheduling the task
+   * @param priority The priority to use when rescheduling the task (must be non-negative)
    * @return A future that completes when the actor is resumed
+   * @throws IllegalArgumentException if the priority is negative
    */
   public static FlowFuture<Void> yieldF(int priority) {
+    // Validate that user-provided priority isn't negative
+    priority = TaskPriority.validateUserPriority(priority);
     return scheduler.yield(priority);
   }
 }
