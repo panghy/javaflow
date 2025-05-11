@@ -6,7 +6,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,15 +32,10 @@ public class PriorityBoostingTest {
   }
 
   /**
-   * Tests that a task can be boosted to MUST_RUN and then resets to its original priority.
+   * Tests that a task can be boosted to negative priority and then resets to its original priority.
    */
   @Test
   public void testBoostingToMustRun() throws Exception {
-    // Get access to the special MUST_RUN priority value
-    Field mustRunField = TaskPriority.class.getDeclaredField("MUST_RUN");
-    mustRunField.setAccessible(true);
-    int mustRunPriority = (int) mustRunField.get(null);
-    
     // Create a low-priority task that never completes so we can inspect it
     final AtomicInteger executionCount = new AtomicInteger(0);
     final AtomicInteger currentPriority = new AtomicInteger(0);
@@ -75,11 +69,11 @@ public class PriorityBoostingTest {
     
     // Directly boost the task to MUST_RUN to test the reset behavior
     System.out.println("Task initial priority: " + task.getPriority());
-    System.out.println("Forcing task to MUST_RUN priority: " + mustRunPriority);
-    task.setEffectivePriority(mustRunPriority, clock.currentTimeMillis());
+    System.out.println("Forcing task to MUST_RUN priority: -1");
+    task.setEffectivePriority(-1, clock.currentTimeMillis());
 
     // Verify the task has been set to MUST_RUN
-    assertEquals(mustRunPriority, task.getPriority(),
+    assertEquals(-1, task.getPriority(),
         "Task should have been set to MUST_RUN");
     
     // Now run the task again - it should execute and have its priority reset

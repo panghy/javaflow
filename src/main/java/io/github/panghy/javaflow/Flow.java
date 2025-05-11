@@ -3,10 +3,11 @@ package io.github.panghy.javaflow;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
-import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+
+import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPriority;
 
 /**
  * Main utility class for the JavaFlow actor framework.
@@ -99,7 +100,7 @@ public final class Flow {
    */
   public static <T> FlowFuture<T> startActor(Callable<T> task, int priority) {
     // Validate that user-provided priority isn't negative
-    priority = TaskPriority.validateUserPriority(priority);
+    validateUserPriority(priority);
     return scheduler.schedule(task, priority);
   }
 
@@ -126,7 +127,7 @@ public final class Flow {
    */
   public static FlowFuture<Void> startActor(Runnable task, int priority) {
     // Validate that user-provided priority isn't negative
-    priority = TaskPriority.validateUserPriority(priority);
+    validateUserPriority(priority);
     return scheduler.schedule(() -> {
       task.run();
       return null;
@@ -210,6 +211,7 @@ public final class Flow {
    * @throws IllegalStateException if called outside a flow task
    */
   public static FlowFuture<Void> delay(double seconds, int priority) {
+    validateUserPriority(priority);
     // Delay is only supported within flow tasks
     return scheduler.scheduleDelay(seconds, priority);
   }
@@ -291,7 +293,7 @@ public final class Flow {
    */
   public static FlowFuture<Void> yieldF(int priority) {
     // Validate that user-provided priority isn't negative
-    priority = TaskPriority.validateUserPriority(priority);
+    validateUserPriority(priority);
     return scheduler.yield(priority);
   }
 }

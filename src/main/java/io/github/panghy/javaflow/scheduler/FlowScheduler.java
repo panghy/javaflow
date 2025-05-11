@@ -68,8 +68,8 @@ public class FlowScheduler implements AutoCloseable {
    */
   public FlowScheduler(boolean enableCarrierThread, FlowClock clock) {
     this.delegate = new SingleThreadedScheduler(enableCarrierThread, clock);
+    this.delegate.start();
   }
-
 
   /**
    * Gets the clock being used by this scheduler.
@@ -95,9 +95,10 @@ public class FlowScheduler implements AutoCloseable {
    * Schedules a task to be executed by the flow scheduler with the specified priority.
    *
    * @param task     The task to execute
-   * @param priority The priority of the task
+   * @param priority The priority of the task (must be non-negative, except for internal use)
    * @param <T>      The return type of the task
    * @return A future that will be completed with the task's result
+   * @throws IllegalArgumentException if the priority is negative.
    */
   public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
     return delegate.schedule(task, priority);
@@ -133,14 +134,13 @@ public class FlowScheduler implements AutoCloseable {
     return delegate.scheduleDelay(seconds, priority);
   }
 
-
   /**
    * Cancels a scheduled timer.
    *
    * @param timerId The ID of the timer to cancel
    * @return true if the timer was found and canceled, false otherwise
    */
-  public boolean cancelTimer(long timerId) {
+  boolean cancelTimer(long timerId) {
     return delegate.cancelTimer(timerId);
   }
 
@@ -208,8 +208,9 @@ public class FlowScheduler implements AutoCloseable {
   /**
    * Yields control from the current actor to allow other actors to run with the specified priority.
    *
-   * @param priority The priority to use when rescheduling the task
+   * @param priority The priority to use when rescheduling the task (must be non-negative, except for internal use)
    * @return A future that completes when the actor is resumed
+   * @throws IllegalArgumentException if the priority is negative.
    */
   public FlowFuture<Void> yield(int priority) {
     return delegate.yield(priority);

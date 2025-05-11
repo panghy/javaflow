@@ -102,6 +102,15 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
+   * Flag to indicate the scheduler is in drain mode and shutting down.
+   * In drain mode, the scheduler continues running but:
+   * - No new tasks can be submitted
+   * - Yield and await operations fail with CancellationException
+   * - Existing tasks are allowed to run to completion for cleanup
+   */
+  private final AtomicBoolean draining = new AtomicBoolean(false);
+
+  /**
    * Latch used to signal when the scheduler loop has exited
    * This prevents the possibility of data structure cleanup happening while
    * the scheduler thread is still accessing them.
@@ -275,6 +284,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (running.compareAndSet(false, true)) {
       info(LOGGER, "starting flow scheduler");
 
+      draining.set(false);
+
       // Reset the scheduler exit latch when restarting
       resetSchedulerExitLatch();
 
@@ -308,8 +319,13 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @return Future for the task's result
    */
   public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
-    // Start scheduler if not already running
-    start();
+    // Check if scheduler is in drain mode
+    if (draining.get() || !running.get()) {
+      FlowFuture<T> future = new FlowFuture<>();
+      future.getPromise().completeExceptionally(
+          new IllegalStateException("Cannot schedule new tasks while scheduler is shutting down"));
+      return future;
+    }
 
     // Create and schedule the task
     long taskId = taskIdCounter.incrementAndGet();
@@ -386,6 +402,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @return Future that completes after the delay
    */
   public FlowFuture<Void> scheduleDelay(double seconds, int priority) {
+    // Check if scheduler is in drain mode
+    if (draining.get() || !running.get()) {
+      FlowFuture<Void> future = new FlowFuture<>();
+      future.getPromise().completeExceptionally(
+          new CancellationException("Cannot schedule timers while scheduler is shutting down"));
+      return future;
+    }
+
     if (seconds < 0) {
       throw new IllegalArgumentException("Delay cannot be negative");
     }
@@ -400,9 +424,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (currentTask == null) {
       throw new IllegalStateException("scheduleDelay called for unknown task");
     }
-
-    // Start scheduler if not already running
-    start();
 
     // Create a future/promise pair for the result
     FlowFuture<Void> future = new FlowFuture<>();
@@ -583,6 +604,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @return Future that completes when task resumes
    */
   public FlowFuture<Void> yield(Integer priority) {
+    // Check if scheduler is in drain mode
+    if (draining.get() || !running.get()) {
+      FlowFuture<Void> future = new FlowFuture<>();
+      future.getPromise().completeExceptionally(
+          new CancellationException("Cannot yield while scheduler is shutting down"));
+      return future;
+    }
+
     if (!FlowScheduler.isInFlowContext()) {
       throw new IllegalStateException("yield called outside of a flow task");
     }
@@ -626,7 +655,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // permanently retain its boosted priority
       if (task.getPriority() != task.getOriginalPriority()) {
         debug(LOGGER, "Resetting task " + task.getId() + " priority from " +
-              task.getPriority() + " back to original " + task.getOriginalPriority());
+                      task.getPriority() + " back to original " + task.getOriginalPriority());
         task.setEffectivePriority(task.getOriginalPriority(), clock.currentTimeMillis());
       }
 
@@ -673,11 +702,20 @@ public class SingleThreadedScheduler implements AutoCloseable {
           // Process any timer tasks that are ready
           processTimerTasks();
 
+          // When draining, exit once all tasks are done
+          if (draining.get() && readyTasks.isEmpty() && idToTask.isEmpty()) {
+            info(LOGGER, "All tasks processed, exiting drain mode");
+            taskLock.unlock();
+            lockAcquired = false;
+            return;
+          }
+
           // Wait until there's a task in the queue or a timer is due
           while (readyTasks.isEmpty()) {
             // Exit early if scheduler is stopping
-            if (!running.get()) {
-              warn(LOGGER, "scheduler loop stopping");
+            // When draining, exit once all tasks are done
+            if (draining.get() && idToTask.isEmpty()) {
+              info(LOGGER, "All tasks processed, exiting drain mode");
               taskLock.unlock();
               lockAcquired = false;
               return;
@@ -804,9 +842,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
     long currentTime = clock.currentTimeMillis();
 
     // Fast path - skip if:
-    // 1. All tasks are already at MUST_RUN priority (nothing to boost)
+    // 1. All tasks are at the same priority level OR if we have a task at -1 priority (MUST_RUN)
     // 2. It's not time for any task to be aged yet
-    if ((minPriorityInQueue == maxPriorityInQueue && minPriorityInQueue == TaskPriority.MUST_RUN) ||
+    if ((minPriorityInQueue == maxPriorityInQueue || minPriorityInQueue == -1) ||
         currentTime < nextAgingCheckTime) {
       return;
     }
@@ -831,12 +869,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
         // Calculate new priority (remember lower values = higher priority)
         int newPriority = oldPriority - priorityAgingBoost;
-
-        // Allow boosting beyond CRITICAL all the way to MUST_RUN
-        // This ensures that even the lowest priority tasks will eventually run
-        if (newPriority < TaskPriority.MUST_RUN) {
-          newPriority = TaskPriority.MUST_RUN;
-        }
 
         // Only log and update if priority actually changed
         if (newPriority != oldPriority) {
@@ -883,7 +915,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // permanently retain its boosted priority
     if (task.getPriority() != task.getOriginalPriority()) {
       debug(LOGGER, "Resetting task " + task.getId() + " priority from " +
-            task.getPriority() + " back to original " + task.getOriginalPriority());
+                    task.getPriority() + " back to original " + task.getOriginalPriority());
       task.setEffectivePriority(task.getOriginalPriority(), clock.currentTimeMillis());
     }
 
@@ -900,6 +932,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
         // Execute the task
         task.getCallable().call();
       } catch (Exception e) {
+        if (task.isCancelled()) {
+          return;
+        }
         task.setState(Task.TaskState.FAILED);
         warn(LOGGER, "task " + task.getId() + " failed: ", e);
       } finally {
@@ -933,6 +968,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param <T>    The type of the future value
    */
   public <T> T await(FlowFuture<T> future) throws Exception {
+    // Check if scheduler is in drain mode
+    if (draining.get()) {
+      throw new CancellationException("Cannot await futures while scheduler is shutting down");
+    }
+
     if (!FlowScheduler.isInFlowContext()) {
       throw new IllegalStateException("await called outside of a flow task");
     }
@@ -1176,70 +1216,134 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   @Override
   public void close() {
-    if (running.compareAndSet(true, false)) {
-      info(LOGGER, "Shutting down scheduler");
+    // First try to drain tasks
+    drain();
 
-      // Interrupt scheduler thread
-      if (schedulerThread != null) {
-        schedulerThread.interrupt();
-      }
+    // Then proceed with full shutdown
+    info(LOGGER, "Shutting down scheduler");
 
-      // Wake up waiting threads
-      taskLock.lock();
+    // Wait for the scheduler loop to exit before cleaning up data structures
+    if (schedulerThread != null) {
       try {
-        // Reset priority tracking
-        resetPriorityTracking();
+        debug(LOGGER, "Waiting for scheduler loop to exit...");
+        // Wait with a reasonable timeout to avoid hanging indefinitely if there's an issue
+        CountDownLatch latch = schedulerExitLatch.get();
+        boolean exited = latch != null && latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
 
-        tasksAvailableCondition.signalAll();
-      } finally {
-        taskLock.unlock();
+        if (!exited) {
+          warn(LOGGER, "Scheduler loop did not exit within timeout period");
+
+          // Check if thread is still alive
+          if (schedulerThread.isAlive()) {
+            warn(LOGGER, "Scheduler thread is still alive, attempting to join it...");
+
+            // As a last resort, try to join the thread with a timeout
+            try {
+              schedulerThread.join(2000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              warn(LOGGER, "Interrupted while joining scheduler thread", e);
+            }
+
+            if (schedulerThread.isAlive()) {
+              warn(LOGGER, "Scheduler thread is still alive after join attempt.");
+            } else {
+              debug(LOGGER, "Scheduler thread terminated after join.");
+            }
+          }
+        } else {
+          debug(LOGGER, "Scheduler loop exited successfully");
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        warn(LOGGER, "Interrupted while waiting for scheduler loop to exit", e);
+      }
+    }
+
+    // Clear all task-related maps now that we know the scheduler loop is not using them
+    // and we've notified all waiting actors
+    taskToContinuation.clear();
+    taskToScope.clear();
+    idToTask.clear();
+    yieldPromises.clear();
+    timerTasks.clear();
+    timerIdToTask.clear();
+
+    running.set(false);
+  }
+
+  /**
+   * Puts the scheduler in drain mode. In this mode:
+   * - No new tasks can be submitted
+   * - Yield and await operations fail with CancellationException
+   * - Existing tasks are allowed to run to completion for cleanup
+   * <p>
+   * This allows tasks to handle cancellation and perform necessary cleanup
+   * before the scheduler fully shuts down.
+   */
+  void drain() {
+    if (!draining.compareAndSet(false, true)) {
+      // Already draining, just return
+      return;
+    }
+
+    info(LOGGER, "Putting scheduler in drain mode");
+
+    // Complete all yield promises with cancellation exceptions
+    taskLock.lock();
+    try {
+      // Reset priority tracking
+      resetPriorityTracking();
+
+      // Complete all yield promises with cancellation exceptions
+      for (Map.Entry<Long, FlowPromise<Void>> entry : yieldPromises.entrySet()) {
+        debug(LOGGER, "Cancelling yield promise for task " + entry.getKey() + " due to scheduler drain");
+        entry.getValue().completeExceptionally(
+            new CancellationException("Scheduler is draining while waiting for yield"));
       }
 
-      // Wait for the scheduler loop to exit before cleaning up data structures
-      if (schedulerThread != null) {
-        try {
-          debug(LOGGER, "Waiting for scheduler loop to exit...");
-          // Wait with a reasonable timeout to avoid hanging indefinitely if there's an issue
-          CountDownLatch latch = schedulerExitLatch.get();
-          boolean exited = latch != null && latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+      // Cancel all timer tasks
+      for (Map.Entry<Long, TimerTask> entry : timerIdToTask.entrySet()) {
+        debug(LOGGER, "Cancelling timer task " + entry.getKey() + " due to scheduler drain");
+        TimerTask task = entry.getValue();
+        task.getPromise().completeExceptionally(
+            new CancellationException("Scheduler is draining while waiting for timer"));
+      }
 
-          if (!exited) {
-            warn(LOGGER, "Scheduler loop did not exit within timeout period");
-
-            // Check if thread is still alive
-            if (schedulerThread.isAlive()) {
-              warn(LOGGER, "Scheduler thread is still alive, attempting to join it...");
-
-              // As a last resort, try to join the thread with a timeout
-              try {
-                schedulerThread.join(2000);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                warn(LOGGER, "Interrupted while joining scheduler thread", e);
-              }
-
-              if (schedulerThread.isAlive()) {
-                warn(LOGGER, "Scheduler thread is still alive after join attempt.");
-              } else {
-                debug(LOGGER, "Scheduler thread terminated after join.");
-              }
-            }
-          } else {
-            debug(LOGGER, "Scheduler loop exited successfully");
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          warn(LOGGER, "Interrupted while waiting for scheduler loop to exit", e);
+      // Add all tasks back to the ready queue to ensure they get a chance to run
+      // for their cleanup work
+      for (Task task : idToTask.values()) {
+        if (task.getState() == Task.TaskState.SUSPENDED) {
+          debug(LOGGER, "Resuming suspended task " + task.getId() + " for cleanup");
+          readyTasks.add(task);
         }
       }
 
-      // Clear all task-related maps now that we know the scheduler loop is not using them
-      taskToContinuation.clear();
-      taskToScope.clear();
-      idToTask.clear();
-      yieldPromises.clear();
-      timerTasks.clear();
-      timerIdToTask.clear();
+      // Signal the scheduler that tasks are available
+      tasksAvailableCondition.signalAll();
+    } finally {
+      taskLock.unlock();
+    }
+
+    // If we're not using the carrier thread, manually pump tasks to drain
+    if (!enableCarrierThread) {
+      int iterationCount = 0;
+      int maxIterations = 100; // Safety to avoid infinite loops
+
+      // Keep pumping tasks until no more tasks are processed or we hit the limit
+      while (iterationCount < maxIterations) {
+        int tasksProcessed = pump();
+        if (tasksProcessed == 0) {
+          // No more tasks to process
+          break;
+        }
+        iterationCount++;
+      }
+
+      // Check if we still have active tasks (which would be unexpected in drain mode)
+      if (!idToTask.isEmpty()) {
+        warn(LOGGER, "Some tasks still remain after draining: " + idToTask.size());
+      }
     }
   }
 }

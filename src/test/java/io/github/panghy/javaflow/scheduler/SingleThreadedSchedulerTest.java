@@ -44,6 +44,7 @@ class SingleThreadedSchedulerTest {
   @BeforeEach
   void setUp() {
     scheduler = new SingleThreadedScheduler();
+    scheduler.start();
   }
 
   @AfterEach
@@ -522,6 +523,7 @@ class SingleThreadedSchedulerTest {
   void testDefaultConstructor() {
     // Verify it works by running a simple task
     try (SingleThreadedScheduler defaultScheduler = new SingleThreadedScheduler()) {
+      defaultScheduler.start();
       assertNotNull(defaultScheduler);
       FlowFuture<String> future = defaultScheduler.schedule(() -> "test-default");
       assertEquals("test-default", future.toCompletableFuture().get());
@@ -550,6 +552,7 @@ class SingleThreadedSchedulerTest {
     // Create a new scheduler since the current one might be in an inconsistent state
 
     try (SingleThreadedScheduler newScheduler = new SingleThreadedScheduler()) {
+      newScheduler.start();
       // Verify new scheduler is operational
       FlowFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
       assertEquals("post-interrupt", future.toCompletableFuture().get());
@@ -655,6 +658,8 @@ class SingleThreadedSchedulerTest {
     }
 
     try (InterruptTestScheduler testScheduler = new InterruptTestScheduler()) {
+      testScheduler.start();
+
       // Create a thread to run our test method
       AtomicReference<Exception> caughtException = new AtomicReference<>();
       CountDownLatch testStarted = new CountDownLatch(1);
@@ -700,6 +705,7 @@ class SingleThreadedSchedulerTest {
 
     // Create a test scheduler
     SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
+    testScheduler.start();
 
     // Get access to internal fields
     Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
@@ -725,6 +731,8 @@ class SingleThreadedSchedulerTest {
 
     // Create a new task right after closing to verify that the scheduler can restart
     testScheduler.close();
+
+    testScheduler.start();
 
     // Simply verify that after closing, we can still schedule a task 
     // (which will restart the scheduler)
@@ -936,49 +944,10 @@ class SingleThreadedSchedulerTest {
   }
 
   @Test
-  void testRunFlagInSchedulerLoop() throws Exception {
-    // This test explicitly targets the running.getNow() in the while loop of schedulerLoop
-
-    // Create a scheduler for testing
-    SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
-
-    // Start the scheduler which will create a thread running schedulerLoop
-    testScheduler.start();
-
-    // Schedule a task to verify the scheduler is running correctly
-    FlowFuture<String> initialFuture = testScheduler.schedule(() -> "initial task");
-    assertEquals("initial task", initialFuture.toCompletableFuture().get());
-
-    // Access the running flag using reflection
-    Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
-    runningField.setAccessible(true);
-    AtomicBoolean running = (AtomicBoolean) runningField.get(testScheduler);
-
-    // Get access to readyTasks to send notification
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(testScheduler);
-
-    // Set running to false
-    running.set(false);
-
-    // Close the scheduler
-    testScheduler.close();
-
-    // Verify that the scheduler can restart by scheduling a new task
-    FlowFuture<String> future = testScheduler.schedule(() -> "new scheduler");
-    assertEquals("new scheduler", future.toCompletableFuture().get());
-
-    // Cleanup
-    testScheduler.close();
-  }
-
-  @Test
   void testPumpMethodWithReadyTasks() throws Exception {
     scheduler.close();
     scheduler = new SingleThreadedScheduler(false);
+    scheduler.start();
 
     // This test specifically tests the pump() method to ensure it processes all ready tasks
 
@@ -1107,6 +1076,7 @@ class SingleThreadedSchedulerTest {
   void testCancelTaskPropagation() throws Exception {
     scheduler.close();
     scheduler = new SingleThreadedScheduler(false);
+    scheduler.start();
 
     // This test verifies that cancelling a task properly propagates to the task
 
@@ -1190,6 +1160,7 @@ class SingleThreadedSchedulerTest {
   @Test
   void testGetActiveTasks() {
     SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false);
+    scheduler.start();
 
     // Create a latch to control task completion
     CountDownLatch taskRunning = new CountDownLatch(1);
@@ -1239,6 +1210,8 @@ class SingleThreadedSchedulerTest {
     // To test this method, we need a scheduler where we can control task execution
 
     try (SingleThreadedScheduler testScheduler = new SingleThreadedScheduler(false)) {
+      testScheduler.start();
+
       // Based on the implementation, getCurrentTaskForFuture() always returns the current task
       // from ThreadLocal context. If we're not inside a task, it returns null.
 

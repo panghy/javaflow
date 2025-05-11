@@ -1,5 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
+import io.github.panghy.javaflow.Flow;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
@@ -300,7 +302,7 @@ public class Task implements Comparable<Task> {
           // Get a reference to the scheduler's cancelTimer method
           // We need to use the Flow class to get access to the scheduler
           for (Long timerId : timerIds) {
-            io.github.panghy.javaflow.Flow.scheduler().cancelTimer(timerId);
+            Flow.scheduler().cancelTimer(timerId);
           }
         } catch (Exception e) {
           throw new RuntimeException("Error cancelling timer tasks for task " + id, e);

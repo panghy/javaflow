@@ -33,6 +33,7 @@ class SingleThreadedSchedulerConstructorTest {
   @Test
   void testDefaultConstructor() {
     scheduler = new SingleThreadedScheduler();
+    scheduler.start();
     assertTrue(getEnableCarrierThreadValue(scheduler), 
         "Default constructor should enable carrier thread");
         

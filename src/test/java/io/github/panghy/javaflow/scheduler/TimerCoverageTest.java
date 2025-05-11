@@ -46,6 +46,7 @@ class TimerCoverageTest {
     // Use test scheduler with disabled carrier thread
 
     try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false)) {
+      scheduler.start();
       // Create a parent task
       Task parentTask = new Task(999L, TaskPriority.DEFAULT, () -> "parent", null);
 
@@ -142,6 +143,7 @@ class TimerCoverageTest {
     SimulatedClock clock = new SimulatedClock();
 
     try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false, clock)) {
+      scheduler.start();
       // Set up current task
       Task parentTask = new Task(1L, TaskPriority.DEFAULT, () -> "parent", null);
       FlowScheduler.CURRENT_TASK.set(parentTask);
@@ -306,6 +308,7 @@ class TimerCoverageTest {
     SimulatedClock clock = new SimulatedClock();
 
     try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false, clock)) {
+      scheduler.start();
       // Set up current task
       Task parentTask = new Task(1L, TaskPriority.DEFAULT, () -> "parent", null);
       FlowScheduler.CURRENT_TASK.set(parentTask);
