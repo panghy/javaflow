@@ -240,7 +240,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     taskLock.lock();
     try {
       // Create a temporary copy to avoid concurrent modification
-      Set<Task> tasksToUpdate = new HashSet<>(readyTasks);
+      List<Task> tasksToUpdate = new ArrayList<>(readyTasks);
 
       for (Task task : tasksToUpdate) {
         // Calculate new effective priority
