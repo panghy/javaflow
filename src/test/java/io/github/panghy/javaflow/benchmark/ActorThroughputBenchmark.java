@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ActorThroughputBenchmark {
 
   private static final int ACTOR_COUNT = 10_000;
-  private static final long BENCHMARK_DURATION_MS = 60_000; // 60 seconds
+  private static final long BENCHMARK_DURATION_MS = 10_000; // 60 seconds
 
   public static void main(String[] args) throws Exception {
     // Counter for tracking total operations

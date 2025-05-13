@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -186,31 +187,38 @@ class SingleThreadedSchedulerTest {
   }
 
   @Test
-  void testFindInsertionPoint() throws Exception {
-    // Test the findInsertionPoint method
-    Method findInsertionPointMethod =
-        SingleThreadedScheduler.class.getDeclaredMethod("findInsertionPoint", Task.class);
-    findInsertionPointMethod.setAccessible(true);
-
+  void testTaskOrdering() throws Exception {
+    // Test that tasks are ordered correctly in the TreeSet
+    
     // Create a new scheduler to avoid interference from other tests
     try (SingleThreadedScheduler localScheduler = new SingleThreadedScheduler()) {
-      // Get access to the readyTasks list
-      Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-      readyTasksField.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(localScheduler);
+      // Get access to the readyTasks TreeSet using the package-private getter
+      TreeSet<Task> readyTasks = localScheduler.getReadyTasks();
       
-      // Test with empty list
-      Task task = new Task(999L, TaskPriority.DEFAULT, () -> "test", null);
-      int insertionPoint = (int) findInsertionPointMethod.invoke(localScheduler, task);
-      assertEquals(0, insertionPoint, "Insertion point should be 0 for empty list");
-      
-      // Add task and test with non-empty list
-      readyTasks.add(task);
+      // Create tasks with different priorities
+      Task defaultTask = new Task(999L, TaskPriority.DEFAULT, () -> "default", null);
       Task highPriorityTask = new Task(1000L, TaskPriority.HIGH, () -> "high", null);
-      insertionPoint = (int) findInsertionPointMethod.invoke(localScheduler, highPriorityTask);
-      assertTrue(insertionPoint <= readyTasks.size(), 
-          "Insertion point should be valid index in readyTasks");
+      Task lowPriorityTask = new Task(1001L, TaskPriority.LOW, () -> "low", null);
+      
+      // Add tasks to the TreeSet
+      readyTasks.add(defaultTask);
+      readyTasks.add(highPriorityTask);
+      readyTasks.add(lowPriorityTask);
+      
+      // Verify tasks are ordered by priority (highest first)
+      assertEquals(highPriorityTask, readyTasks.first(), "High priority task should be first");
+      
+      // Remove the high priority task and verify the order
+      readyTasks.remove(highPriorityTask);
+      assertEquals(defaultTask, readyTasks.first(), 
+          "Default priority task should be first after removing high priority task");
+      
+      // Test that we can add and remove tasks properly
+      readyTasks.clear();
+      readyTasks.add(lowPriorityTask);
+      assertEquals(1, readyTasks.size(), "TreeSet should have 1 task");
+      readyTasks.remove(lowPriorityTask);
+      assertTrue(readyTasks.isEmpty(), "TreeSet should be empty");
     }
   }
 
@@ -224,11 +232,8 @@ class SingleThreadedSchedulerTest {
     Field runningField = SingleThreadedScheduler.class.getDeclaredField("running");
     runningField.setAccessible(true);
 
-    // Get access to the readyTasks field
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
+    // Get access to the readyTasks field using the package-private getter
+    TreeSet<Task> readyTasks = scheduler.getReadyTasks();
 
     // Get the schedulerLoop method for testing
     Method schedulerLoopMethod = SingleThreadedScheduler.class.getDeclaredMethod("schedulerLoop");
@@ -435,10 +440,8 @@ class SingleThreadedSchedulerTest {
     @SuppressWarnings("unchecked")
     Map<Long, Task> idToTask = (Map<Long, Task>) idToTaskField.get(scheduler);
 
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
+    // Get access to the readyTasks field using the package-private getter
+    TreeSet<Task> readyTasks = scheduler.getReadyTasks();
 
     // Create a task
     Callable<String> callable = () -> "test";
@@ -491,11 +494,8 @@ class SingleThreadedSchedulerTest {
     // Test branch for disabled priority enforcement
 
     try (SingleThreadedScheduler nonPriorityScheduler = new SingleThreadedScheduler()) {
-      // Get the readyTasks queue
-      Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-      readyTasksField.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(nonPriorityScheduler);
+      // Get the readyTasks queue directly with package-private getter
+      TreeSet<Task> readyTasks = nonPriorityScheduler.getReadyTasks();
 
       // Add some tasks with different priorities
       nonPriorityScheduler.schedule(() -> "high", TaskPriority.HIGH);
@@ -727,12 +727,8 @@ class SingleThreadedSchedulerTest {
     // Create a new scheduler for this test
     SingleThreadedScheduler testScheduler = new SingleThreadedScheduler();
 
-    // Get access to internal fields
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-
-    @SuppressWarnings("unchecked")
-    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(testScheduler);
+    // Get access to the readyTasks field using the package-private getter
+    TreeSet<Task> readyTasks = testScheduler.getReadyTasks();
 
     // Start the scheduler
     testScheduler.start();
@@ -791,11 +787,8 @@ class SingleThreadedSchedulerTest {
     // First ensure the scheduler is started
     scheduler.start();
 
-    // Access readyTasks and runningTaskCount
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
+    // Access readyTasks using the package-private getter
+    TreeSet<Task> readyTasks = scheduler.getReadyTasks();
 
     // Clear any tasks and reset running count
     readyTasks.clear();
@@ -827,11 +820,8 @@ class SingleThreadedSchedulerTest {
       throw new RuntimeException("Test exception in task processing");
     }, null);
 
-    // Access the readyTasks queue of our test scheduler
-    Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
-    readyTasksField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
+    // Access the readyTasks queue using the package-private getter
+    TreeSet<Task> readyTasks = scheduler.getReadyTasks();
 
     // Make sure the scheduler is started
     scheduler.start();

@@ -29,11 +29,13 @@ public class Task {
   private final AtomicReference<HashSet<Task>> children = new AtomicReference<>();
   private final AtomicReference<Consumer<Collection<Long>>> cancellationCallback =
       new AtomicReference<>();
-  // Last time the priority was boosted - used for priority aging calculation
-  private volatile long lastPriorityBoostTime;
 
   // Track timer tasks associated with this task for cancellation propagation
   private final Collection<Long> associatedTimerIds = new HashSet<>();
+
+  // Last time the priority was boosted - used for priority aging calculation
+  private volatile long lastPriorityBoostTime;
+  private volatile int effectivePriority;
 
   /**
    * Task state enum.
@@ -63,6 +65,7 @@ public class Task {
     this.sequence = SEQUENCE.getAndIncrement();
     this.callable = Objects.requireNonNull(callable, "Callable cannot be null");
     this.state = TaskState.CREATED;
+    this.effectivePriority = priority;
   }
 
   /**
@@ -92,6 +95,24 @@ public class Task {
    */
   public int getPriority() {
     return originalPriority;
+  }
+  
+  /**
+   * Gets the cached effective priority for this task.
+   * 
+   * @return The effective priority (lower values mean higher priority)
+   */
+  public int getEffectivePriority() {
+    return effectivePriority;
+  }
+  
+  /**
+   * Sets the cached effective priority for this task.
+   * 
+   * @param effectivePriority The new effective priority value
+   */
+  public void setEffectivePriority(int effectivePriority) {
+    this.effectivePriority = effectivePriority;
   }
 
   /**
