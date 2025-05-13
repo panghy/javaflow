@@ -13,16 +13,13 @@ import java.util.function.Consumer;
 
 /**
  * Represents a schedulable task in the JavaFlow system.
- * Tasks are ordered by priority, creation time, and task ID for consistent ordering.
  */
-public class Task implements Comparable<Task> {
+public class Task {
   private static final AtomicLong SEQUENCE = new AtomicLong(0);
 
   private final long id;
-  // Original priority as assigned during creation
+  // Priority as assigned during creation
   private final int originalPriority;
-  // Current effective priority (may be adjusted by priority aging)
-  private volatile int effectivePriority;
   private final long creationTime;
   private final long sequence;
   private final Callable<?> callable;
@@ -32,7 +29,7 @@ public class Task implements Comparable<Task> {
   private final AtomicReference<HashSet<Task>> children = new AtomicReference<>();
   private final AtomicReference<Consumer<Collection<Long>>> cancellationCallback =
       new AtomicReference<>();
-  // Last time the priority was boosted
+  // Last time the priority was boosted - used for priority aging calculation
   private volatile long lastPriorityBoostTime;
 
   // Track timer tasks associated with this task for cancellation propagation
@@ -60,7 +57,6 @@ public class Task implements Comparable<Task> {
   public Task(long id, int priority, Callable<?> callable, Task parent) {
     this.id = id;
     this.originalPriority = priority;
-    this.effectivePriority = priority; // Start with the original priority
     this.parent = parent;
     this.creationTime = System.currentTimeMillis();
     this.lastPriorityBoostTime = this.creationTime; // Initialize the last boost time
@@ -79,7 +75,7 @@ public class Task implements Comparable<Task> {
   }
 
   /**
-   * Gets the task's original priority as assigned during creation.
+   * Gets the task's priority as assigned during creation.
    *
    * @return The original priority
    */
@@ -88,30 +84,29 @@ public class Task implements Comparable<Task> {
   }
 
   /**
-   * Gets the task's current effective priority.
-   * This may be different from the original priority due to priority aging.
+   * Gets the task's priority.
+   * The effective priority used for scheduling is calculated on-the-fly by the scheduler
+   * taking into account the time since this task was last boosted.
    *
-   * @return The current effective priority
+   * @return The task's base priority
    */
   public int getPriority() {
-    return effectivePriority;
+    return originalPriority;
   }
 
   /**
-   * Sets the effective priority of the task.
-   * This is used by the priority aging mechanism to boost the priority
-   * of tasks that have been waiting for a long time.
+   * Resets the last boost time for this task to the current time.
+   * This is called when a task is picked for execution to reset its aging.
    *
-   * @param priority    The new effective priority
-   * @param currentTime The current time when the priority is being boosted.
+   * @param currentTime The current time in milliseconds
    */
-  public void setEffectivePriority(int priority, long currentTime) {
-    this.effectivePriority = priority;
+  public void resetPriorityBoostTime(long currentTime) {
     this.lastPriorityBoostTime = currentTime;
   }
 
   /**
    * Gets the time when this task's priority was last boosted.
+   * Used to calculate priority aging.
    *
    * @return The timestamp of the last priority boost
    */
@@ -306,28 +301,9 @@ public class Task implements Comparable<Task> {
   }
 
   @Override
-  public int compareTo(Task other) {
-    // First compare by effective priority (lower value means higher priority)
-    int result = Integer.compare(this.effectivePriority, other.effectivePriority);
-    if (result != 0) {
-      return result;
-    }
-
-    // If same priority, compare by creation time (earlier time means higher priority)
-    result = Long.compare(this.creationTime, other.creationTime);
-    if (result != 0) {
-      return result;
-    }
-
-    // If same creation time, use sequence number for stable FIFO ordering
-    return Long.compare(this.sequence, other.sequence);
-  }
-
-  @Override
   public String toString() {
     return "Task{id=" + id +
-           ", priority=" + effectivePriority +
-           (effectivePriority != originalPriority ? " (original=" + originalPriority + ")" : "") +
+           ", priority=" + originalPriority +
            ", state=" + state + "}";
   }
 

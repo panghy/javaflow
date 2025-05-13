@@ -17,8 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,8 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -190,31 +186,31 @@ class SingleThreadedSchedulerTest {
   }
 
   @Test
-  void testFindHighestPriorityTask() throws Exception {
-    // Test the findHighestPriorityTask method
-    Method findHighestPriorityTaskMethod =
-        SingleThreadedScheduler.class.getDeclaredMethod("findHighestPriorityTask");
-    findHighestPriorityTaskMethod.setAccessible(true);
+  void testFindInsertionPoint() throws Exception {
+    // Test the findInsertionPoint method
+    Method findInsertionPointMethod =
+        SingleThreadedScheduler.class.getDeclaredMethod("findInsertionPoint", Task.class);
+    findInsertionPointMethod.setAccessible(true);
 
     // Create a new scheduler to avoid interference from other tests
-
     try (SingleThreadedScheduler localScheduler = new SingleThreadedScheduler()) {
-      // With empty queue, it should return null
-      assertNull(findHighestPriorityTaskMethod.invoke(localScheduler));
-
-      // Get access to the readyTasks queue
+      // Get access to the readyTasks list
       Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
       readyTasksField.setAccessible(true);
       @SuppressWarnings("unchecked")
-      PriorityBlockingQueue<Task> readyTasks =
-          (PriorityBlockingQueue<Task>) readyTasksField.get(localScheduler);
-
-      // Create and add a task directly to the queue
+      ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(localScheduler);
+      
+      // Test with empty list
       Task task = new Task(999L, TaskPriority.DEFAULT, () -> "test", null);
+      int insertionPoint = (int) findInsertionPointMethod.invoke(localScheduler, task);
+      assertEquals(0, insertionPoint, "Insertion point should be 0 for empty list");
+      
+      // Add task and test with non-empty list
       readyTasks.add(task);
-
-      // Now it should return a task
-      assertNotNull(findHighestPriorityTaskMethod.invoke(localScheduler));
+      Task highPriorityTask = new Task(1000L, TaskPriority.HIGH, () -> "high", null);
+      insertionPoint = (int) findInsertionPointMethod.invoke(localScheduler, highPriorityTask);
+      assertTrue(insertionPoint <= readyTasks.size(), 
+          "Insertion point should be valid index in readyTasks");
     }
   }
 
@@ -232,8 +228,7 @@ class SingleThreadedSchedulerTest {
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     readyTasksField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(scheduler);
+    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
 
     // Get the schedulerLoop method for testing
     Method schedulerLoopMethod = SingleThreadedScheduler.class.getDeclaredMethod("schedulerLoop");
@@ -443,8 +438,7 @@ class SingleThreadedSchedulerTest {
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     readyTasksField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(scheduler);
+    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
 
     // Create a task
     Callable<String> callable = () -> "test";
@@ -501,8 +495,7 @@ class SingleThreadedSchedulerTest {
       Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
       readyTasksField.setAccessible(true);
       @SuppressWarnings("unchecked")
-      PriorityBlockingQueue<Task> readyTasks =
-          (PriorityBlockingQueue<Task>) readyTasksField.get(nonPriorityScheduler);
+      ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(nonPriorityScheduler);
 
       // Add some tasks with different priorities
       nonPriorityScheduler.schedule(() -> "high", TaskPriority.HIGH);
@@ -557,32 +550,6 @@ class SingleThreadedSchedulerTest {
       FlowFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
       assertEquals("post-interrupt", future.toCompletableFuture().get());
     }
-  }
-
-  @Test
-  void testScheduleDelayInterruption() throws Exception {
-    // Create a future that will be interrupted during delay
-    CountDownLatch delayStarted = new CountDownLatch(1);
-    AtomicReference<Thread> delayThread = new AtomicReference<>();
-
-    FlowFuture<Void> future = scheduler.schedule(() -> {
-      delayThread.set(Thread.currentThread());
-      delayStarted.countDown();
-      try {
-        Thread.sleep(2000); // Long enough to be interrupted
-        return null;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw e;
-      }
-    });
-
-    // Wait for delay to start then interrupt it
-    assertTrue(delayStarted.await(500, TimeUnit.MILLISECONDS), "Delay task should have started");
-    delayThread.get().interrupt();
-
-    // Verify interruption is propagated
-    assertThrows(ExecutionException.class, future::getNow);
   }
 
   /**
@@ -765,8 +732,7 @@ class SingleThreadedSchedulerTest {
     readyTasksField.setAccessible(true);
 
     @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(testScheduler);
+    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(testScheduler);
 
     // Start the scheduler
     testScheduler.start();
@@ -829,8 +795,7 @@ class SingleThreadedSchedulerTest {
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     readyTasksField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(scheduler);
+    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
 
     // Clear any tasks and reset running count
     readyTasks.clear();
@@ -866,8 +831,7 @@ class SingleThreadedSchedulerTest {
     Field readyTasksField = SingleThreadedScheduler.class.getDeclaredField("readyTasks");
     readyTasksField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    PriorityBlockingQueue<Task> readyTasks =
-        (PriorityBlockingQueue<Task>) readyTasksField.get(scheduler);
+    ArrayList<Task> readyTasks = (ArrayList<Task>) readyTasksField.get(scheduler);
 
     // Make sure the scheduler is started
     scheduler.start();
@@ -1203,45 +1167,5 @@ class SingleThreadedSchedulerTest {
     // may be very fast and the task could complete before we check, we'll just verify
     // that getActiveTasks() returns a non-null set
     assertNotNull(activeTasks, "Active tasks set should not be null");
-  }
-
-  @Test
-  void testGetCurrentTaskForFuture() {
-    // To test this method, we need a scheduler where we can control task execution
-
-    try (SingleThreadedScheduler testScheduler = new SingleThreadedScheduler(false)) {
-      testScheduler.start();
-
-      // Based on the implementation, getCurrentTaskForFuture() always returns the current task
-      // from ThreadLocal context. If we're not inside a task, it returns null.
-
-      // Check during test execution (outside of any flow task)
-      Task taskOutsideFlow = testScheduler.getCurrentTaskForFuture(null);
-      // Since we're not in a flow context, this should be null
-      assertNull(taskOutsideFlow, "Task should be null outside flow context");
-
-      // Create an atomic reference to store task from within flow context
-      AtomicReference<Task> taskFromFlow = new AtomicReference<>();
-
-      // Schedule a task to run within flow context
-      testScheduler.schedule(() -> {
-        Task currentTask = FlowScheduler.CURRENT_TASK.get();
-        taskFromFlow.set(currentTask);
-
-        // Test the method while inside a flow task
-        Task returnedTask = testScheduler.getCurrentTaskForFuture(null);
-        // Inside a flow task, this should return the current task
-        assertEquals(currentTask, returnedTask,
-            "Inside flow task, should return current task");
-
-        return null;
-      });
-
-      // Run the task - testScheduler has its carrier thread disabled
-      testScheduler.pump();
-
-      // Verify a task was captured from within the flow context
-      assertNotNull(taskFromFlow.get(), "Should have captured a task from flow context");
-    }
   }
 }

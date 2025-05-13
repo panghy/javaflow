@@ -174,17 +174,6 @@ public class FlowScheduler implements AutoCloseable {
     return delegate.getActiveTasks();
   }
 
-  /**
-   * Gets the current task for a given future.
-   * This is primarily for testing and debugging purposes.
-   *
-   * @param future The future to get the task for
-   * @return The task that created the future, or null if not found
-   */
-  public Task getCurrentTaskForFuture(FlowFuture<?> future) {
-    return delegate.getCurrentTaskForFuture(future);
-  }
-
 
   /**
    * Yields control from the current actor to allow other actors to run.

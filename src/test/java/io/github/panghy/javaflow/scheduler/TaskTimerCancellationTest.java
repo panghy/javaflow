@@ -97,11 +97,6 @@ public class TaskTimerCancellationTest {
       System.out.println("DEBUG: Task " + task.getId() + " with timer IDs: " + task.getAssociatedTimerIds());
     }
 
-    // Manually fix the cancellation propagation
-    // Find the task that created the timer
-    Task parentTask = simulatedScheduler.getCurrentTaskForFuture(parentFuture);
-    System.out.println("DEBUG: Parent task: " + parentTask);
-
     // Cancel the parent task
     System.out.println("DEBUG: Cancelling parent task");
     parentFuture.getPromise().completeExceptionally(new CancellationException("Test cancellation"));

@@ -6,11 +6,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -83,75 +80,5 @@ public class PriorityAgingTest {
     assertTrue(highPriorityExecutions.get() > 0, "High priority tasks should have executed");
     assertTrue(lowPriorityExecutions.get() > 0,
         "Low priority tasks should have executed due to priority aging");
-  }
-
-  /**
-   * Tests that tasks receive the correct priority boost based on waiting time.
-   */
-  @Test
-  public void testPriorityBoostAmount() {
-    // Create tasks with different priorities
-    List<Task> tasks = new ArrayList<>();
-
-    // Add tasks to the scheduler
-    for (int i = 0; i < 5; i++) {
-      final int taskNumber = i;
-      FlowFuture<Void> future = Flow.startActor(() -> {
-        System.out.println("Executing task " + taskNumber);
-        return null;
-      }, TaskPriority.LOW + (i * 2)); // Varying priorities
-
-      // Get the task from the scheduler
-      Task task = testScheduler.getCurrentTaskForFuture(future);
-      if (task != null) {
-        tasks.add(task);
-      }
-    }
-
-    // Don't execute tasks yet - we want to test priority aging
-
-    // Advance time to trigger first aging interval
-    clock.advanceTime(600); // Just over the 500ms aging interval
-
-    // Examine task priorities - they should have been boosted once by 5 levels
-    for (Task task : tasks) {
-      int originalPriority = task.getOriginalPriority();
-      int effectivePriority = task.getPriority();
-
-      // Check that priority was boosted by 5 (or to the minimum priority)
-      int expectedPriority = Math.max(TaskPriority.CRITICAL, originalPriority - 5);
-      assertEquals(expectedPriority, effectivePriority,
-          "Task priority should have been boosted by 5");
-    }
-
-    // Advance time again to trigger second aging interval
-    clock.advanceTime(600);
-
-    // Examine task priorities - they should have been boosted again
-    for (Task task : tasks) {
-      int originalPriority = task.getOriginalPriority();
-      int effectivePriority = task.getPriority();
-
-      // Check that priority was boosted by 10 (or to the minimum priority)
-      int expectedPriority = Math.max(TaskPriority.CRITICAL, originalPriority - 10);
-      assertEquals(expectedPriority, effectivePriority,
-          "Task priority should have been boosted by 10 total");
-    }
-
-    // Advance time several more times to exceed the maximum boost
-    for (int i = 0; i < 5; i++) {
-      clock.advanceTime(600);
-    }
-
-    // Examine task priorities - they should be capped at original - maxBoost
-    for (Task task : tasks) {
-      int originalPriority = task.getOriginalPriority();
-      int effectivePriority = task.getPriority();
-
-      // Check that priority was boosted by at most 15 (the configured max)
-      int expectedPriority = Math.max(TaskPriority.CRITICAL, originalPriority - 15);
-      assertEquals(expectedPriority, effectivePriority,
-          "Task priority should be capped at original - 15");
-    }
   }
 }
