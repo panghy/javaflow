@@ -55,35 +55,26 @@ public class SingleThreadedScheduler implements AutoCloseable {
   // Timer task ID counter
   private final AtomicLong timerIdCounter = new AtomicLong(0);
 
+  // Use the cached effective priority instead of calculating it on-the-fly
+  // If same priority, compare by creation time (earlier time means higher priority)
+  // If same creation time, use sequence number for stable FIFO ordering
   /**
    * Dynamic priority task comparator that uses cached effective priority
    * to avoid recalculating priorities on every comparison.
    */
-  private final Comparator<Task> effectivePriorityComparator = (task1, task2) -> {
-    // Use the cached effective priority instead of calculating it on-the-fly
-    int result = Integer.compare(task1.getEffectivePriority(), task2.getEffectivePriority());
-    if (result != 0) {
-      return result;
-    }
-
-    // If same priority, compare by creation time (earlier time means higher priority)
-    result = Long.compare(task1.getCreationTime(), task2.getCreationTime());
-    if (result != 0) {
-      return result;
-    }
-
-    // If same creation time, use sequence number for stable FIFO ordering
-    return Long.compare(task1.getSequence(), task2.getSequence());
-  };
+  private final Comparator<Task> effectivePriorityComparator =
+      Comparator.comparingInt(Task::getEffectivePriority).
+          thenComparingLong(Task::getCreationTime).
+          thenComparingLong(Task::getSequence);
 
   /**
    * List of ready tasks sorted by dynamic effective priority
    */
   private final TreeSet<Task> readyTasks = new TreeSet<>(effectivePriorityComparator);
-  
+
   /**
    * Gets the ready tasks queue. Package-private for testing.
-   * 
+   *
    * @return The ready tasks queue
    */
   TreeSet<Task> getReadyTasks() {
@@ -216,7 +207,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     this.clock = clock;
 
     // Priority aging parameters with sensible defaults
-    this.priorityAgingIntervalMs = 1000;  // 1000ms between boosts
+    this.priorityAgingIntervalMs = 100;  // 100ms between boosts
     this.priorityAgingBoost = 1;  // Boost by 1 level each time
   }
 
@@ -228,36 +219,36 @@ public class SingleThreadedScheduler implements AutoCloseable {
   public FlowClock getClock() {
     return clock;
   }
-  
+
   /**
    * Storage for tracking when the last priority update occurred
    */
   private long lastPriorityUpdateTime = 0;
-  
+
   /**
    * Interval at which to update task priorities (in milliseconds)
    */
   private static final long PRIORITY_UPDATE_INTERVAL_MS = 100; // Update every 100ms
-  
+
   /**
    * Updates the effective priorities of all tasks in the ready queue.
    * This method batches priority updates to reduce the overhead of frequent recalculations.
    */
   private void updateEffectivePriorities() {
     long currentTime = clock.currentTimeMillis();
-    
+
     taskLock.lock();
     try {
       // Create a temporary copy to avoid concurrent modification
       Set<Task> tasksToUpdate = new HashSet<>(readyTasks);
-      
+
       for (Task task : tasksToUpdate) {
         // Calculate new effective priority
         long waitingTime = currentTime - task.getLastPriorityBoostTime();
         if (waitingTime >= priorityAgingIntervalMs) {
           int boost = (int) ((waitingTime / priorityAgingIntervalMs) * priorityAgingBoost);
           int newPriority = Math.max(-1, task.getOriginalPriority() - boost);
-          
+
           // Only update if priority changed
           if (newPriority != task.getEffectivePriority()) {
             // Need to remove and re-add to TreeSet for proper reordering
@@ -651,7 +642,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Reset the task's priority boost time to the current time to reset priority aging
       long currentTime = clock.currentTimeMillis();
       task.resetPriorityBoostTime(currentTime);
-      
+
       // Reset effective priority to original priority when task is resumed
       task.setEffectivePriority(task.getOriginalPriority());
 
@@ -694,7 +685,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
           // Attempt to acquire the lock - if we can't, other operations may be in progress
           taskLock.lock();
           lockAcquired = true;
-          
+
           // Check if we need to update task priorities
           long currentTime = clock.currentTimeMillis();
           if (currentTime - lastPriorityUpdateTime > PRIORITY_UPDATE_INTERVAL_MS) {
@@ -825,7 +816,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Reset the task's priority boost time to the current time
     long currentTime = clock.currentTimeMillis();
     task.resetPriorityBoostTime(currentTime);
-    
+
     // Reset effective priority to original priority when task starts
     task.setEffectivePriority(task.getOriginalPriority());
 
