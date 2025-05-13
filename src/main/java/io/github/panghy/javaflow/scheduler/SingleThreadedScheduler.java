@@ -1025,29 +1025,21 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     SimulatedClock simulatedClock = (SimulatedClock) clock;
 
-    System.out.println(">>> SingleThreadedScheduler.advanceTime(" + millis + ") - start time: " +
-                       clock.currentTimeMillis() + "ms");
-
     // First process any already-due timer tasks
     int tasksExecuted = processTimerTasks();
-    System.out.println(">>> Initial processTimerTasks executed " + tasksExecuted + " tasks");
 
     // Advance the clock without processing tasks (the clock no longer handles tasks)
     simulatedClock.advanceTime(millis);
-    System.out.println(">>> Clock advanced to " + clock.currentTimeMillis() + "ms");
 
     // Process any new timer tasks that are now due based on the new time
     int additionalTimerTasks = processTimerTasks();
     tasksExecuted += additionalTimerTasks;
-    System.out.println(">>> Timer tasks processed after advancing time: " +
-                       additionalTimerTasks + " tasks");
 
     // Ensure callbacks are processed by doing multiple pump cycles
     // This is important for tasks with cascading futures and delays
     for (int i = 0; i < 3; i++) {
       int pumpTasks = pump();
       tasksExecuted += pumpTasks;
-      System.out.println(">>> Pump cycle #" + i + " executed " + pumpTasks + " tasks");
 
       // Break early if no tasks were processed
       if (pumpTasks == 0) {
@@ -1057,10 +1049,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Process any timer tasks that might have been scheduled during pumping
       int moreTasks = processTimerTasks();
       tasksExecuted += moreTasks;
-      System.out.println(">>> Additional timer tasks after pump #" + i + ": " + moreTasks);
     }
-
-    System.out.println(">>> advanceTime complete - total tasks executed: " + tasksExecuted);
     return tasksExecuted;
   }
 
