@@ -279,7 +279,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   public synchronized void start() {
     if (running.compareAndSet(false, true)) {
-      info(LOGGER, "starting flow scheduler");
+      info(LOGGER, "Starting flow scheduler");
 
       draining.set(false);
 
@@ -293,7 +293,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
             .daemon(true)
             .start(this::schedulerLoop);
       } else {
-        debug(LOGGER, "carrier thread disabled, tasks will only execute via pump()");
+        debug(LOGGER, "Carrier thread disabled, tasks will only execute via pump()");
       }
     }
   }
@@ -364,7 +364,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Store task in the task map
     idToTask.put(taskId, flowTask);
 
-    debug(LOGGER, "scheduling task " + taskId);
+    debug(LOGGER, "Scheduling task " + taskId);
 
     taskLock.lock();
     try {
@@ -634,7 +634,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Task task = idToTask.get(taskId);
 
     if (continuation != null && task != null) {
-      debug(LOGGER, "resuming task " + taskId);
+      debug(LOGGER, "Resuming task " + taskId);
 
       // Mark as running
       task.setState(Task.TaskState.RUNNING);
@@ -663,7 +663,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
       // If the continuation is done, clean up
       if (continuation.isDone()) {
-        debug(LOGGER, "task " + taskId + " completed");
+        debug(LOGGER, "Task " + taskId + " completed");
         task.setState(Task.TaskState.COMPLETED);
         taskToContinuation.remove(taskId);
         taskToScope.remove(taskId);
@@ -744,7 +744,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
             // Check again if we should exit
             if (!running.get()) {
-              warn(LOGGER, "scheduler loop stopping");
+              warn(LOGGER, "Scheduler loop stopping");
               taskLock.unlock();
               lockAcquired = false;
               return;
@@ -768,7 +768,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
           // Process task if we got one
           if (task != null) {
-            debug(LOGGER, "picking up task " + task.getId());
+            debug(LOGGER, "Picking up task " + task.getId());
 
             if (taskToContinuation.containsKey(task.getId())) {
               // This is a resume task for an existing continuation
@@ -780,10 +780,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          warn(LOGGER, "scheduler thread interrupted", e);
+          warn(LOGGER, "Scheduler thread interrupted", e);
           break;
         } catch (Exception e) {
-          error(LOGGER, "error in scheduler", e);
+          error(LOGGER, "Error in scheduler", e);
         } finally {
           // Ensure we release the lock if we still hold it
           if (lockAcquired) {
@@ -792,7 +792,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
         }
       }
     } finally {
-      info(LOGGER, "scheduler loop ending");
+      info(LOGGER, "Scheduler loop ending");
 
       // Signal that the scheduler loop has exited
       CountDownLatch latch = schedulerExitLatch.get();
@@ -810,7 +810,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * and yield when requested, allowing other tasks to run.</p>
    */
   private void startTask(Task task) {
-    debug(LOGGER, "task " + task.getId() + " starting");
+    debug(LOGGER, "Task " + task.getId() + " starting");
     task.setState(Task.TaskState.RUNNING);
 
     // Reset the task's priority boost time to the current time
@@ -837,7 +837,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
           return;
         }
         task.setState(Task.TaskState.FAILED);
-        warn(LOGGER, "task " + task.getId() + " failed: ", e);
+        warn(LOGGER, "Task " + task.getId() + " failed: ", e);
       } finally {
         // Clear the flow context flag
         FlowScheduler.CURRENT_TASK.remove();
@@ -852,7 +852,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // If the continuation completed without yielding, clean up
     if (continuation.isDone()) {
-      debug(LOGGER, "task " + task.getId() + " completed immediately");
+      debug(LOGGER, "Task " + task.getId() + " completed immediately");
       task.setState(Task.TaskState.COMPLETED);
       taskToContinuation.remove(task.getId());
       taskToScope.remove(task.getId());
@@ -891,7 +891,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       throw new IllegalStateException("task is not running");
     }
 
-    debug(LOGGER, "task " + task.getId() + " suspending");
+    debug(LOGGER, "Task " + task.getId() + " suspending");
 
     // Mark this task as yielding
     task.setState(Task.TaskState.SUSPENDED);
@@ -987,7 +987,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param taskId The ID of the task to cancel
    */
   private void cancelTask(long taskId) {
-    debug(LOGGER, "cancelling task " + taskId);
+    debug(LOGGER, "Cancelling task " + taskId);
 
     taskLock.lock();
     try {
