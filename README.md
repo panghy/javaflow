@@ -91,7 +91,7 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 
 | Subtask | Description | Status |
 |---------|-------------|--------|
-| 4.1 | **Promise Stream Primitives** - Implementation of PromiseStream and FutureStream | 📅 Planned |
+| 4.1 | **Promise Stream Primitives** - Implementation of PromiseStream and FutureStream | ✅ Completed |
 | 4.2 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | 🔄 In Progress (Design) |
 | 4.3 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
 | 4.4 | **File I/O Operations** - Non-blocking file read/write operations | 📅 Planned |
