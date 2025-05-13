@@ -29,7 +29,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 1 | **Core Futures and Actors** - Basic async infrastructure | ✅ Completed |
 | 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | ✅ Completed |
-| 4 | **Asynchronous I/O Integration** - Network and disk operations as futures | 🔄 In Progress |
+| 4 | **Asynchronous I/O and RPC Framework** - Network, disk operations, and remote communication | 🔄 In Progress (Design Phase) |
 | 5 | **Deterministic Simulation Mode** - Simulation environment | 📅 Planned |
 | 6 | **Error Handling and Propagation** - Error model | 📅 Planned |
 | 7 | **Advanced Actor Patterns and Library** - Enhanced API for usability | 📅 Planned |
@@ -87,23 +87,24 @@ Phases 1, 2 and 3 have been completed, establishing the core future and actor ab
 
 These subtasks represent the foundation of JavaFlow's actor model and form the building blocks for all subsequent phases.
 
-#### Phase 4: Asynchronous I/O Integration
+#### Phase 4: Asynchronous I/O and RPC Framework
 
 | Subtask | Description | Status |
 |---------|-------------|--------|
-| 4.1 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | 🔄 In Progress |
-| 4.2 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
-| 4.3 | **File I/O Operations** - Non-blocking file read/write operations | 📅 Planned |
-| 4.4 | **I/O Event Integration** - Integration of I/O events with the event loop | 📅 Planned |
-| 4.5 | **Flow Transport Layer** - Message-based communication between components | 📅 Planned |
-| 4.6 | **RPC Framework** - Promise/Future-based remote procedure calls | 📅 Planned |
-| 4.7 | **Serialization Infrastructure** - Data serialization for network operations | 📅 Planned |
-| 4.8 | **Timeout Handling** - I/O operation timeout management | 📅 Planned |
-| 4.9 | **I/O Error Propagation** - Proper error handling for I/O operations | 📅 Planned |
-| 4.10 | **Unit and Integration Tests** - Comprehensive test coverage for I/O components | 📅 Planned |
-| 4.11 | **I/O Examples** - Sample code demonstrating async I/O patterns | 📅 Planned |
+| 4.1 | **Promise Stream Primitives** - Implementation of PromiseStream and FutureStream | 📅 Planned |
+| 4.2 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | 🔄 In Progress (Design) |
+| 4.3 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
+| 4.4 | **File I/O Operations** - Non-blocking file read/write operations | 📅 Planned |
+| 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | 📅 Planned |
+| 4.6 | **Flow Transport Layer** - Message-based communication between components | 📅 Planned |
+| 4.7 | **RPC Framework** - Promise/Future-based remote procedure calls | 🔄 In Progress (Design) |
+| 4.8 | **Serialization Infrastructure** - Data serialization for network operations | 📅 Planned |
+| 4.9 | **Timeout Handling** - I/O operation timeout management | 📅 Planned |
+| 4.10 | **I/O Error Propagation** - Proper error handling for I/O operations | 📅 Planned |
+| 4.11 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | 📅 Planned |
+| 4.12 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | 🔄 In Progress (Design) |
 
-Phase 4 will focus on building the asynchronous I/O infrastructure, allowing network and disk operations to seamlessly integrate with the existing actor model. Following the Flow framework's design principles, all I/O operations will be non-blocking and will return futures that can be awaited by actors. The I/O system will be designed to support both real-world and simulated modes, paving the way for the deterministic simulation environment in Phase 5.
+Phase 4 is currently in the design stage, with comprehensive design documents completed for both the asynchronous I/O infrastructure and RPC framework. These designs detail how network and disk operations will seamlessly integrate with the existing actor model. The architecture will allow promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations will be non-blocking and return futures that can be awaited by actors. The system is being designed to support both real-world operation and easy substitution with simulated components in Phase 5 for deterministic testing.
 
 ## Requirements
 
@@ -169,8 +170,9 @@ JavaFlow provides:
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
 - **Pump Method**: Deterministic task processing for testing and simulation
 - **FlowClock & Timers**: Time-based operations and controllable clock for testing
-- **I/O Interfaces** (coming in Phase 4): Non-blocking network and file operations
+- **I/O Interfaces** (coming in Phase 4): Non-blocking network and file operations returning futures
 - **FlowTransport** (coming in Phase 4): Message-passing layer for distributed communication
+- **RPC Framework** (coming in Phase 4): Promise-based remote procedure calls with location transparency
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -219,7 +221,7 @@ FlowFuture<Void> delayedOperation = startActor(() -> {
 // Using asynchronous I/O (coming in Phase 4)
 FlowFuture<ByteBuffer> fileReadOperation = startActor(() -> {
     // Open a file asynchronously
-    FlowAsyncFile file = await(openFile("/path/to/file"));
+    FlowFile file = await(FlowFileSystem.getInstance().open(Path.of("/path/to/file"), OpenOptions.READ));
 
     // Read data asynchronously
     ByteBuffer data = await(file.read(0, 1024));
@@ -229,11 +231,24 @@ FlowFuture<ByteBuffer> fileReadOperation = startActor(() -> {
 
     return data;
 });
+
+// Using RPC framework (coming in Phase 4)
+FlowFuture<UserInfo> userLookup = startActor(() -> {
+    // Get reference to remote service
+    UserServiceInterface userService = FlowTransport.getInstance()
+        .getEndpoint(new EndpointId("user-service"), UserServiceInterface.class);
+    
+    // Call remote service using promise-based API
+    UserInfo user = await(userService.getUserAsync(new GetUserRequest("user123")));
+    
+    // Process result
+    return processUserInfo(user);
+});
 ```
 
-### Asynchronous I/O Integration (Phase 4)
+### Asynchronous I/O and RPC Framework (Phase 4)
 
-In Phase 4, JavaFlow will implement non-blocking I/O operations that integrate seamlessly with the actor model. Key aspects of this phase include:
+In Phase 4, JavaFlow will implement non-blocking I/O operations and a robust RPC framework that integrate seamlessly with the actor model. The design for this phase has been completed, and implementation is planned to begin soon. Key aspects of this phase include:
 
 1. **Java NIO Integration**: Leveraging Java's non-blocking I/O capabilities (java.nio) while ensuring all operations are properly managed by the Flow scheduler
 2. **Unified I/O Abstraction**: Providing a consistent API for all I/O operations that return futures which can be awaited by actors
@@ -241,7 +256,7 @@ In Phase 4, JavaFlow will implement non-blocking I/O operations that integrate s
 4. **Location Transparency**: Using the same API for local and remote communication, enabling seamless transition to simulation mode
 5. **RPC Framework**: Building a robust, promise-based remote procedure call mechanism for actor communication across network boundaries
 
-I/O operations in JavaFlow will never block the main thread. When an actor awaits an I/O operation, it will yield control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable.
+I/O operations in JavaFlow will never block the main thread. When an actor awaits an I/O operation, it will yield control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable. The RPC framework will extend this model across network boundaries, allowing promises to be sent between distributed components while maintaining the same programming model.
 
 ## Contributing
 
