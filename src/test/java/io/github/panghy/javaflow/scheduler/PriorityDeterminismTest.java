@@ -29,6 +29,9 @@ class PriorityDeterminismTest {
   
   @BeforeEach
   void setUp() {
+    if (scheduler != null) {
+      scheduler.close();
+    }
     // Create a simulated clock to have precise control over time
     clock = new SimulatedClock();
     clock.setCurrentTime(0); // Start at time 0
