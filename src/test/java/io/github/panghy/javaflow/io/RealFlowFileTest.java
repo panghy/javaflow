@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -18,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,23 +25,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests for the RealFlowFile class.
  * These tests use a temporary directory to avoid affecting the actual file system.
- * 
- * This test suite aims to achieve full coverage of RealFlowFile and its 
+ * <p>
+ * This test suite aims to achieve full coverage of RealFlowFile and its
  * anonymous inner classes (CompletionHandlers) for both read and write operations.
- * 
+ * <p>
  * Coverage targets:
- * - RealFlowFile.1: read completion handler 
+ * - RealFlowFile.1: read completion handler
  *   - bytesRead < 0 (EOF)
  *   - bytesRead < length (partial read)
  *   - bytesRead == length (full read)
  *   - failure path
- * 
+ * <p>
  * - RealFlowFile.2: write completion handler
  *   - bufferToWrite.hasRemaining() (partial write requiring additional writes)
  *   - complete write (no remaining data)
  *   - failure path
  */
-class RealFlowFileTest extends AbstractFlowTest {
+class RealFlowFileTest {
   
   @TempDir
   Path tempDir;
@@ -55,7 +55,7 @@ class RealFlowFileTest extends AbstractFlowTest {
       // Open a file with CREATE and WRITE options
       FlowFile file = Flow.await(RealFlowFile.open(testFile, OpenOptions.CREATE, OpenOptions.WRITE));
       assertNotNull(file);
-      assertTrue(file instanceof RealFlowFile);
+      assertInstanceOf(RealFlowFile.class, file);
       
       // Close the file
       Flow.await(file.close());
@@ -66,8 +66,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -108,8 +108,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -171,8 +171,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -221,8 +221,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -284,8 +284,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -316,8 +316,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -362,13 +362,12 @@ class RealFlowFileTest extends AbstractFlowTest {
         
         return true;
       } catch (Exception e) {
-        e.printStackTrace();
         return false;
       }
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -402,8 +401,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -473,8 +472,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -570,8 +569,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -633,8 +632,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -697,8 +696,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -721,8 +720,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -732,15 +731,15 @@ class RealFlowFileTest extends AbstractFlowTest {
     
     // Try to open file with invalid path
     FlowFuture<FlowFile> future = RealFlowFile.open(invalidPath, OpenOptions.READ);
-    pumpUntilDone(future);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify the operation failed
     ExecutionException exception = assertThrows(
         ExecutionException.class,
-        () -> future.getNow());
+        () -> future.toCompletableFuture().get());
     
     // Should be an IOException
-    assertTrue(exception.getCause() instanceof IOException);
+    assertInstanceOf(IOException.class, exception.getCause());
     
     // Try to open with incompatible options (CREATE_NEW on existing file)
     Path existingFile = tempDir.resolve("existing-file.txt");
@@ -749,15 +748,15 @@ class RealFlowFileTest extends AbstractFlowTest {
     // Open with CREATE_NEW which should fail on existing file
     FlowFuture<FlowFile> createNewFuture = RealFlowFile.open(
         existingFile, OpenOptions.CREATE_NEW, OpenOptions.WRITE);
-    pumpUntilDone(createNewFuture);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify the operation failed
     ExecutionException createNewException = assertThrows(
         ExecutionException.class,
-        () -> createNewFuture.getNow());
+        () -> createNewFuture.toCompletableFuture().get());
     
     // Should be an IOException
-    assertTrue(createNewException.getCause() instanceof IOException);
+    assertInstanceOf(IOException.class, createNewException.getCause());
   }
   
   /**
@@ -790,14 +789,14 @@ class RealFlowFileTest extends AbstractFlowTest {
         return false; // Should not reach here
       } catch (Exception e) {
         // Expected exception
-        assertTrue(e instanceof IOException);
+        assertInstanceOf(IOException.class, e);
         assertTrue(e.getMessage().contains("File is closed"));
         return true;
       }
     });
     
-    pumpUntilDone(readErrorFuture);
-    assertTrue(readErrorFuture.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(readErrorFuture.toCompletableFuture().get());
     
     // Now test the write error path
     FlowFuture<Boolean> writeErrorFuture = Flow.startActor(() -> {
@@ -815,14 +814,14 @@ class RealFlowFileTest extends AbstractFlowTest {
         return false; // Should not reach here
       } catch (Exception e) {
         // Expected exception
-        assertTrue(e instanceof IOException);
+        assertInstanceOf(IOException.class, e);
         assertTrue(e.getMessage().contains("File is closed"));
         return true;
       }
     });
     
-    pumpUntilDone(writeErrorFuture);
-    assertTrue(writeErrorFuture.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(writeErrorFuture.toCompletableFuture().get());
   }
   
   /**
@@ -862,8 +861,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -900,8 +899,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -1038,8 +1037,8 @@ class RealFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**

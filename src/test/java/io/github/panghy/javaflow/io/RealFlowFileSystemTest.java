@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,11 +25,11 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * Tests for the RealFlowFileSystem class.
  * These tests use a temporary directory to avoid affecting the actual file system.
- * 
+ * <p>
  * This test suite aims to achieve full coverage of RealFlowFileSystem,
  * focusing on both success and error cases.
  */
-class RealFlowFileSystemTest extends AbstractFlowTest {
+class RealFlowFileSystemTest {
   
   @TempDir
   Path tempDir;
@@ -51,14 +51,14 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       // Open the file
       FlowFile file = Flow.await(fileSystem.open(testFile, OpenOptions.READ));
       assertNotNull(file);
-      assertTrue(file instanceof RealFlowFile);
+      assertInstanceOf(RealFlowFile.class, file);
       // Clean up
       Flow.await(file.close());
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -82,8 +82,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -102,8 +102,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -122,8 +122,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -147,8 +147,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -169,8 +169,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -192,8 +192,8 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(future);
-    assertTrue(future.getNow());
+    // With real file system operations, we should use get() instead of pumpUntilDone
+    assertTrue(future.toCompletableFuture().get());
   }
   
   @Test
@@ -234,11 +234,10 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
-    
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // We accept any result here as long as the test completes
     // The main goal is to achieve code coverage
-    assertTrue(future.getNow());
+    assertTrue(future.toCompletableFuture().get());
   }
   
   /**
@@ -254,35 +253,35 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
     
     // 1. Test createDirectory with existing directory
     FlowFuture<Void> createExistingDir = fileSystem.createDirectory(existingDir);
-    pumpUntilDone(createExistingDir);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
     ExecutionException createDirException = assertThrows(
         ExecutionException.class,
-        () -> createExistingDir.getNow());
-    assertTrue(createDirException.getCause() instanceof FileAlreadyExistsException);
+        () -> createExistingDir.toCompletableFuture().get());
+    assertInstanceOf(FileAlreadyExistsException.class, createDirException.getCause());
     
     // 2. Test list on a non-directory
     Path testFile = Files.createFile(tempDir.resolve("not_a_dir.txt"));
     FlowFuture<List<Path>> listFile = fileSystem.list(testFile);
-    pumpUntilDone(listFile);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
     ExecutionException listException = assertThrows(
         ExecutionException.class,
-        () -> listFile.getNow());
-    assertTrue(listException.getCause() instanceof NotDirectoryException);
+        () -> listFile.toCompletableFuture().get());
+    assertInstanceOf(NotDirectoryException.class, listException.getCause());
     
     // 3. Test delete on non-existent file
     Path nonExistentFile = tempDir.resolve("does_not_exist.txt");
     FlowFuture<Void> deleteNonExistent = fileSystem.delete(nonExistentFile);
-    pumpUntilDone(deleteNonExistent);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
     ExecutionException deleteException = assertThrows(
         ExecutionException.class,
-        () -> deleteNonExistent.getNow());
-    assertTrue(deleteException.getCause() instanceof NoSuchFileException);
+        () -> deleteNonExistent.toCompletableFuture().get());
+    assertInstanceOf(NoSuchFileException.class, deleteException.getCause());
     
     // 4. Test createDirectories with file in path
     Path fileInPath = tempDir.resolve("file_in_path.txt");
@@ -290,26 +289,25 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
     Path dirThroughFile = fileInPath.resolve("dir");
     
     FlowFuture<Void> createDirThroughFile = fileSystem.createDirectories(dirThroughFile);
-    pumpUntilDone(createDirThroughFile);
     
+    // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
     ExecutionException createDirException2 = assertThrows(
         ExecutionException.class,
-        () -> createDirThroughFile.getNow());
-    assertTrue(createDirException2.getCause() instanceof IOException);
+        () -> createDirThroughFile.toCompletableFuture().get());
+    assertInstanceOf(IOException.class, createDirException2.getCause());
     
     // 5. Test move with non-existent source
     Path nonExistentSource = tempDir.resolve("non_existent_source.txt");
     Path moveTarget = tempDir.resolve("move_target.txt");
     
     FlowFuture<Void> moveNonExistent = fileSystem.move(nonExistentSource, moveTarget);
-    pumpUntilDone(moveNonExistent);
     
     // Verify it fails with appropriate exception
     ExecutionException moveException = assertThrows(
         ExecutionException.class,
-        () -> moveNonExistent.getNow());
-    assertTrue(moveException.getCause() instanceof NoSuchFileException);
+        () -> moveNonExistent.toCompletableFuture().get());
+    assertInstanceOf(NoSuchFileException.class, moveException.getCause());
     
     // 6. Test move with existing target
     Path moveSource = tempDir.resolve("move_source.txt");
@@ -318,33 +316,30 @@ class RealFlowFileSystemTest extends AbstractFlowTest {
     Files.createFile(existingTarget);
     
     FlowFuture<Void> moveToExisting = fileSystem.move(moveSource, existingTarget);
-    pumpUntilDone(moveToExisting);
     
     // Verify it fails with appropriate exception
     ExecutionException moveException2 = assertThrows(
         ExecutionException.class,
-        () -> moveToExisting.getNow());
-    assertTrue(moveException2.getCause() instanceof FileAlreadyExistsException);
+        () -> moveToExisting.toCompletableFuture().get());
+    assertInstanceOf(FileAlreadyExistsException.class, moveException2.getCause());
     
     // 7. Test createDirectory with parent that doesn't exist
     Path deepDir = tempDir.resolve("non_existent_parent/deep_dir");
     
     FlowFuture<Void> createDeepDir = fileSystem.createDirectory(deepDir);
-    pumpUntilDone(createDeepDir);
     
     // Verify it fails with appropriate exception
     ExecutionException createDirException3 = assertThrows(
         ExecutionException.class,
-        () -> createDeepDir.getNow());
-    assertTrue(createDirException3.getCause() instanceof IOException);
+        () -> createDeepDir.toCompletableFuture().get());
+    assertInstanceOf(IOException.class, createDirException3.getCause());
     
     // 8. Test exists with null path (error cases)
     try {
       FlowFuture<Boolean> existsNull = fileSystem.exists(null);
-      pumpUntilDone(existsNull);
       
       try {
-        existsNull.getNow();
+        existsNull.toCompletableFuture().get();
         fail("Expected exception not thrown for null path");
       } catch (ExecutionException e) {
         // Expected NPE or similar

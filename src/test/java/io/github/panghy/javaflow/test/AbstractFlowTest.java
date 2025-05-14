@@ -11,6 +11,12 @@ import org.junit.jupiter.api.BeforeEach;
  * Abstract base class for Flow-based tests that use a simulated scheduler.
  * Provides common setup, teardown, and utility methods for working with the
  * Flow scheduler in a test environment.
+ * 
+ * IMPORTANT: This class should ONLY be used for tests in a simulated environment.
+ * It is NOT suitable for tests involving real file systems, network I/O, or other
+ * blocking operations, as the pump() method cannot properly wait for these operations
+ * to complete. For real I/O operations, use future.toCompletableFuture().get() instead
+ * of pumpUntilDone().
  */
 public abstract class AbstractFlowTest {
 
@@ -66,6 +72,11 @@ public abstract class AbstractFlowTest {
   /**
    * Pumps the scheduler until all specified futures are done or a maximum number of steps is reached.
    * This method simulates the passage of time in small increments to allow delayed futures to complete.
+   *
+   * WARNING: This method should ONLY be used for tests in a simulated environment.
+   * Do NOT use this method for tests involving real file systems, network I/O, or other
+   * blocking operations, as it cannot properly wait for these operations to complete.
+   * For real I/O operations, use future.toCompletableFuture().get() instead.
    *
    * @param futures The futures to wait for completion
    */
