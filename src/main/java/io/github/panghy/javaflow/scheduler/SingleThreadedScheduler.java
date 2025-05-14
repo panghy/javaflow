@@ -355,7 +355,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (currentTask != null) {
       currentTask.addChild(flowTask);
     }
-    promise.whenComplete(($, t) -> {
+    promise.getFuture().whenComplete(($, t) -> {
       if (t instanceof CancellationException) {
         flowTask.cancel();
       }
@@ -896,7 +896,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Mark this task as yielding
     task.setState(Task.TaskState.SUSPENDED);
 
-    future.getPromise().whenComplete(($, __) -> {
+    future.whenComplete(($, __) -> {
       taskLock.lock();
       try {
         readyTasks.add(task);

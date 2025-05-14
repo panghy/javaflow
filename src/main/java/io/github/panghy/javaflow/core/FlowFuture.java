@@ -7,6 +7,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,6 +40,26 @@ public class FlowFuture<T> {
    */
   public FlowFuture() {
     this.promise = new FlowPromise<>(this);
+  }
+
+  /**
+   * Completes the associated future with a value. Called by the promise.
+   *
+   * @param value The value to complete with
+   * @return true if this completion changed the future's state, false otherwise
+   */
+  public boolean complete(T value) {
+    return delegate.complete(value);
+  }
+
+  /**
+   * Completes the associated future with an exception. Called by the promise.
+   *
+   * @param exception The exception to complete with
+   * @return true if this completion changed the future's state, false otherwise
+   */
+  boolean completeExceptionally(Throwable exception) {
+    return delegate.completeExceptionally(exception);
   }
 
   /**
@@ -245,7 +266,7 @@ public class FlowFuture<T> {
    * @param action The action to invoke when this future completes
    * @return This future
    */
-  public FlowFuture<T> whenComplete(FlowBiConsumer<? super T, ? super Throwable> action) {
+  public FlowFuture<T> whenComplete(BiConsumer<? super T, ? super Throwable> action) {
     delegate.whenComplete((result, exception) -> {
       try {
         action.accept(result, exception);
@@ -386,7 +407,8 @@ public class FlowFuture<T> {
   }
 
   /**
-   * Converts this FlowFuture to a CompletableFuture.
+   * Converts this FlowFuture to a CompletableFuture. For unit testing and
+   * integration with non-flow code.
    *
    * @return The CompletableFuture representation of this FlowFuture
    */

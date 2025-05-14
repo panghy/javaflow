@@ -152,8 +152,8 @@ class SingleThreadedSchedulerTest {
     FlowPromise<Void> promise = future.getPromise();
 
     // Add callbacks using whenComplete
-    promise.whenComplete((v, t) -> latch.countDown());
-    promise.whenComplete((v, t) -> latch.countDown());
+    promise.getFuture().whenComplete((v, t) -> latch.countDown());
+    promise.getFuture().whenComplete((v, t) -> latch.countDown());
     yieldPromises.put(taskId, promise);
 
     // Create a task
@@ -367,7 +367,7 @@ class SingleThreadedSchedulerTest {
     FlowPromise<Void> promise = future.getPromise();
 
     // Add a callback using whenComplete
-    promise.whenComplete((v, t) -> {
+    promise.getFuture().whenComplete((v, t) -> {
       value.set(42);
       callbackExecuted.countDown();
     });

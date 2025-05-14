@@ -1,11 +1,5 @@
 package io.github.panghy.javaflow.core;
 
-import io.github.panghy.javaflow.util.ReflectionUtil;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.function.BiConsumer;
-
 /**
  * The completion handle for a {@link FlowFuture}.
  * This class is responsible for setting the value or exception that completes a future.
@@ -15,18 +9,14 @@ import java.util.function.BiConsumer;
 public class FlowPromise<T> {
 
   private final FlowFuture<T> future;
-  private final CompletableFuture<T> delegate;
 
   /**
    * Creates a new promise linked to the given future.
    *
    * @param future The future to complete through this promise
    */
-  @SuppressWarnings("unchecked")
   FlowPromise(FlowFuture<T> future) {
     this.future = future;
-    this.delegate = future.isDone() ? CompletableFuture.completedFuture(null) :
-        (CompletableFuture<T>) ReflectionUtil.getField(future, "delegate");
   }
 
   /**
@@ -36,7 +26,7 @@ public class FlowPromise<T> {
    * @return true if this completion changed the future's state, false otherwise
    */
   public boolean complete(T value) {
-    return delegate.complete(value);
+    return future.complete(value);
   }
 
   /**
@@ -46,17 +36,7 @@ public class FlowPromise<T> {
    * @return true if this completion changed the future's state, false otherwise
    */
   public boolean completeExceptionally(Throwable exception) {
-    return delegate.completeExceptionally(exception);
-  }
-
-  /**
-   * Adds a callback to be executed when the future is completed.
-   *
-   * @param action The action to execute
-   * @return The completion stage for chaining
-   */
-  public CompletionStage<T> whenComplete(BiConsumer<? super T, ? super Throwable> action) {
-    return delegate.whenComplete(action);
+    return future.completeExceptionally(exception);
   }
 
   /**

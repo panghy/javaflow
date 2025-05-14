@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.core;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -161,7 +160,7 @@ class FlowPromiseTest {
     AtomicReference<String> result = new AtomicReference<>();
     AtomicReference<Throwable> error = new AtomicReference<>();
     
-    promise.whenComplete((value, throwable) -> {
+    promise.getFuture().whenComplete((value, throwable) -> {
       result.set(value);
       error.set(throwable);
       latch.countDown();
@@ -180,7 +179,7 @@ class FlowPromiseTest {
     FlowPromise<String> promise = future.getPromise();
     
     BiConsumer<String, Throwable> callback = (value, throwable) -> { };
-    CompletionStage<String> stage = promise.whenComplete(callback);
+    FlowFuture<String> stage = promise.getFuture().whenComplete(callback);
     
     assertNotNull(stage);
   }
@@ -194,7 +193,7 @@ class FlowPromiseTest {
     AtomicReference<String> result = new AtomicReference<>();
     AtomicReference<Throwable> error = new AtomicReference<>();
     
-    promise.whenComplete((value, throwable) -> {
+    promise.getFuture().whenComplete((value, throwable) -> {
       result.set(value);
       error.set(throwable);
       latch.countDown();

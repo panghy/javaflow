@@ -186,12 +186,12 @@ class FlowFutureTest {
     CountDownLatch latch = new CountDownLatch(2);
     StringBuilder results = new StringBuilder();
 
-    future.getPromise().whenComplete((result, $) -> {
+    future.whenComplete((result, $) -> {
       results.append("A:").append(result);
       latch.countDown();
     });
 
-    future.getPromise().whenComplete((result, $) -> {
+    future.whenComplete((result, $) -> {
       results.append(",B:").append(result);
       latch.countDown();
     });
