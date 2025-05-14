@@ -92,19 +92,28 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 | Subtask | Description | Status |
 |---------|-------------|--------|
 | 4.1 | **Promise Stream Primitives** - Implementation of PromiseStream and FutureStream | ✅ Completed |
-| 4.2 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | 🔄 In Progress (Design) |
+| 4.2 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | ✅ Completed |
 | 4.3 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
-| 4.4 | **File I/O Operations** - Non-blocking file read/write operations | 📅 Planned |
-| 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | 📅 Planned |
+| 4.4 | **File I/O Operations** - Non-blocking file read/write operations | ✅ Completed |
+| 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | 🔄 In Progress |
 | 4.6 | **Flow Transport Layer** - Message-based communication between components | 📅 Planned |
 | 4.7 | **RPC Framework** - Promise/Future-based remote procedure calls | 🔄 In Progress (Design) |
 | 4.8 | **Serialization Infrastructure** - Data serialization for network operations | 📅 Planned |
 | 4.9 | **Timeout Handling** - I/O operation timeout management | 📅 Planned |
-| 4.10 | **I/O Error Propagation** - Proper error handling for I/O operations | 📅 Planned |
-| 4.11 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | 📅 Planned |
-| 4.12 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | 🔄 In Progress (Design) |
+| 4.10 | **I/O Error Propagation** - Proper error handling for I/O operations | ✅ Completed |
+| 4.11 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | ✅ Completed |
+| 4.12 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | ✅ Completed |
 
-Phase 4 is currently in the design stage, with comprehensive design documents completed for both the asynchronous I/O infrastructure and RPC framework. These designs detail how network and disk operations will seamlessly integrate with the existing actor model. The architecture will allow promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations will be non-blocking and return futures that can be awaited by actors. The system is being designed to support both real-world operation and easy substitution with simulated components in Phase 5 for deterministic testing.
+Phase 4 is making significant progress, with several major components already completed. The file system I/O implementation is now complete, providing a comprehensive asynchronous file access API that integrates seamlessly with the actor model. The system includes both real and simulated implementations for all file operations, enabling deterministic testing of file I/O code. 
+
+Key completed functionality includes:
+- Asynchronous file read and write operations that return futures
+- File system operations (create, delete, move, list) with non-blocking behavior
+- ByteBuffer-based data handling for efficient memory management
+- Error propagation and proper resource cleanup
+- Simulated implementations for deterministic testing
+
+Work continues on network-related components and RPC framework. The architecture will allow promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations are non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
 
 ## Requirements
 
@@ -170,9 +179,11 @@ JavaFlow provides:
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
 - **Pump Method**: Deterministic task processing for testing and simulation
 - **FlowClock & Timers**: Time-based operations and controllable clock for testing
-- **I/O Interfaces** (coming in Phase 4): Non-blocking network and file operations returning futures
-- **FlowTransport** (coming in Phase 4): Message-passing layer for distributed communication
-- **RPC Framework** (coming in Phase 4): Promise-based remote procedure calls with location transparency
+- **FlowFile & FlowFileSystem**: Asynchronous file I/O operations with real and simulated implementations
+- **SimulationParameters**: Configurable simulation behavior for realistic testing
+- **I/O Interfaces** (partially complete): Non-blocking network and file operations returning futures
+- **FlowTransport** (coming soon): Message-passing layer for distributed communication
+- **RPC Framework** (coming soon): Promise-based remote procedure calls with location transparency
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -218,19 +229,99 @@ FlowFuture<Void> delayedOperation = startActor(() -> {
     return finalOperation();
 });
 
-// Using asynchronous I/O (coming in Phase 4)
+// Using asynchronous file I/O
 FlowFuture<ByteBuffer> fileReadOperation = startActor(() -> {
-    // Open a file asynchronously
-    FlowFile file = await(FlowFileSystem.getInstance().open(Path.of("/path/to/file"), OpenOptions.READ));
+    // Get the default file system (real or simulated based on Flow.isSimulated())
+    FlowFileSystem fs = FlowFileSystem.getDefault();
+    
+    // Create a directory if it doesn't exist
+    await(fs.createDirectories(Path.of("/path/to/directory")));
+    
+    // Open a file asynchronously with specific options
+    FlowFile file = await(fs.open(
+        Path.of("/path/to/directory/file.txt"), 
+        OpenOptions.CREATE, 
+        OpenOptions.WRITE
+    ));
 
+    // Write data asynchronously
+    String content = "Hello, JavaFlow File I/O!";
+    ByteBuffer writeBuffer = ByteBuffer.wrap(content.getBytes());
+    await(file.write(0, writeBuffer));
+    
+    // Sync data to disk
+    await(file.sync());
+    
+    // Get the file size
+    long size = await(file.size());
+    System.out.println("File size: " + size);
+    
+    // Close the file after writing
+    await(file.close());
+    
+    // Re-open for reading
+    file = await(fs.open(Path.of("/path/to/directory/file.txt"), OpenOptions.READ));
+    
     // Read data asynchronously
-    ByteBuffer data = await(file.read(0, 1024));
-
+    ByteBuffer readBuffer = await(file.read(0, (int)size));
+    
     // Close the file
     await(file.close());
-
-    return data;
+    
+    return readBuffer;
 });
+
+// Simulated file I/O testing
+void testFileOperations() {
+    // Create a test scheduler for simulation
+    TestScheduler testScheduler = new TestScheduler();
+    testScheduler.startSimulation();
+    
+    try {
+        // Configure simulation parameters
+        SimulationParameters params = new SimulationParameters()
+            .setReadDelay(0.001)            // 1ms delay for reads
+            .setWriteDelay(0.002)           // 2ms delay for writes
+            .setMetadataDelay(0.0005)       // 0.5ms for metadata ops
+            .setReadErrorProbability(0.01); // 1% chance of read errors
+        
+        // Create a simulated file system
+        SimulatedFlowFileSystem fs = new SimulatedFlowFileSystem(params);
+        
+        // Start test actor using the simulated file system
+        FlowFuture<String> testFuture = Flow.startActor(() -> {
+            // Create directory and open file
+            await(fs.createDirectories(Path.of("/test")));
+            FlowFile file = await(fs.open(Path.of("/test/data.txt"), OpenOptions.CREATE, OpenOptions.WRITE));
+            
+            // Write data
+            await(file.write(0, ByteBuffer.wrap("test data".getBytes())));
+            await(file.close());
+            
+            // Read data back
+            file = await(fs.open(Path.of("/test/data.txt"), OpenOptions.READ));
+            ByteBuffer buffer = await(file.read(0, 9));
+            await(file.close());
+            
+            // Convert buffer to string
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            return new String(bytes);
+        });
+        
+        // Execute the test with deterministic timing
+        testScheduler.pump();
+        
+        // Advance time to allow I/O operations to complete
+        testScheduler.advanceTime(0.01); // 10ms
+        testScheduler.pump();
+        
+        // Get result and verify
+        assertEquals("test data", testFuture.getNow());
+    } finally {
+        testScheduler.endSimulation();
+    }
+}
 
 // Using RPC framework (coming in Phase 4)
 FlowFuture<UserInfo> userLookup = startActor(() -> {
@@ -248,15 +339,45 @@ FlowFuture<UserInfo> userLookup = startActor(() -> {
 
 ### Asynchronous I/O and RPC Framework (Phase 4)
 
-In Phase 4, JavaFlow will implement non-blocking I/O operations and a robust RPC framework that integrate seamlessly with the actor model. The design for this phase has been completed, and implementation is planned to begin soon. Key aspects of this phase include:
+Phase 4 implementation is partially complete, with the file I/O subsystem fully implemented and network/RPC components in progress. All I/O operations in JavaFlow are non-blocking and integrate seamlessly with the actor model.
 
-1. **Java NIO Integration**: Leveraging Java's non-blocking I/O capabilities (java.nio) while ensuring all operations are properly managed by the Flow scheduler
-2. **Unified I/O Abstraction**: Providing a consistent API for all I/O operations that return futures which can be awaited by actors
-3. **Event Loop Integration**: Ensuring I/O events are processed by the single-threaded event loop in a deterministic manner
-4. **Location Transparency**: Using the same API for local and remote communication, enabling seamless transition to simulation mode
-5. **RPC Framework**: Building a robust, promise-based remote procedure call mechanism for actor communication across network boundaries
+#### File System I/O (Completed)
 
-I/O operations in JavaFlow will never block the main thread. When an actor awaits an I/O operation, it will yield control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable. The RPC framework will extend this model across network boundaries, allowing promises to be sent between distributed components while maintaining the same programming model.
+The file system component provides a comprehensive asynchronous API for file operations:
+
+1. **Interfaces and Abstractions**:
+   - `FlowFile`: Interface for file operations (read, write, truncate, sync, size, close)
+   - `FlowFileSystem`: Interface for file system operations (open, delete, exists, createDirectory, list, move)
+   - All operations return `FlowFuture` objects that can be awaited by actors
+
+2. **Real Implementations**:
+   - `RealFlowFile`: Implementation using Java NIO's `AsynchronousFileChannel`
+   - `RealFlowFileSystem`: Implementation using Java's standard file system operations
+   - Proper resource management with complete error handling
+
+3. **Simulated Implementations**:
+   - `SimulatedFlowFile`: In-memory implementation for testing
+   - `SimulatedFlowFileSystem`: Simulated file system with directory tree
+   - Configurable delays and error injection for testing edge cases
+   - Complete tracking of closed state and resource management
+
+4. **Key Features**:
+   - ByteBuffer-based I/O for efficient memory management
+   - Proper propagation of errors through futures
+   - Comprehensive testing including error scenarios
+   - Seamless integration with Flow's cooperative scheduling
+
+#### Network I/O and RPC (In Progress)
+
+Work continues on the network components of the I/O framework:
+
+1. **Java NIO Integration**: Leveraging Java's non-blocking I/O capabilities for network operations
+2. **Unified I/O Abstraction**: Consistent API for all network operations returning awaitable futures
+3. **Event Loop Integration**: Processing I/O events in the single-threaded event loop
+4. **Location Transparency**: Using the same API for local and remote communication
+5. **RPC Framework**: Promise-based remote procedure calls for cross-network actor communication
+
+All I/O operations in JavaFlow never block the main thread. When an actor awaits an I/O operation, it yields control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable.
 
 ## Contributing
 
