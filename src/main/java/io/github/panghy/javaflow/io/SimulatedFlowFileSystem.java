@@ -563,7 +563,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   /**
    * Represents a directory in the simulated file system.
    */
-  private static class DirectoryEntry {
+  static class DirectoryEntry {
     private String path;
     private final List<String> children = Collections.synchronizedList(new ArrayList<>());
 
@@ -575,21 +575,21 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
       this.path = path;
     }
 
-    public void addChild(String childPath) {
+    void addChild(String childPath) {
       if (!children.contains(childPath)) {
         children.add(childPath);
       }
     }
 
-    public void removeChild(String childPath) {
+    void removeChild(String childPath) {
       children.remove(childPath);
     }
 
-    public List<String> getChildren() {
+    List<String> getChildren() {
       return new ArrayList<>(children);
     }
 
-    public boolean isEmpty() {
+    boolean isEmpty() {
       return children.isEmpty();
     }
   }
