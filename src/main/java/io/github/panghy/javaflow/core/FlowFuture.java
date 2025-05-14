@@ -8,6 +8,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static java.util.concurrent.CompletableFuture.failedFuture;
 
 /**
  * A future representing an asynchronous value in the JavaFlow actor system.
@@ -22,6 +26,10 @@ import java.util.function.Function;
  * @param <T> The type of value this future holds
  */
 public class FlowFuture<T> {
+
+  public static final FlowFuture<Void> COMPLETED_VOID_FUTURE = completed(null);
+
+  private static final Logger LOGGER = Logger.getLogger(FlowFuture.class.getName());
 
   private final CompletableFuture<T> delegate = new CompletableFuture<>();
   private final FlowPromise<T> promise;
@@ -242,9 +250,8 @@ public class FlowFuture<T> {
       try {
         action.accept(result, exception);
       } catch (Exception e) {
-        // Log but don't propagate exceptions from callbacks
-        System.err.println("Exception in whenComplete callback: " + e.getMessage());
-        e.printStackTrace();
+        // Log the exception and continue
+        LOGGER.log(Level.SEVERE, "Exception in whenComplete callback", e);
       }
     });
     return this;
@@ -296,8 +303,7 @@ public class FlowFuture<T> {
         if (isCancelled()) {
           // If the parent is cancelled, propagate to result
           result.cancel();
-          return CompletableFuture.failedFuture(
-              new CancellationException("Parent future was cancelled"));
+          return failedFuture(new CancellationException("Parent future was cancelled"));
         }
 
         FlowFuture<R> mapped = mapper.apply(value);
@@ -314,7 +320,7 @@ public class FlowFuture<T> {
         return mapped.delegate;
       } catch (Throwable ex) {
         result.promise.completeExceptionally(ex);
-        return CompletableFuture.failedFuture(ex);
+        return failedFuture(ex);
       }
     }).exceptionally(ex -> {
       result.promise.completeExceptionally(ex);
