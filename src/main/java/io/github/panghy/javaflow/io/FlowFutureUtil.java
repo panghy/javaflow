@@ -44,11 +44,26 @@ public final class FlowFutureUtil {
    */
   public static <T, R> FlowFuture<R> delayThenApply(
       FlowFuture<T> future, double delaySeconds, IOFunction<T, R> mapper) {
-
     return Flow.startActor(() -> {
       T value = await(future);
       await(Flow.delay(delaySeconds));
       return mapper.apply(value);
+    });
+  }
+
+  /**
+   * Delays the execution of the given supplier by the specified amount.
+   * This is useful for simulating operations that take time.
+   *
+   * @param delaySeconds The delay in seconds
+   * @param supplier     The supplier to run after the delay
+   * @param <T>          The result type
+   * @return A new future that completes with the result of the supplier after the delay
+   */
+  public static <T> FlowFuture<T> delayThenRun(double delaySeconds, IOSupplier<T> supplier) {
+    return Flow.startActor(() -> {
+      await(Flow.delay(delaySeconds));
+      return supplier.get();
     });
   }
 

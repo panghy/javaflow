@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenApply;
+import static io.github.panghy.javaflow.core.FlowFuture.COMPLETED_VOID_FUTURE;
+import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
 
 /**
  * A simulated implementation of FlowFileSystem for testing purposes.
@@ -66,10 +67,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     final boolean truncate = hasOption(options, OpenOptions.TRUNCATE_EXISTING);
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if the directory exists
           String parentPath = getParentPath(pathStr);
           if (!directories.containsKey(parentPath)) {
@@ -135,10 +135,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if the path exists
           boolean isFile = files.containsKey(pathStr);
           boolean isDirectory = directories.containsKey(pathStr);
@@ -198,10 +197,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> files.containsKey(pathStr) || directories.containsKey(pathStr));
+        () -> files.containsKey(pathStr) || directories.containsKey(pathStr));
   }
 
   @Override
@@ -221,10 +219,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if the directory already exists
           if (directories.containsKey(pathStr)) {
             throw new FileAlreadyExistsException(pathStr);
@@ -271,7 +268,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // If the directory already exists, nothing to do
     if (directories.containsKey(pathStr)) {
-      return FlowFuture.completed(null);
+      return COMPLETED_VOID_FUTURE;
     }
 
     // If a file exists with this name, throw an exception
@@ -301,10 +298,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
           });
     } else {
       // Parent exists, so just create this directory with a delay
-      return delayThenApply(
-          FlowFuture.completed(null),
+      return delayThenRun(
           params.getMetadataDelay(),
-          v -> {
+          () -> {
             // Create the directory
             DirectoryEntry newDir = new DirectoryEntry(pathStr);
             directories.put(pathStr, newDir);
@@ -337,10 +333,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if the directory exists
           if (!directories.containsKey(pathStr)) {
             throw new NoSuchFileException(pathStr);
@@ -377,10 +372,9 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return delayThenApply(
-        FlowFuture.completed(null),
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if the source exists
           boolean isFile = files.containsKey(sourceStr);
           boolean isDirectory = directories.containsKey(sourceStr);

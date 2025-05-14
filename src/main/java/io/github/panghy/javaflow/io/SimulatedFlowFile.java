@@ -6,10 +6,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
-import static io.github.panghy.javaflow.core.FlowFuture.COMPLETED_VOID_FUTURE;
 import static io.github.panghy.javaflow.core.FlowFuture.failed;
-import static io.github.panghy.javaflow.io.FlowFutureUtil.delay;
-import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenApply;
+import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
 
 /**
  * A simulated implementation of FlowFile for testing purposes.
@@ -82,7 +80,7 @@ public class SimulatedFlowFile implements FlowFile {
     double delay = params.calculateReadDelay(length);
 
     // Perform the read after the delay
-    return delayThenApply(COMPLETED_VOID_FUTURE, delay, v -> dataStore.read(position, length));
+    return delayThenRun(delay, () -> dataStore.read(position, length));
   }
 
   @Override
@@ -107,7 +105,7 @@ public class SimulatedFlowFile implements FlowFile {
     double delay = params.calculateWriteDelay(data.remaining());
 
     // Perform the write after the delay
-    return delayThenApply(COMPLETED_VOID_FUTURE, delay, v -> {
+    return delayThenRun(delay, () -> {
       dataStore.write(position, data);
       return null;
     });
@@ -121,7 +119,7 @@ public class SimulatedFlowFile implements FlowFile {
     }
 
     // For simulation, sync is just a delay
-    return delayThenApply(COMPLETED_VOID_FUTURE, params.getMetadataDelay(), v -> null);
+    return delayThenRun(params.getMetadataDelay(), () -> null);
   }
 
   @Override
@@ -143,7 +141,7 @@ public class SimulatedFlowFile implements FlowFile {
     }
 
     // Simulate delay
-    return delayThenApply(COMPLETED_VOID_FUTURE, params.getMetadataDelay(), v -> {
+    return delayThenRun(params.getMetadataDelay(), () -> {
       dataStore.truncate(size);
       return null;
     });
@@ -162,7 +160,7 @@ public class SimulatedFlowFile implements FlowFile {
     closed = true;
 
     // Simulate delay for close operation
-    return delay(COMPLETED_VOID_FUTURE, params.getMetadataDelay());
+    return delayThenRun(params.getMetadataDelay(), () -> null);
   }
 
   @Override
@@ -173,10 +171,9 @@ public class SimulatedFlowFile implements FlowFile {
     }
 
     // Simulate delay
-    return delayThenApply(
-        COMPLETED_VOID_FUTURE,
+    return delayThenRun(
         params.getMetadataDelay(),
-        v -> {
+        () -> {
           // Check if file was closed during the delay
           if (closed) {
             throw new IOException("File is closed");
