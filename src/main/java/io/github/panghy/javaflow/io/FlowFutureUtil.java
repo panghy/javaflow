@@ -2,9 +2,10 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 
 import java.util.function.Function;
+
+import static io.github.panghy.javaflow.Flow.await;
 
 /**
  * Utility methods for working with FlowFuture objects, especially in the context
@@ -44,34 +45,11 @@ public final class FlowFutureUtil {
   public static <T, R> FlowFuture<R> delayThenApply(
       FlowFuture<T> future, double delaySeconds, IOFunction<T, R> mapper) {
 
-    FlowFuture<R> result = new FlowFuture<>();
-    FlowPromise<R> promise = result.getPromise();
-
-    // First wait for the source future to complete
-    future.whenComplete((value, error) -> {
-      if (error != null) {
-        promise.completeExceptionally(error);
-        return;
-      }
-
-      // Then apply the delay
-      Flow.delay(delaySeconds).whenComplete((v, e) -> {
-        if (e != null) {
-          promise.completeExceptionally(e);
-          return;
-        }
-
-        // Finally apply the mapper and complete the result
-        try {
-          R mappedValue = mapper.apply(value);
-          promise.complete(mappedValue);
-        } catch (Throwable ex) {
-          promise.completeExceptionally(ex);
-        }
-      });
+    return Flow.startActor(() -> {
+      T value = await(future);
+      await(Flow.delay(delaySeconds));
+      return mapper.apply(value);
     });
-
-    return result;
   }
 
   /**

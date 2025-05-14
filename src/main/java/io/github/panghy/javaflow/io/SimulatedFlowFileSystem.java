@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenApply;
+
 /**
  * A simulated implementation of FlowFileSystem for testing purposes.
  * This implementation maintains an in-memory representation of files and directories
@@ -64,7 +66,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     final boolean truncate = hasOption(options, OpenOptions.TRUNCATE_EXISTING);
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> {
@@ -133,7 +135,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> {
@@ -196,7 +198,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> files.containsKey(pathStr) || directories.containsKey(pathStr));
@@ -219,7 +221,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> {
@@ -299,7 +301,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
           });
     } else {
       // Parent exists, so just create this directory with a delay
-      return FlowFutureUtil.delayThenApply(
+      return delayThenApply(
           FlowFuture.completed(null),
           params.getMetadataDelay(),
           v -> {
@@ -335,7 +337,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> {
@@ -375,7 +377,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     }
 
     // Simulate delay
-    return FlowFutureUtil.delayThenApply(
+    return delayThenApply(
         FlowFuture.completed(null),
         params.getMetadataDelay(),
         v -> {

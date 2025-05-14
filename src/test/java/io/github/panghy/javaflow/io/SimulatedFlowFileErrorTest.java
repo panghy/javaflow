@@ -32,14 +32,14 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
   void setUp() {
     testPath = Paths.get("/test/error-test.txt");
     
-    // Create simulation parameters with high error rates
+    // Create simulation parameters with guaranteed error rates
     params = new SimulationParameters();
     params.setReadDelay(0.001);
     params.setWriteDelay(0.001);
     params.setMetadataDelay(0.001);
-    params.setReadErrorProbability(0.99); // Almost always fail reads
-    params.setWriteErrorProbability(0.99); // Almost always fail writes
-    params.setMetadataErrorProbability(0.99); // Almost always fail metadata ops
+    params.setReadErrorProbability(1.0); // Always fail reads
+    params.setWriteErrorProbability(1.0); // Always fail writes
+    params.setMetadataErrorProbability(1.0); // Always fail metadata ops
     
     // Create the file with error-prone parameters
     file = new SimulatedFlowFile(testPath, params);
