@@ -155,13 +155,16 @@ ext {
     }
 }
 
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.SonatypeHost
 
 mavenPublishing {
+    configure(new JavaLibrary(new JavadocJar.None(), true))
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
     pom(pomConfig)
-    
+
     // Configure credentials from environment variables or Gradle properties
     coordinates("io.github.panghy", "javaflow", version)
 }
