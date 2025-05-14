@@ -172,13 +172,13 @@ signing {
 publishing {
     repositories {
         maven {
-            name = 'mavenCentral'
+            name = 'ossrh'
             url = project.version.endsWith('-SNAPSHOT') 
                 ? 'https://s01.oss.sonatype.org/content/repositories/snapshots/' 
                 : 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
             credentials {
-                username = findProperty('mavenCentralUsername')
-                password = findProperty('mavenCentralPassword')
+                username = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_USERNAME')
+                password = findProperty('mavenCentralPassword') ?: System.getenv('MAVEN_CENTRAL_TOKEN')
             }
         }
         
@@ -190,5 +190,5 @@ publishing {
 task publishToMavenCentral {
     group = 'publishing'
     description = 'Publishes to Maven Central using Maven Central Portal User Token'
-    dependsOn 'publish'
+    dependsOn 'publishMavenJavaPublicationToOssrhRepository'
 }
