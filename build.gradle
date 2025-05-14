@@ -160,7 +160,7 @@ import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.SonatypeHost
 
 mavenPublishing {
-    configure(new JavaLibrary(new JavadocJar.None(), true))
+    configure(new JavaLibrary(new JavadocJar.Empty(), true))
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
     pom(pomConfig)
