@@ -27,14 +27,16 @@ class TestSchedulerTest {
 
   private TestScheduler testScheduler;
   private FlowScheduler simulatedScheduler;
+  private FlowScheduler originalScheduler;
 
   @BeforeEach
   void setUp() {
     // Create a simulated scheduler
     simulatedScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
-
     // Create the test scheduler
     testScheduler = new TestScheduler(simulatedScheduler);
+    // Save original scheduler
+    originalScheduler = Flow.scheduler();
   }
 
   @AfterEach
@@ -43,6 +45,8 @@ class TestSchedulerTest {
     if (testScheduler.isSimulationActive()) {
       testScheduler.endSimulation();
     }
+    // Make sure we restore to the original state
+    Flow.setScheduler(originalScheduler);
   }
 
   @Test

@@ -1,11 +1,7 @@
 package io.github.panghy.javaflow.core;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.scheduler.FlowClock;
-import io.github.panghy.javaflow.scheduler.FlowScheduler;
-import io.github.panghy.javaflow.scheduler.TestScheduler;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -24,24 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests for {@link PromiseStream} and {@link FutureStream}.
  */
-public class PromiseStreamTest {
-
-  private FlowScheduler simScheduler;
-  private TestScheduler testScheduler;
-
-  @BeforeEach
-  void setUp() {
-    // Create a scheduler with simulation clock and no carrier thread
-    simScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
-    testScheduler = new TestScheduler(simScheduler);
-    testScheduler.startSimulation();
-  }
-
-  @AfterEach
-  void tearDown() {
-    testScheduler.endSimulation();
-    simScheduler.shutdown();
-  }
+public class PromiseStreamTest extends AbstractFlowTest {
 
   @Test
   void testBasicSendReceive() throws Exception {
@@ -52,9 +31,8 @@ public class PromiseStreamTest {
     assertTrue(stream.send(42));
 
     // Actor to receive values
-    FlowFuture<Integer> receivedValue = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<Integer> receivedValue = Flow.startActor(() ->
+        await(futureStream.nextAsync()));
 
     // Pump the scheduler to execute the flow task
     testScheduler.pump();
@@ -69,13 +47,9 @@ public class PromiseStreamTest {
     FutureStream<String> futureStream = stream.getFutureStream();
 
     // Create two receivers waiting for values
-    FlowFuture<String> receiver1 = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<String> receiver1 = Flow.startActor(() -> await(futureStream.nextAsync()));
 
-    FlowFuture<String> receiver2 = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<String> receiver2 = Flow.startActor(() -> await(futureStream.nextAsync()));
 
     // No values yet, so no result
     assertFalse(receiver1.isDone());
@@ -112,16 +86,12 @@ public class PromiseStreamTest {
     assertTrue(futureStream.isClosed());
 
     // First value can still be read
-    FlowFuture<Integer> receivedValue = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<Integer> receivedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
     assertEquals(1, receivedValue.getNow());
 
     // Second attempt to read should fail with StreamClosedException
-    FlowFuture<Integer> failedValue = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<Integer> failedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
     assertTrue(failedValue.isCompletedExceptionally());
     Exception e = assertThrows(ExecutionException.class, failedValue::getNow);
@@ -140,9 +110,7 @@ public class PromiseStreamTest {
     stream.closeExceptionally(customException);
 
     // Attempt to read should fail with the custom exception
-    FlowFuture<Integer> failedValue = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<Integer> failedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
     assertTrue(failedValue.isCompletedExceptionally());
     Exception e = assertThrows(ExecutionException.class, failedValue::getNow);
@@ -327,7 +295,7 @@ public class PromiseStreamTest {
   }
 
   @Test
-  void testForEachWithException() throws Exception {
+  void testForEachWithException() {
     PromiseStream<String> stream = new PromiseStream<>();
     FutureStream<String> futureStream = stream.getFutureStream();
 
@@ -655,9 +623,7 @@ public class PromiseStreamTest {
     stream.send("");
 
     // Try to read from mapped stream
-    FlowFuture<Integer> failedRead = Flow.startActor(() -> {
-      return await(lengths.nextAsync());
-    });
+    FlowFuture<Integer> failedRead = Flow.startActor(() -> await(lengths.nextAsync()));
 
     // Pump to process
     testScheduler.pump();
@@ -909,13 +875,9 @@ public class PromiseStreamTest {
     FutureStream<Integer> futureStream = stream.getFutureStream();
 
     // Create separate actors for hasNext and next operations that will race
-    FlowFuture<Boolean> hasNextFuture = Flow.startActor(() -> {
-      return await(futureStream.hasNextAsync());
-    });
+    FlowFuture<Boolean> hasNextFuture = Flow.startActor(() -> await(futureStream.hasNextAsync()));
 
-    FlowFuture<Integer> nextFuture = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<Integer> nextFuture = Flow.startActor(() -> await(futureStream.nextAsync()));
 
     // Pump once - both actors should be waiting since there's no data
     testScheduler.pump();
@@ -983,9 +945,7 @@ public class PromiseStreamTest {
 
     // Start more operations that will be pending
     FlowFuture<String> nextFuture2 = futureStream.nextAsync();
-    FlowFuture<String> nextFuture3 = Flow.startActor(() -> {
-      return await(futureStream.nextAsync());
-    });
+    FlowFuture<String> nextFuture3 = Flow.startActor(() -> await(futureStream.nextAsync()));
 
     // Pump to ensure actors are running
     testScheduler.pump();

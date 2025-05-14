@@ -4,9 +4,7 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.SimulatedClock;
-import io.github.panghy.javaflow.scheduler.TestScheduler;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -33,21 +31,6 @@ import static org.junit.jupiter.api.Assertions.fail;
  * Tests both real-time and simulated time operation.
  */
 class FlowTimerTest {
-
-  /**
-   * Tests using real time clock.
-   */
-  // For use by both test classes
-  private FlowScheduler originalScheduler;
-  private FlowScheduler simulatedScheduler;
-
-  @BeforeEach
-  void setUp() {
-    // Store the original scheduler and get a reference to it
-    originalScheduler = Flow.scheduler();
-    // Create a scheduler with a simulated clock for tests that need it
-    simulatedScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
-  }
 
   @Nested
   class RealTimeTests {
@@ -182,36 +165,11 @@ class FlowTimerTest {
   }
 
   /**
-   * Tests using simulated time clock.
+   * Tests using simulated time clock. This class extends AbstractFlowTest for reusable
+   * scheduling and simulation capabilities.
    */
   @Nested
-  class SimulatedTimeTests {
-
-    // Use a TestScheduler object to enable simulation mode during tests
-    private TestScheduler testScheduler;
-
-    @BeforeEach
-    void setUp() {
-      // Create a test scheduler that uses the simulated clock
-      testScheduler = new TestScheduler(simulatedScheduler);
-
-      // Start the test scheduler with simulation mode
-      testScheduler.startSimulation();
-
-      // Reset the simulated clock to ensure a clean state
-      ((SimulatedClock) Flow.getClock()).reset();
-
-      // Double-check that simulation mode is active
-      if (!Flow.isSimulated()) {
-        fail("Failed to set simulation mode");
-      }
-    }
-
-    @AfterEach
-    void tearDown() {
-      // End the simulation and restore the original scheduler
-      testScheduler.endSimulation();
-    }
+  class SimulatedTimeTests extends AbstractFlowTest {
 
     @Test
     void testSimpleSimulatedDelay() {
@@ -241,7 +199,7 @@ class FlowTimerTest {
       });
 
       // Process initial scheduling
-      testScheduler.pump();
+      pump();
 
       // Get the delay future for verification
       FlowFuture<Void> delayFuture = delayFutureRef.get();
@@ -252,18 +210,18 @@ class FlowTimerTest {
       assertFalse(delayFuture.isDone(), "Future shouldn't be done before advancing time");
 
       // Advance time by 0.5 seconds
-      testScheduler.advanceTime(500); // 0.5 seconds in milliseconds
-      testScheduler.pump();
+      advanceTime(0.5); // 0.5 seconds
+      pump();
 
       // Verify still not completed
       assertFalse(completed.get(), "Delay shouldn't complete after advancing only 0.5 seconds");
 
       // Advance time to trigger the delay (advance by 0.6 seconds to reach 1.1 total)
-      testScheduler.advanceTime(600); // 0.6 seconds in milliseconds
+      advanceTime(0.6); // 0.6 seconds
 
       // We need multiple pumps to ensure all callbacks fire
       for (int i = 0; i < 10 && !completed.get(); i++) {
-        testScheduler.pump();
+        pump();
       }
 
       // Verify the delay completed
@@ -411,7 +369,7 @@ class FlowTimerTest {
       long initialTime = Flow.now();
 
       // Test advancing time
-      testScheduler.advanceTime(1000);
+      advanceTime(1.0);
       assertEquals(initialTime + 1000, Flow.now(), "Time should advance by 1000ms");
 
       // Test that individual operations on the clock work
