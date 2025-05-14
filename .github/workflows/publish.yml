@@ -3,13 +3,22 @@ name: Publish to Maven Central
 on:
   release:
     types: [ created ]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'The release tag to publish (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.release_tag || github.ref }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v3
@@ -29,7 +38,15 @@ jobs:
 
       - name: Set version from tag
         run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - use provided release tag
+            TAG_VERSION=${{ github.event.inputs.release_tag }}
+            # Remove 'v' prefix if present
+            TAG_VERSION=${TAG_VERSION#v}
+          else
+            # Automatic trigger from release event
+            TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          fi
           echo "Setting project version to $TAG_VERSION"
           sed -i "s/version = '.*'/version = '$TAG_VERSION'/g" build.gradle
 
