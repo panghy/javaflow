@@ -153,7 +153,7 @@ JavaFlow is available on Maven Central. To use it in your projects:
 ### Gradle
 
 ```groovy
-implementation 'io.github.panghy:javaflow:1.0-SNAPSHOT'
+implementation 'io.github.panghy:javaflow:1.0.1'
 ```
 
 ### Maven
@@ -162,7 +162,7 @@ implementation 'io.github.panghy:javaflow:1.0-SNAPSHOT'
 <dependency>
   <groupId>io.github.panghy</groupId>
   <artifactId>javaflow</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.1</version>
 </dependency>
 ```
 
