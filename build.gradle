@@ -2,6 +2,9 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'jacoco'
+    id 'maven-publish'
+    id 'signing'
+    id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
 }
 
 group = 'io.github.panghy'
@@ -56,9 +59,9 @@ jacocoTestReport {
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                '**/LoggingUtil*',
-                '**/Flow.class',
-                '**/FlowFuture.class'
+                    '**/LoggingUtil*',
+                    '**/Flow.class',
+                    '**/FlowFuture.class'
             ])
         }))
     }
@@ -70,19 +73,19 @@ jacocoTestCoverageVerification {
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                '**/LoggingUtil*',
+                    '**/LoggingUtil*',
             ])
         }))
     }
-    
+
     violationRules {
         rule {
             element = 'CLASS'
             // These exclusions are only checked if afterEvaluate failed to exclude
             excludes = [
-                '**/LoggingUtil*',
-                'io.github.panghy.javaflow.util.LoggingUtil',
-                'io/github/panghy/javaflow/util/LoggingUtil*',
+                    '**/LoggingUtil*',
+                    'io.github.panghy.javaflow.util.LoggingUtil',
+                    'io/github/panghy/javaflow/util/LoggingUtil*',
             ]
 
             limit {
@@ -117,4 +120,73 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += [
             '--add-exports', 'java.base/jdk.internal.vm=ALL-UNNAMED'
     ]
+}
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            pom {
+                name = 'JavaFlow'
+                description = 'A Java library for actor-based concurrency with JDK continuations'
+                url = 'https://github.com/panghy/javaflow'
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'panghy'
+                        name = 'Clement Pang'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/panghy/javaflow.git'
+                    developerConnection = 'scm:git:ssh://github.com/panghy/javaflow.git'
+                    url = 'https://github.com/panghy/javaflow'
+                }
+            }
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty('signingInMemoryKey')
+    def signingPassword = findProperty('signingInMemoryKeyPassword')
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign publishing.publications.mavenJava
+}
+
+publishing {
+    repositories {
+        maven {
+            name = 'mavenCentral'
+            url = 'https://repo.maven.apache.org/maven2/'
+            credentials {
+                username = findProperty('mavenCentralUsername')
+                password = findProperty('mavenCentralPassword')
+            }
+        }
+        
+        // For local testing
+        mavenLocal()
+    }
+}
+
+task publishToMavenCentral {
+    group = 'publishing'
+    description = 'Publishes to Maven Central using Maven Central Portal User Token'
+    dependsOn 'publish'
 }

@@ -146,6 +146,28 @@ Work continues on network-related components and RPC framework. The architecture
 ./gradlew jacocoTestCoverageVerification
 ```
 
+## Maven Central Artifacts
+
+JavaFlow is available on Maven Central. To use it in your projects:
+
+### Gradle
+
+```groovy
+implementation 'io.github.panghy:javaflow:1.0-SNAPSHOT'
+```
+
+### Maven
+
+```xml
+<dependency>
+  <groupId>io.github.panghy</groupId>
+  <artifactId>javaflow</artifactId>
+  <version>1.0-SNAPSHOT</version>
+</dependency>
+```
+
+See [Release Process](docs/release_process.md) for information on how releases are managed.
+
 ### Code Style and Quality
 
 The project uses Checkstyle to enforce Java coding standards based on the Google Java Style Guide:
