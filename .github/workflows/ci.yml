@@ -11,39 +11,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v3
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: gradle
-    
-    - name: Validate Gradle wrapper
-      uses: gradle/wrapper-validation-action@v1
-    
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    
-    - name: Build with Gradle
-      run: ./gradlew build
-    
-    - name: Run checkstyle
-      run: ./gradlew checkstyleMain checkstyleTest
-    
-    - name: Generate test coverage report
-      run: ./gradlew jacocoTestReport
-    
-    - name: Verify test coverage
-      run: ./gradlew jacocoTestCoverageVerification
-    
-    - name: Upload test reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-reports
-        path: |
-          build/reports/tests/
-          build/reports/jacoco/
-          build/reports/checkstyle/
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Run checkstyle
+        run: ./gradlew checkstyleMain checkstyleTest
+
+      - name: Generate test coverage report
+        run: ./gradlew jacocoTestReport
+
+      - name: Verify test coverage
+        run: ./gradlew jacocoTestCoverageVerification
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/
+            build/reports/jacoco/
+            build/reports/checkstyle/
