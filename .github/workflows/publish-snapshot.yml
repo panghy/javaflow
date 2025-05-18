@@ -30,7 +30,7 @@ jobs:
           echo "Publishing version: $VERSION"
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew clean build
 
       - name: Publish Snapshot to Maven Central
         run: ./gradlew publishToMavenCentral --no-configuration-cache
