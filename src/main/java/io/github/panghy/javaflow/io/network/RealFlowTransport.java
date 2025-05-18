@@ -91,7 +91,7 @@ public class RealFlowTransport implements FlowTransport {
    */
   public RealFlowTransport() throws IOException {
     this(AsynchronousChannelGroup.withThreadPool(Executors.newFixedThreadPool(
-        Math.max(2, Runtime.getRuntime().availableProcessors()))));
+        Math.max(4, Runtime.getRuntime().availableProcessors()))));
   }
 
   /**
