@@ -4,9 +4,9 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,7 +17,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -69,27 +73,22 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     connectFuture.getNow();
 
     // Verify the connection future completes
-    Assertions.assertFalse(connectFuture.isCompletedExceptionally());
+    assertFalse(connectFuture.isCompletedExceptionally());
     FlowConnection clientConnection = connectFuture.getNow();
-    Assertions.assertNotNull(clientConnection);
+    assertNotNull(clientConnection);
 
-    // Wait for accept to complete
-    pumpUntilDone(acceptFuture);
-
-    // Verify the accept future completes
-    Assertions.assertFalse(acceptFuture.isCompletedExceptionally());
     FlowConnection serverConnection = acceptFuture.getNow();
-    Assertions.assertNotNull(serverConnection);
+    assertNotNull(serverConnection);
 
     // Verify the connections are open
     assertTrue(clientConnection.isOpen());
     assertTrue(serverConnection.isOpen());
 
     // Verify the endpoints match
-    Assertions.assertEquals(serverEndpoint.getPort(), clientConnection.getRemoteEndpoint().getPort());
+    assertEquals(serverEndpoint.getPort(), clientConnection.getRemoteEndpoint().getPort());
     int clientLocalPort = clientConnection.getLocalEndpoint().getPort();
     int serverRemotePort = serverConnection.getRemoteEndpoint().getPort();
-    Assertions.assertEquals(clientLocalPort, serverRemotePort);
+    assertEquals(clientLocalPort, serverRemotePort);
 
     // Use the connections
     String message = "Test message";
@@ -105,7 +104,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     byte[] receivedBytes = new byte[received.remaining()];
     received.get(receivedBytes);
 
-    Assertions.assertEquals(message, new String(receivedBytes));
+    assertEquals(message, new String(receivedBytes));
 
     // Close connections
     clientConnection.close();
@@ -132,6 +131,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests closing the transport while connections are active.
    */
   @Test
+  @Timeout(value = 10, unit = TimeUnit.SECONDS)
   void testCloseWithActiveConnections() throws Exception {
     // Start listening
     connectionStream = transport.listen(serverEndpoint);
@@ -153,7 +153,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
     // Close the transport (this should close the server stream)
     FlowFuture<Void> closeFuture = transport.close();
-    pumpUntilDone(closeFuture);
+    closeFuture.getNow();
 
     // Try to get next connection - should fail
     FlowFuture<FlowConnection> nextAcceptFuture = connectionStream.nextAsync();
@@ -180,7 +180,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests listening on the same endpoint twice.
    */
   @Test
-  void testListenOnSameEndpointTwice() throws Exception {
+  void testListenOnSameEndpointTwice() {
     // Listen on an endpoint
     connectionStream = transport.listen(serverEndpoint);
 
@@ -188,7 +188,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     FlowStream<FlowConnection> secondStream = transport.listen(serverEndpoint);
 
     // Should be the same stream instance
-    Assertions.assertSame(connectionStream, secondStream);
+    assertSame(connectionStream, secondStream);
   }
 
   /**
@@ -225,17 +225,13 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
       // Connect
       FlowFuture<FlowConnection> connectFuture = transport.connect(
           new Endpoint("localhost", ports[i]));
-      pumpUntilDone(connectFuture);
 
       FlowConnection clientConnection = connectFuture.getNow();
-
-      // Wait for accept
-      pumpUntilDone(acceptFuture);
 
       FlowConnection serverConnection = acceptFuture.getNow();
 
       // Verify the connections
-      Assertions.assertEquals(ports[i], clientConnection.getRemoteEndpoint().getPort());
+      assertEquals(ports[i], clientConnection.getRemoteEndpoint().getPort());
 
       // Close the connections
       clientConnection.close();
@@ -250,25 +246,21 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
   void testMultipleClose() throws Exception {
     // First close
     FlowFuture<Void> firstCloseFuture = transport.close();
-    pumpUntilDone(firstCloseFuture);
+    firstCloseFuture.getNow();
 
     // Second close
     FlowFuture<Void> secondCloseFuture = transport.close();
-    pumpUntilDone(secondCloseFuture);
-
-    // Both should complete normally
-    Assertions.assertFalse(firstCloseFuture.isCompletedExceptionally());
-    Assertions.assertFalse(secondCloseFuture.isCompletedExceptionally());
+    secondCloseFuture.getNow();
 
     // Should be the same future
-    Assertions.assertSame(firstCloseFuture, secondCloseFuture);
+    assertSame(firstCloseFuture, secondCloseFuture);
   }
 
   /**
    * Tests error handling during accept.
    */
   @Test
-  void testAcceptErrorHandling() throws Exception {
+  void testAcceptErrorHandling() {
     // This test requires OS manipulation, which isn't practical in a unit test.
     // The best we can do is to verify that the code doesn't crash if accept fails.
     // This is mostly just to hit the code paths and improve coverage.
@@ -293,12 +285,6 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         // Ignore connect errors
       }
     }
-
-    // If any connections succeeded, we expect accepts to work
-    if (successCount.get() > 0) {
-      pumpUntilDone(acceptFuture);
-      // This test doesn't verify much, but it does exercise the error handling code
-    }
   }
 
   /**
@@ -313,14 +299,16 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
 
     // No client has connected yet, so acceptFuture should not be done
-    Assertions.assertFalse(acceptFuture.isDone());
+    assertFalse(acceptFuture.isDone());
 
     // Close the transport
     transport.close();
-    pumpUntilDone();
 
-    // Now the accept future should complete exceptionally
-    assertTrue(acceptFuture.isCompletedExceptionally());
+    try {
+      acceptFuture.getNow();
+      fail("Expected ExecutionException");
+    } catch (ExecutionException expected) {
+    }
   }
 
   /**
@@ -342,12 +330,11 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
       // Try to get a connection
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-
-      // This might or might not fail, depending on the OS
-      // If it doesn't fail, the OS might have assigned a different port
-      // We're just exercising the code path
-
-      // Close the transport
+      try {
+        acceptFuture.getNow();
+        fail("Expected ExecutionException");
+      } catch (ExecutionException expected) {
+      }
       transport.close();
     } finally {
       existingServer.close();
@@ -366,12 +353,11 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", serverEndpoint.getPort()));
 
-    // The connect will likely fail since we haven't set up a server yet
-    // But we're just exercising the code path
-
-    // Wait a bit for the connect to either succeed or fail
-    Thread.sleep(100);
-    pumpUntilDone();
+    try {
+      connectFuture.getNow();
+      fail("Expected ExecutionException");
+    } catch (ExecutionException expected) {
+    }
   }
 
   /**
@@ -391,10 +377,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
       // Close the transport, which should close the server socket
       customTransport.close();
-      pumpUntilDone();
 
-      // Now the accept future should complete exceptionally
-      assertTrue(acceptFuture.isCompletedExceptionally());
+      try {
+        acceptFuture.getNow();
+        fail("Expected ExecutionException");
+      } catch (ExecutionException expected) {
+      }
     } finally {
       customTransport.close();
     }
@@ -450,7 +438,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         ByteBuffer received = receiveFuture.getNow();
         byte[] bytes = new byte[received.remaining()];
         received.get(bytes);
-        Assertions.assertEquals(message, new String(bytes));
+        assertEquals(message, new String(bytes));
       }
 
       // Close all connections with proper waiting
@@ -462,12 +450,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         clientCloseFuture.getNow();
         serverCloseFuture.getNow();
       }
-
-      // Ensure proper cleanup by pumping a bit more
-      pumpUntilDone();
     } finally {
       FlowFuture<Void> closeFuture = customTransport.close();
-      pumpUntilDone(closeFuture);
+      closeFuture.getNow();
     }
   }
 }
