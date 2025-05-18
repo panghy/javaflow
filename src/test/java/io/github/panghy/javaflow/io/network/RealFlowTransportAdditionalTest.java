@@ -73,32 +73,32 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(
             getChannelGroup());
         serverChannel.bind(serverEndpoint.toInetSocketAddress());
-        
+
         // Get the connectionStreams field to create the necessary context
         Field streamsField = RealFlowTransport.class.getDeclaredField("connectionStreams");
         streamsField.setAccessible(true);
-        Map<LocalEndpoint, PromiseStream<FlowConnection>> streams = 
+        Map<LocalEndpoint, PromiseStream<FlowConnection>> streams =
             (Map<LocalEndpoint, PromiseStream<FlowConnection>>) streamsField.get(this);
-        
+
         // Create a promise stream for connections
         PromiseStream<FlowConnection> connectionStream = new PromiseStream<>();
         streams.put(serverEndpoint, connectionStream);
-        
+
         // Get the serverChannels field to add our server channel
         Field channelsField = RealFlowTransport.class.getDeclaredField("serverChannels");
         channelsField.setAccessible(true);
-        Map<LocalEndpoint, AsynchronousServerSocketChannel> channels = 
+        Map<LocalEndpoint, AsynchronousServerSocketChannel> channels =
             (Map<LocalEndpoint, AsynchronousServerSocketChannel>) channelsField.get(this);
         channels.put(serverEndpoint, serverChannel);
-        
+
         // Create a special client channel that will throw when getRemoteAddress is called
         AsynchronousSocketChannel clientChannel = AsynchronousSocketChannel.open(getChannelGroup());
-        
+
         // Force close the channel to ensure getRemoteAddress throws
         clientChannel.close();
-        
+
         // Create our own completion handler to simulate the accept completion
-        CompletionHandler<AsynchronousSocketChannel, Void> acceptHandler = 
+        CompletionHandler<AsynchronousSocketChannel, Void> acceptHandler =
             new CompletionHandler<>() {
               @Override
               public void completed(AsynchronousSocketChannel result, Void attachment) {
@@ -119,13 +119,13 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
                 // Not used in this test
               }
             };
-        
+
         // Manually trigger the completion handler with our closed channel
         acceptHandler.completed(clientChannel, null);
-        
+
         // Get and wait for the next connection to verify error propagation
         FlowFuture<FlowConnection> acceptFuture = connectionStream.getFutureStream().nextAsync();
-        
+
         try {
           acceptFuture.getNow();
           fail("Expected exception was not thrown");
@@ -134,7 +134,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
           assertInstanceOf(IOException.class, e.getCause());
         }
       }
-      
+
       // Access the private channel group
       AsynchronousChannelGroup getChannelGroup() throws Exception {
         Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
@@ -142,7 +142,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         return (AsynchronousChannelGroup) field.get(this);
       }
     }
-    
+
     // Run the test
     TestTransport testTransport = new TestTransport();
     try {
@@ -151,7 +151,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       testTransport.close();
     }
   }
-  
+
   /**
    * Tests connect completion handler when getLocalAddress throws an exception.
    * Creates a specialized transport that triggers error branches in the
@@ -177,10 +177,10 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
               // Create closed channel which will throw on getLocalAddress
               AsynchronousSocketChannel channel = AsynchronousSocketChannel.open(getChannelGroup());
               channel.close();
-              
+
               // This will throw because the channel is closed
               InetSocketAddress localAddress = (InetSocketAddress) channel.getLocalAddress();
-              
+
               // Should never get here
               fail("Expected exception was not thrown");
             } catch (IOException e) {
@@ -196,11 +196,11 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
             // Not used in this test
           }
         };
-        
+
         // Manually trigger the completion handler to simulate connect completion
         connectHandler.completed(null, null);
       }
-      
+
       // Access the private channel group
       AsynchronousChannelGroup getChannelGroup() throws Exception {
         Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
@@ -208,7 +208,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         return (AsynchronousChannelGroup) field.get(this);
       }
     }
-    
+
     // Run the test
     TestConnectTransport testTransport = new TestConnectTransport();
     try {
@@ -217,46 +217,46 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       testTransport.close();
     }
   }
-  
+
   /**
-   * Tests the branch in FlowTransport where we attempt to listen on 
+   * Tests the branch in FlowTransport where we attempt to listen on
    * an endpoint where we're already listening.
    */
   @Test
   void testListenOnExistingEndpoint() throws Exception {
     RealFlowTransport transport = new RealFlowTransport();
-    
+
     try {
       // Listen on the endpoint
       FlowStream<FlowConnection> stream1 = transport.listen(serverEndpoint);
-      
+
       // Listen again on the same endpoint - should return the same stream
       FlowStream<FlowConnection> stream2 = transport.listen(serverEndpoint);
-      
+
       // Should be the same stream
       assertTrue(stream1 == stream2, "Listening on the same endpoint should return the same stream");
     } finally {
       transport.close();
     }
   }
-  
+
   /**
    * Tests trying to connect with an already closed transport.
    */
   @Test
   void testConnectWithClosedTransport() throws Exception {
     RealFlowTransport transport = new RealFlowTransport();
-    
+
     // Close the transport first
     transport.close().getNow();
-    
+
     // Now try to connect
     FlowFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", 12345));
-    
+
     // Should immediately complete exceptionally
     assertTrue(connectFuture.isCompletedExceptionally());
-    
+
     try {
       connectFuture.getNow();
       fail("Expected exception was not thrown");
@@ -265,26 +265,26 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
   }
-  
+
   /**
    * Tests trying to listen with an already closed transport.
    */
   @Test
   void testListenWithClosedTransport() throws Exception {
     RealFlowTransport transport = new RealFlowTransport();
-    
+
     // Close the transport first
     transport.close().getNow();
-    
+
     // Now try to listen
     FlowStream<FlowConnection> stream = transport.listen(serverEndpoint);
-    
+
     // Try to get a connection
     FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-    
+
     // Should immediately complete exceptionally
     assertTrue(acceptFuture.isCompletedExceptionally());
-    
+
     try {
       acceptFuture.getNow();
       fail("Expected exception was not thrown");
@@ -293,7 +293,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
   }
-  
+
   /**
    * Tests the behavior when starting to accept connections with a closed connection stream.
    * This test verifies that startAccepting handles a closed stream correctly.
@@ -306,42 +306,42 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         super(AsynchronousChannelGroup.withThreadPool(
             Executors.newFixedThreadPool(2)));
       }
-      
+
       void testWithClosedStream() throws Exception {
         // Create a server channel
         AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(
             getChannelGroup());
         serverChannel.bind(serverEndpoint.toInetSocketAddress());
-        
+
         // Create a promise stream for connections and immediately close it
         PromiseStream<FlowConnection> connectionStream = new PromiseStream<>();
         connectionStream.close();
-        
+
         // Call startAccepting which should return immediately because stream is closed
         startAccepting(serverChannel, serverEndpoint, connectionStream);
-        
+
         // Close the server channel
         serverChannel.close();
       }
-      
+
       // Access the protected startAccepting method
       void startAccepting(
           AsynchronousServerSocketChannel serverChannel,
           LocalEndpoint localEndpoint,
           PromiseStream<FlowConnection> connectionStream) throws Exception {
-        
+
         // Get the startAccepting method through reflection
         java.lang.reflect.Method method = RealFlowTransport.class.getDeclaredMethod(
-            "startAccepting", 
+            "startAccepting",
             AsynchronousServerSocketChannel.class,
             LocalEndpoint.class,
             PromiseStream.class);
         method.setAccessible(true);
-        
+
         // Invoke the method
         method.invoke(this, serverChannel, localEndpoint, connectionStream);
       }
-      
+
       // Access the private channel group
       AsynchronousChannelGroup getChannelGroup() throws Exception {
         Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
@@ -349,7 +349,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         return (AsynchronousChannelGroup) field.get(this);
       }
     }
-    
+
     // Run the test
     TestAcceptTransport testTransport = new TestAcceptTransport();
     try {
@@ -358,17 +358,17 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       testTransport.close();
     }
   }
-  
+
   /**
    * Tests all code paths in the accept CompletionHandler inner class (RealFlowTransport.2).
-   * This comprehensive test uses reflection to directly access and test the handler, 
+   * This comprehensive test uses reflection to directly access and test the handler,
    * ensuring complete coverage of all branches.
    */
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testAcceptCompletionHandlerAllBranches() throws Exception {
     RealFlowTransport transport = new RealFlowTransport();
-    
+
     // Get access to the private startAccepting method
     Method startAcceptingMethod = RealFlowTransport.class.getDeclaredMethod(
         "startAccepting",
@@ -376,163 +376,159 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         LocalEndpoint.class,
         PromiseStream.class);
     startAcceptingMethod.setAccessible(true);
-    
+
     // Get server channels map via reflection
     Field serverChannelsField = RealFlowTransport.class.getDeclaredField("serverChannels");
     serverChannelsField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    Map<LocalEndpoint, AsynchronousServerSocketChannel> serverChannels = 
+    Map<LocalEndpoint, AsynchronousServerSocketChannel> serverChannels =
         (Map<LocalEndpoint, AsynchronousServerSocketChannel>) serverChannelsField.get(transport);
-    
+
     // Get connection streams map via reflection
     Field connectionStreamsField = RealFlowTransport.class.getDeclaredField("connectionStreams");
     connectionStreamsField.setAccessible(true);
     @SuppressWarnings("unchecked")
-    Map<LocalEndpoint, PromiseStream<FlowConnection>> connectionStreams = 
+    Map<LocalEndpoint, PromiseStream<FlowConnection>> connectionStreams =
         (Map<LocalEndpoint, PromiseStream<FlowConnection>>) connectionStreamsField.get(transport);
-    
+
     // Get access to the closed field
     Field closedField = RealFlowTransport.class.getDeclaredField("closed");
     closedField.setAccessible(true);
-    
+
     try {
       /* Test Case 1: Normal Accept Path */
-      
+
       // Set up a server socket on a random port
       AsynchronousServerSocketChannel serverChannel1 = AsynchronousServerSocketChannel.open();
       serverChannel1.bind(new InetSocketAddress("localhost", 0));
       int port1 = ((InetSocketAddress) serverChannel1.getLocalAddress()).getPort();
       LocalEndpoint endpoint1 = LocalEndpoint.localhost(port1);
-      
+
       // Create stream for connections and start accepting
       PromiseStream<FlowConnection> stream1 = new PromiseStream<>();
       connectionStreams.put(endpoint1, stream1);
       serverChannels.put(endpoint1, serverChannel1);
-      
+
       // Start accepting connections
       startAcceptingMethod.invoke(transport, serverChannel1, endpoint1, stream1);
-      
+
       // Connect to the server to trigger the accept handler's completed path
       AsynchronousSocketChannel clientChannel = AsynchronousSocketChannel.open();
       CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-      clientChannel.connect(new InetSocketAddress("localhost", port1), null, 
+      clientChannel.connect(new InetSocketAddress("localhost", port1), null,
           new CompletionHandler<Void, Void>() {
-              @Override
-              public void completed(Void result, Void attachment) {
-                  connectFuture.complete(null);
-              }
-              
-              @Override
-              public void failed(Throwable exc, Void attachment) {
-                  connectFuture.completeExceptionally(exc);
-              }
+            @Override
+            public void completed(Void result, Void attachment) {
+              connectFuture.complete(null);
+            }
+
+            @Override
+            public void failed(Throwable exc, Void attachment) {
+              connectFuture.completeExceptionally(exc);
+            }
           });
-      
+
       // Wait for connection to complete
       try {
-          connectFuture.get(5, TimeUnit.SECONDS);
+        connectFuture.get(5, TimeUnit.SECONDS);
       } catch (Exception e) {
-          // Handle connect errors
-          // If connect fails, the test can't proceed, but we've still exercised some paths
-          System.err.println("Connect failed: " + e.getMessage());
+        // Handle connect errors
+        // If connect fails, the test can't proceed, but we've still exercised some paths
+        System.err.println("Connect failed: " + e.getMessage());
       }
-      
+
       // Get the next connection from the stream
       FlowFuture<FlowConnection> acceptFuture = stream1.getFutureStream().nextAsync();
-      
+
       try {
         // This should succeed because we've connected
         FlowConnection connection = acceptFuture.getNow();
-        
+
         // Verify the connection is valid by doing a simple send/receive
         String testMessage = "TestMessage";
         ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes());
         connection.send(buffer).getNow();
-        
+
         // Close connection
         connection.close().getNow();
       } catch (Exception e) {
         // Even if this fails, we've exercised the code path
         System.err.println("Accept completed path error: " + e.getMessage());
       }
-      
+
       /* Test Case 2: Accept with Closed Stream */
-      
+
       // Set up another server socket
       AsynchronousServerSocketChannel serverChannel2 = AsynchronousServerSocketChannel.open();
       serverChannel2.bind(new InetSocketAddress("localhost", 0));
       int port2 = ((InetSocketAddress) serverChannel2.getLocalAddress()).getPort();
       LocalEndpoint endpoint2 = LocalEndpoint.localhost(port2);
-      
+
       // Create stream but close it immediately
       PromiseStream<FlowConnection> stream2 = new PromiseStream<>();
       stream2.close();
       connectionStreams.put(endpoint2, stream2);
       serverChannels.put(endpoint2, serverChannel2);
-      
+
       // Call startAccepting with a closed stream - should return immediately
       startAcceptingMethod.invoke(transport, serverChannel2, endpoint2, stream2);
-      
+
       /* Test Case 3: Failed Accept */
-      
+
       // Set up another server socket
       AsynchronousServerSocketChannel serverChannel3 = AsynchronousServerSocketChannel.open();
       serverChannel3.bind(new InetSocketAddress("localhost", 0));
       int port3 = ((InetSocketAddress) serverChannel3.getLocalAddress()).getPort();
       LocalEndpoint endpoint3 = LocalEndpoint.localhost(port3);
-      
+
       // Create stream for connections
       PromiseStream<FlowConnection> stream3 = new PromiseStream<>();
       connectionStreams.put(endpoint3, stream3);
       serverChannels.put(endpoint3, serverChannel3);
-      
+
       // Start accepting
       startAcceptingMethod.invoke(transport, serverChannel3, endpoint3, stream3);
-      
+
       // Close the server channel to force a failure on next accept
       serverChannel3.close();
-      
+
       // The stream should eventually be closed exceptionally
       FlowFuture<FlowConnection> failedAcceptFuture = stream3.getFutureStream().nextAsync();
-      
+
       // Check that the stream gets closed with an exception
       try {
         failedAcceptFuture.getNow();
         fail("Expected exception not thrown");
-      } catch (Exception e) {
-        // This confirms that the failed() method in the completion handler was called
-        assertTrue(e instanceof Exception);
+      } catch (Exception expected) {
       }
-      
+
       /* Test Case 4: Closed Transport during Accept */
-      
+
       // Set up another server socket
       AsynchronousServerSocketChannel serverChannel4 = AsynchronousServerSocketChannel.open();
       serverChannel4.bind(new InetSocketAddress("localhost", 0));
       int port4 = ((InetSocketAddress) serverChannel4.getLocalAddress()).getPort();
       LocalEndpoint endpoint4 = LocalEndpoint.localhost(port4);
-      
+
       // Create stream for connections
       PromiseStream<FlowConnection> stream4 = new PromiseStream<>();
       connectionStreams.put(endpoint4, stream4);
       serverChannels.put(endpoint4, serverChannel4);
-      
+
       // Start accepting
       startAcceptingMethod.invoke(transport, serverChannel4, endpoint4, stream4);
-      
+
       // Try to get a connection
       FlowFuture<FlowConnection> acceptFuture4 = stream4.getFutureStream().nextAsync();
-      
+
       // Close the transport
       transport.close().getNow();
-      
+
       // The future should complete exceptionally
       try {
         acceptFuture4.getNow();
         fail("Expected exception was not thrown");
-      } catch (Exception e) {
-        // Expected - the accept future should fail when transport is closed
-        assertTrue(e instanceof Exception);
+      } catch (Exception expected) {
       }
     } finally {
       transport.close();
@@ -548,7 +544,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
   @Timeout(value = 15, unit = TimeUnit.SECONDS)
   void testAcceptHandlerErrorPaths() throws Exception {
     RealFlowTransport transport1 = new RealFlowTransport();
-    
+
     /* Part 1: Test transport closed branch */
     try {
       // Create a server channel 
@@ -556,29 +552,26 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       tempChannel.bind(new InetSocketAddress("localhost", 0));
       int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
       tempChannel.close();
-      
+
       // Set up a server endpoint
       LocalEndpoint tempEndpoint = LocalEndpoint.localhost(port);
       FlowStream<FlowConnection> stream = transport1.listen(tempEndpoint);
-      
+
       // Close the transport which should prevent accept from working
       transport1.close().getNow();
-      
+
       // Next connection should fail
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-      
+
       try {
         acceptFuture.getNow();
         fail("Expected exception was not thrown");
-      } catch (Exception e) {
-        // The exception could be either IOException or some other exception type
-        // We just need to verify that something was thrown when the transport is closed
-        assertTrue(e instanceof Exception);
+      } catch (Exception expected) {
       }
     } catch (Exception e) {
       // Ignore test errors
     }
-    
+
     /* Part 2: Test IOException during connect to nonexistent server */
     RealFlowTransport transport2 = new RealFlowTransport();
     try {
@@ -586,12 +579,11 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       int nonExistentPort = 45678; // Unlikely to be in use
       FlowFuture<FlowConnection> connectFuture = transport2.connect(
           new Endpoint("localhost", nonExistentPort));
-      
+
       try {
         connectFuture.getNow();
         fail("Expected exception was not thrown");
-      } catch (Exception e) {
-        // Expected - could be various IO exceptions
+      } catch (Exception expected) {
       }
     } finally {
       transport2.close();
