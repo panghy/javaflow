@@ -24,6 +24,7 @@ public class RealFlowTransportConnectTest extends AbstractFlowTest {
 
   private AsynchronousChannelGroup channelGroup;
   private RealFlowTransport transport;
+  private static final String SIMULATED_ERROR_MESSAGE = "Simulated error";
 
   @BeforeEach
   void setUp() throws Exception {
@@ -101,6 +102,47 @@ public class RealFlowTransportConnectTest extends AbstractFlowTest {
       
       // Verify the channel was closed
       Mockito.verify(mockChannel).close();
+    }
+  }
+  
+  /**
+   * Tests that an IOException thrown by AsynchronousSocketChannel.open() is properly
+   * propagated through the connect future.
+   *
+   * This test uses Mockito to mock the static AsynchronousSocketChannel.open() method
+   * to throw an IOException when called, simulating a failure to create the channel.
+   */
+  @Test
+  void testConnectChannelOpenIOException() throws Exception {
+    // Use MockedStatic to replace the static AsynchronousSocketChannel.open method
+    try (MockedStatic<AsynchronousSocketChannel> mockedStatic = 
+             Mockito.mockStatic(AsynchronousSocketChannel.class)) {
+      
+      // Make open() throw IOException to trigger the error path
+      mockedStatic.when(() -> AsynchronousSocketChannel.open(Mockito.any(AsynchronousChannelGroup.class)))
+          .thenThrow(new IOException(SIMULATED_ERROR_MESSAGE));
+      
+      // Call connect
+      FlowFuture<FlowConnection> connectFuture = transport.connect(
+          new Endpoint("localhost", 12345));
+      
+      // Wait for completion - shouldn't block since the error is immediate
+      pumpUntilDone(connectFuture);
+      
+      // Verify the future completed exceptionally
+      Assertions.assertTrue(connectFuture.isCompletedExceptionally(),
+          "Connect future should have completed exceptionally");
+      
+      // Verify the exception is an IOException
+      try {
+        connectFuture.getNow();
+        Assertions.fail("Expected ExecutionException");
+      } catch (ExecutionException e) {
+        Assertions.assertTrue(e.getCause() instanceof IOException,
+            "Cause should be the IOException from channel.open()");
+        Assertions.assertEquals(SIMULATED_ERROR_MESSAGE, e.getCause().getMessage(),
+            "Exception message should match");
+      }
     }
   }
 }
