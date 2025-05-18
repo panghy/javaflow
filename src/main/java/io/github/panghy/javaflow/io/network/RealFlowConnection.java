@@ -227,9 +227,7 @@ public class RealFlowConnection implements FlowConnection {
           continueReading(ByteBuffer.allocate(8192));
         } else if (bytesRead < 0) {
           // End of stream reached, close the connection
-          if (!closed.get()) {
-            close();
-          }
+          close();
         } else {
           // Zero bytes read, try again with same buffer
           readBuffer.clear();
