@@ -90,8 +90,8 @@ public class RealFlowTransport implements FlowTransport {
    * @throws IOException If an I/O error occurs
    */
   public RealFlowTransport() throws IOException {
-    this(AsynchronousChannelGroup.withThreadPool(Executors.newFixedThreadPool(
-        Math.max(4, Runtime.getRuntime().availableProcessors()))));
+    // don't scale with processors by default so unit tests are replicable
+    this(AsynchronousChannelGroup.withThreadPool(Executors.newFixedThreadPool(4)));
   }
 
   /**
