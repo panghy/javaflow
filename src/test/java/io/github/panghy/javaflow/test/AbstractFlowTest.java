@@ -121,7 +121,7 @@ public abstract class AbstractFlowTest {
           if (!allDone) {
             testScheduler.advanceTime(3.0); // 3 seconds
             testScheduler.pump();
-            allDone = checkAllFuturesDone(futures);
+            checkAllFuturesDone(futures);
           }
         }
       }
@@ -130,9 +130,8 @@ public abstract class AbstractFlowTest {
     // Final check to fail fast if futures aren't done
     for (FlowFuture<?> future : futures) {
       if (!future.isDone()) {
-        StringBuilder warning = new StringBuilder();
-        warning.append("WARNING: Future ").append(future)
-            .append(" is still not done after significant time advancement!");
+        String warning = "WARNING: Future " + future +
+                         " is still not done after significant time advancement!";
         System.err.println(warning);
 
         // This helps debugging by showing the current state
