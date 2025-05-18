@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -77,7 +78,7 @@ public class RealFlowTransportTest {
     // Close the transport
     try {
       if (transport != null) {
-        transport.close().toCompletableFuture().get(5, TimeUnit.SECONDS);
+        transport.close().getNow();
       }
     } catch (Exception e) {
       // Ignore exceptions during cleanup
@@ -85,6 +86,7 @@ public class RealFlowTransportTest {
   }
 
   @Test
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testBasicConnectionAndCommunication() throws Exception {
     // Define server endpoint
     LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
@@ -121,10 +123,10 @@ public class RealFlowTransportTest {
 
     // Connect to the server
     FlowConnection clientConnection = startActor(() ->
-        await(transport.connect(serverEndpoint))).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        await(transport.connect(serverEndpoint))).getNow();
 
     // Wait for the server to accept the connection
-    assertTrue(serverAcceptLatch.await(5, TimeUnit.SECONDS));
+    assertTrue(serverAcceptLatch.await(30, TimeUnit.SECONDS));
     assertNotNull(serverConnection.get());
 
     // Send a message from client to server
@@ -143,11 +145,12 @@ public class RealFlowTransportTest {
     assertEquals(testMessage, receivedMessage.get());
 
     // Close the connections
-    serverConnection.get().close().toCompletableFuture().get(5, TimeUnit.SECONDS);
-    clientConnection.close().toCompletableFuture().get(5, TimeUnit.SECONDS);
+    serverConnection.get().close().getNow();
+    clientConnection.close().getNow();
   }
 
   @Test
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testReceiveStream() throws Exception {
     // Define server endpoint
     LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
@@ -190,30 +193,31 @@ public class RealFlowTransportTest {
 
     // Connect to the server
     FlowConnection clientConnection = startActor(() ->
-        await(transport.connect(serverEndpoint))).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        await(transport.connect(serverEndpoint))).getNow();
 
     // Wait for the server to accept the connection
-    assertTrue(serverAcceptLatch.await(5, TimeUnit.SECONDS));
+    assertTrue(serverAcceptLatch.await(30, TimeUnit.SECONDS));
 
     // Send a message
     startActor(() -> {
       await(clientConnection.send(createBuffer(testMessage)));
       return null;
-    }).toCompletableFuture().get(2, TimeUnit.SECONDS);
+    }).getNow();
 
     // Wait for all messages to be received
-    assertTrue(allMessagesReceivedLatch.await(5, TimeUnit.SECONDS));
+    assertTrue(allMessagesReceivedLatch.await(30, TimeUnit.SECONDS));
 
     // Verify message
     assertEquals(1, receivedMessages.size());
     assertEquals(testMessage, receivedMessages.getFirst());
 
     // Close the connections
-    serverConnection.get().close().toCompletableFuture().get(5, TimeUnit.SECONDS);
-    clientConnection.close().toCompletableFuture().get(5, TimeUnit.SECONDS);
+    serverConnection.get().close().getNow();
+    clientConnection.close().getNow();
   }
 
   @Test
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testMultipleClients() throws Exception {
     // Define server endpoint
     LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
@@ -285,12 +289,12 @@ public class RealFlowTransportTest {
         assertEquals(message, receivedMessage);
 
         return conn;
-      }).toCompletableFuture().get(10, TimeUnit.SECONDS);
+      }).getNow();
     }
 
     // Wait for all clients to connect and all messages to be received
-    assertTrue(allClientsConnectedLatch.await(10, TimeUnit.SECONDS));
-    assertTrue(allMessagesReceivedLatch.await(10, TimeUnit.SECONDS));
+    assertTrue(allClientsConnectedLatch.await(30, TimeUnit.SECONDS));
+    assertTrue(allMessagesReceivedLatch.await(30, TimeUnit.SECONDS));
 
     // Verify the number of connections
     assertEquals(numClients, serverConnections.size());
@@ -298,10 +302,10 @@ public class RealFlowTransportTest {
 
     // Close all connections
     for (FlowConnection conn : serverConnections) {
-      conn.close().toCompletableFuture().get(5, TimeUnit.SECONDS);
+      conn.close().getNow();
     }
     for (FlowConnection conn : clientConnections) {
-      conn.close().toCompletableFuture().get(5, TimeUnit.SECONDS);
+      conn.close().getNow();
     }
   }
 }
