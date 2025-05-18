@@ -93,27 +93,33 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 |---------|-------------|--------|
 | 4.1 | **Promise Stream Primitives** - Implementation of PromiseStream and FutureStream | ✅ Completed |
 | 4.2 | **Non-blocking I/O Framework** - Core abstractions for async I/O operations | ✅ Completed |
-| 4.3 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | 📅 Planned |
+| 4.3 | **Network Channel Interfaces** - Asynchronous TCP/UDP socket operations | ✅ Completed |
 | 4.4 | **File I/O Operations** - Non-blocking file read/write operations | ✅ Completed |
-| 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | 🔄 In Progress |
-| 4.6 | **Flow Transport Layer** - Message-based communication between components | 📅 Planned |
+| 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | ✅ Completed |
+| 4.6 | **Flow Transport Layer** - Message-based communication between components | ✅ Completed |
 | 4.7 | **RPC Framework** - Promise/Future-based remote procedure calls | 🔄 In Progress (Design) |
 | 4.8 | **Serialization Infrastructure** - Data serialization for network operations | 📅 Planned |
-| 4.9 | **Timeout Handling** - I/O operation timeout management | 📅 Planned |
+| 4.9 | **Timeout Handling** - I/O operation timeout management | ✅ Completed |
 | 4.10 | **I/O Error Propagation** - Proper error handling for I/O operations | ✅ Completed |
 | 4.11 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | ✅ Completed |
 | 4.12 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | ✅ Completed |
+| 4.13 | **Utilities and Testing** - Helper utilities for I/O operations | ✅ Completed |
 
-Phase 4 is making significant progress, with several major components already completed. The file system I/O implementation is now complete, providing a comprehensive asynchronous file access API that integrates seamlessly with the actor model. The system includes both real and simulated implementations for all file operations, enabling deterministic testing of file I/O code. 
+Phase 4 is making excellent progress, with most major components now completed. Both the file system I/O and network transport implementations are complete, providing comprehensive asynchronous APIs that integrate seamlessly with the actor model. The system includes both real and simulated implementations, enabling deterministic testing of I/O-heavy code.
 
 Key completed functionality includes:
 - Asynchronous file read and write operations that return futures
 - File system operations (create, delete, move, list) with non-blocking behavior
+- Network transport layer with connection-oriented messaging
+- TCP socket abstraction with non-blocking send/receive operations
 - ByteBuffer-based data handling for efficient memory management
 - Error propagation and proper resource cleanup
+- Timeout handling for I/O operations
+- I/O event integration with the scheduler
 - Simulated implementations for deterministic testing
+- Utility classes for common I/O operations
 
-Work continues on network-related components and RPC framework. The architecture will allow promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations are non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
+Work continues on the RPC framework. The architecture will allow promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations are non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
 
 ## Requirements
 
@@ -202,9 +208,11 @@ JavaFlow provides:
 - **Pump Method**: Deterministic task processing for testing and simulation
 - **FlowClock & Timers**: Time-based operations and controllable clock for testing
 - **FlowFile & FlowFileSystem**: Asynchronous file I/O operations with real and simulated implementations
+- **FlowTransport & FlowConnection**: Network transport layer for asynchronous communication
+- **PromiseStream & FutureStream**: Stream-based communication between actors
+- **Endpoint & LocalEndpoint**: Addressing mechanism for network communications
 - **SimulationParameters**: Configurable simulation behavior for realistic testing
-- **I/O Interfaces** (partially complete): Non-blocking network and file operations returning futures
-- **FlowTransport** (coming soon): Message-passing layer for distributed communication
+- **IOUtil**: Utility classes for I/O operations
 - **RPC Framework** (coming soon): Promise-based remote procedure calls with location transparency
 
 ### Design Principles
@@ -389,15 +397,22 @@ The file system component provides a comprehensive asynchronous API for file ope
    - Comprehensive testing including error scenarios
    - Seamless integration with Flow's cooperative scheduling
 
-#### Network I/O and RPC (In Progress)
+#### Network I/O and RPC
 
-Work continues on the network components of the I/O framework:
+The network component of the I/O framework is now largely complete:
 
-1. **Java NIO Integration**: Leveraging Java's non-blocking I/O capabilities for network operations
-2. **Unified I/O Abstraction**: Consistent API for all network operations returning awaitable futures
-3. **Event Loop Integration**: Processing I/O events in the single-threaded event loop
-4. **Location Transparency**: Using the same API for local and remote communication
-5. **RPC Framework**: Promise-based remote procedure calls for cross-network actor communication
+1. **Flow Transport Layer**: Complete implementation of network transport with both real and simulated implementations
+2. **Java NIO Integration**: Leveraging Java's non-blocking I/O via AsynchronousSocketChannel for network operations
+3. **Connection Abstraction**: FlowConnection interface with send/receive operations returning futures
+4. **Endpoint Addressing**: Flexible addressing system for network endpoints
+5. **Stream-Based API**: Support for both discrete messaging and continuous stream-based communication
+6. **Error Handling**: Comprehensive error propagation and connection state management
+7. **Simulation Support**: Deterministic testing of network code with configurable parameters
+
+Work continues on the RPC Framework:
+- Promise-based remote procedure calls for cross-network actor communication
+- Location transparency for seamless distributed programming
+- Serialization infrastructure for efficient data exchange
 
 All I/O operations in JavaFlow never block the main thread. When an actor awaits an I/O operation, it yields control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable.
 
