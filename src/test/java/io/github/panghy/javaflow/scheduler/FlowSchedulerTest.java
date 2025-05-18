@@ -223,8 +223,8 @@ class FlowSchedulerTest {
     assertTrue(taskLatch.await(3, TimeUnit.SECONDS), "Not all tasks completed in time");
 
     // Get the results from futures (to propagate any exceptions)
-    firstTask.getNow();
-    secondTask.getNow();
+    firstTask.toCompletableFuture().get();
+    secondTask.toCompletableFuture().get();
 
     // Verify the counter and execution order
     assertEquals(6, counter.get(), "Counter should be incremented 6 times in total");
