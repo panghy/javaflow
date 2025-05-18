@@ -223,10 +223,8 @@ public class RealFlowConnection implements FlowConnection {
           // Send to the stream
           receivePromiseStream.send(result);
 
-          // Continue reading with a fresh buffer 
-          if (!closed.get()) {
-            continueReading(ByteBuffer.allocate(8192));
-          }
+          // Continue reading with a fresh buffer
+          continueReading(ByteBuffer.allocate(8192));
         } else if (bytesRead < 0) {
           // End of stream reached, close the connection
           if (!closed.get()) {
@@ -235,9 +233,7 @@ public class RealFlowConnection implements FlowConnection {
         } else {
           // Zero bytes read, try again with same buffer
           readBuffer.clear();
-          if (!closed.get()) {
-            continueReading(readBuffer);
-          }
+          continueReading(readBuffer);
         }
       }
 
