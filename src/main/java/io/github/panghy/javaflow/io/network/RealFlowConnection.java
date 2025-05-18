@@ -14,12 +14,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * A real implementation of FlowConnection using Java NIO's AsynchronousSocketChannel.
  * This implementation performs actual network I/O operations.
- * 
+ *
  * <p>RealFlowConnection provides the concrete implementation of FlowConnection for
  * real network operations. It integrates Java NIO's asynchronous I/O with JavaFlow's
- * promise/future system to provide non-blocking network operations that work 
+ * promise/future system to provide non-blocking network operations that work
  * seamlessly with Flow's cooperative multitasking model.</p>
- * 
+ *
  * <p>Key features of this implementation include:</p>
  * <ul>
  *   <li>Continuous reading from the socket to feed a stream of data packets</li>
@@ -27,26 +27,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>Automatic connection closure on I/O errors</li>
  *   <li>Bridge between NIO's CompletionHandler API and Flow's Promise/Future API</li>
  * </ul>
- * 
+ *
  * <p>This class is typically not instantiated directly by user code.
  * Instead, it is created by {@link RealFlowTransport} when establishing
  * new connections. It is exposed to user code through the {@link FlowConnection}
  * interface.</p>
- * 
+ *
  * <p>The implementation details include:</p>
  * <ul>
  *   <li>Using a dedicated thread pool for asynchronous I/O operations</li>
  *   <li>Buffer management for efficient memory usage</li>
  *   <li>Error handling and resource cleanup</li>
  * </ul>
- * 
+ *
  * <p>Usage notes:</p>
  * <ul>
  *   <li>The connection is automatically closed when I/O errors occur</li>
  *   <li>Attempting to use a closed connection will result in IOException</li>
  *   <li>The connection maintains its own continuous read loop to populate the receive stream</li>
  * </ul>
- * 
+ *
  * @see FlowConnection
  * @see RealFlowTransport
  * @see AsynchronousSocketChannel
@@ -71,10 +71,10 @@ public class RealFlowConnection implements FlowConnection {
     this.channel = channel;
     this.localEndpoint = localEndpoint;
     this.remoteEndpoint = remoteEndpoint;
-    
+
     FlowFuture<Void> closeFuture = new FlowFuture<>();
     this.closePromise = closeFuture.getPromise();
-    
+
     // Start reading from the channel continuously
     startReading();
   }
@@ -166,17 +166,17 @@ public class RealFlowConnection implements FlowConnection {
       try {
         // Close the channel
         channel.close();
-        
+
         // Close the receive stream
         receivePromiseStream.close();
-        
+
         // Complete the close promise
         closePromise.complete(null);
       } catch (IOException e) {
         closePromise.completeExceptionally(e);
       }
     }
-    
+
     return closePromise.getFuture();
   }
 
@@ -192,7 +192,7 @@ public class RealFlowConnection implements FlowConnection {
     // Create a ReadHandler that properly handles each read operation
     continueReading(ByteBuffer.allocate(8192));
   }
-  
+
   /**
    * Continues the reading process with a fresh buffer.
    * This method ensures each read operation gets its own buffer and handler.
@@ -203,26 +203,26 @@ public class RealFlowConnection implements FlowConnection {
     if (closed.get()) {
       return;
     }
-    
-    channel.read(buffer, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+
+    channel.read(buffer, buffer, new CompletionHandler<>() {
       @Override
       public void completed(Integer bytesRead, ByteBuffer readBuffer) {
         if (bytesRead > 0) {
           // Prepare buffer for reading
           readBuffer.flip();
-          
+
           // Create a properly sized result buffer and safely copy the data
           byte[] tmp = new byte[bytesRead];
           // Only read what's available and don't go beyond buffer limit
           for (int i = 0; i < bytesRead && readBuffer.hasRemaining(); i++) {
             tmp[i] = readBuffer.get();
           }
-          
+
           ByteBuffer result = ByteBuffer.wrap(tmp);
-          
+
           // Send to the stream
           receivePromiseStream.send(result);
-          
+
           // Continue reading with a fresh buffer 
           if (!closed.get()) {
             continueReading(ByteBuffer.allocate(8192));

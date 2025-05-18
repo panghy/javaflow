@@ -2,23 +2,25 @@ package io.github.panghy.javaflow.io.network;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.test.AbstractFlowTest;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
-import org.mockito.ArgumentMatchers;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for RealFlowConnection that mock AsynchronousSocketChannel to test
@@ -262,6 +264,68 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
       // The error will be StreamClosedException since the stream is closed
       // rather than the direct IOException from the read
     }
+  }
+  
+  /**
+   * Tests the "zero bytes read" branch in the read completion handler.
+   * This specifically targets the code that reuses the same buffer when zero bytes are read.
+   */
+  @Test
+  void testReadZeroBytes() throws Exception {
+    // We need to track the number of read attempts to avoid stack overflow
+    final int[] readCount = new int[1];
+    
+    // Mock the read() method to first return 0 bytes, then return some actual data
+    doAnswer(invocation -> {
+      ByteBuffer buffer = invocation.getArgument(0);
+      ByteBuffer attachment = invocation.getArgument(1);
+      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
+      
+      readCount[0]++;
+      
+      if (readCount[0] == 1) {
+        // First call - return 0 bytes (triggers the zero bytes branch)
+        handler.completed(0, attachment);
+      } else if (readCount[0] == 2) {
+        // Second call - verify it's the same buffer and return some data
+        Assertions.assertSame(buffer, attachment, "Buffer should be reused for zero-byte reads");
+        
+        // Simulate data being read into the buffer
+        byte[] testData = "Test data after zero bytes".getBytes();
+        buffer.put(testData);
+        handler.completed(testData.length, attachment);
+      } else {
+        // Any subsequent reads (should only be one for the next continuous read cycle)
+        // Just don't call the handler to avoid recursion stack overflow
+      }
+      
+      return mock(Future.class);
+    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
+    
+    // Create the connection with our mock
+    connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
+    
+    // Request to receive data
+    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    
+    // Pump the scheduler until the future is done
+    pumpUntilDone(receiveFuture);
+    
+    // Verify the read count indicates that we went through the zero bytes branch
+    Assertions.assertTrue(readCount[0] >= 2, "Should have performed at least 2 reads");
+    
+    // Verify the future completed with data (not exceptionally)
+    Assertions.assertFalse(receiveFuture.isCompletedExceptionally());
+    ByteBuffer result = receiveFuture.getNow();
+    
+    // Verify the received data
+    byte[] resultBytes = new byte[result.remaining()];
+    result.get(resultBytes);
+    Assertions.assertEquals("Test data after zero bytes", new String(resultBytes));
+    
+    // Connection should still be open
+    Assertions.assertFalse(channelClosed.get());
+    Assertions.assertTrue(connection.isOpen());
   }
 
   /**
