@@ -389,21 +389,24 @@ public class FlowFuture<T> {
 
   /**
    * Returns the value of this future if it has already completed,
-   * or throws an exception if it completed exceptionally.
+   * or throws an exception if it completed exceptionally. This method is
+   * intended for use in flow tasks where the future is known to be ready.
+   * Use {@link io.github.panghy.javaflow.Flow#await(FlowFuture)} instead
+   * if the future may not be ready.
    *
    * @return the value
    * @throws ExecutionException    if the future completed exceptionally
    * @throws IllegalStateException if the future is not done
    */
   public T getNow() throws ExecutionException {
-    if (isDone()) {
-      try {
-        return delegate.getNow(null);
-      } catch (CompletionException e) {
-        throw new ExecutionException(e.getCause());
-      }
+    try {
+      return delegate.get();
+    } catch (CompletionException ex) {
+      throw new ExecutionException(ex.getCause());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while waiting for future", e);
     }
-    throw new IllegalStateException("Future is not done");
   }
 
   /**

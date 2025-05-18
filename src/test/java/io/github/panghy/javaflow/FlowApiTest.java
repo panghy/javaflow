@@ -96,13 +96,17 @@ class FlowApiTest {
     assertEquals("test", completedFuture.getNow(), 
         "getNow should return the value for a completed future");
     
-    // Create an incomplete future
-    FlowFuture<String> incompleteFuture = new FlowFuture<>();
-    
-    // Should throw an exception
-    assertThrows(IllegalStateException.class, 
-        incompleteFuture::getNow,
-        "getNow should throw IllegalStateException for incomplete future");
+    // Create a failed future
+    RuntimeException testException = new RuntimeException("Test exception");
+    FlowFuture<String> failedFuture = FlowFuture.failed(testException);
+
+    // Should throw the exception
+    Exception thrown = assertThrows(Exception.class,
+        failedFuture::getNow,
+        "Should throw the exception from the failed future");
+
+    assertEquals("Test exception", thrown.getCause().getMessage(),
+        "Exception message should match");
   }
   
   @Test
