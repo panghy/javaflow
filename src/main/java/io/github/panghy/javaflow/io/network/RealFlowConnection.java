@@ -107,10 +107,7 @@ public class RealFlowConnection implements FlowConnection {
       @Override
       public void failed(Throwable exc, Void attachment) {
         promise.completeExceptionally(exc);
-        // If there's a connection error, close the connection
-        if (!closed.get()) {
-          close();
-        }
+        close();
       }
     });
 
