@@ -14,7 +14,6 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
@@ -197,12 +196,7 @@ public class RealFlowTransport implements FlowTransport {
       try {
         // Close all server channels
         for (Map.Entry<LocalEndpoint, AsynchronousServerSocketChannel> entry : serverChannels.entrySet()) {
-          try {
-            entry.getValue().close();
-          } catch (IOException e) {
-            // Log but continue closing others
-            System.err.println("Error closing server channel: " + e.getMessage());
-          }
+          closeQuietly(entry.getValue());
         }
         serverChannels.clear();
 
@@ -274,14 +268,5 @@ public class RealFlowTransport implements FlowTransport {
         }
       }
     });
-  }
-
-  /**
-   * Gets the executor service used by this transport.
-   *
-   * @return The executor service
-   */
-  public ExecutorService getExecutorService() {
-    return (ExecutorService) channelGroup.provider();
   }
 }

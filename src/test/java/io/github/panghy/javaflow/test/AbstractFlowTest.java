@@ -11,12 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
  * Abstract base class for Flow-based tests that use a simulated scheduler.
  * Provides common setup, teardown, and utility methods for working with the
  * Flow scheduler in a test environment.
- * 
- * IMPORTANT: This class should ONLY be used for tests in a simulated environment.
- * It is NOT suitable for tests involving real file systems, network I/O, or other
- * blocking operations, as the pump() method cannot properly wait for these operations
- * to complete. For real I/O operations, use future.toCompletableFuture().get() instead
- * of pumpUntilDone().
  */
 public abstract class AbstractFlowTest {
 
@@ -33,14 +27,14 @@ public abstract class AbstractFlowTest {
     // Create a simulated scheduler with a simulated clock
     FlowScheduler simulatedScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
     testScheduler = new TestScheduler(simulatedScheduler);
-    
+
     // Start the simulation
     testScheduler.startSimulation();
-    
+
     // Additional setup if needed
     onSetUp();
   }
-  
+
   /**
    * Hook method for subclasses to perform additional setup after scheduler initialization.
    * Override this method in subclasses to add test-specific setup logic.
@@ -48,7 +42,7 @@ public abstract class AbstractFlowTest {
   protected void onSetUp() {
     // Default implementation does nothing
   }
-  
+
   /**
    * Tears down the test environment and restores the original scheduler.
    */
@@ -56,11 +50,11 @@ public abstract class AbstractFlowTest {
   void tearDownScheduler() {
     // Allow subclasses to clean up
     onTearDown();
-    
+
     // End the simulation and restore the original scheduler
     testScheduler.endSimulation();
   }
-  
+
   /**
    * Hook method for subclasses to perform additional tear down before scheduler cleanup.
    * Override this method in subclasses to add test-specific cleanup logic.
@@ -161,7 +155,7 @@ public abstract class AbstractFlowTest {
     }
     return true;
   }
-  
+
   /**
    * Advances simulation time by the specified duration.
    *

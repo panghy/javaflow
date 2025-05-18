@@ -9,9 +9,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousServerSocketChannel;
@@ -20,7 +20,11 @@ import java.nio.channels.CompletionHandler;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Additional targeted tests for RealFlowTransport and its inner classes to achieve
@@ -35,7 +39,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
   @BeforeEach
   void setUp() throws Exception {
     transport = new RealFlowTransport();
-    
+
     // Create a server socket for testing
     testServerChannel = AsynchronousServerSocketChannel.open()
         .bind(new InetSocketAddress("localhost", 0));
@@ -77,19 +81,16 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
         acceptLatch.countDown();
       }
     });
-    
+
     // Attempt to connect
     FlowFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", testPort));
-    
+
     // Wait for the server to accept and close
-    Assertions.assertTrue(acceptLatch.await(2, TimeUnit.SECONDS));
-    
+    assertTrue(acceptLatch.await(2, TimeUnit.SECONDS));
+
     // Wait for the connect future to complete
-    pumpUntilDone(connectFuture);
-    
-    // The future could complete successfully or exceptionally depending on timing
-    // We don't assert a specific outcome, we just want to exercise the error path
+    connectFuture.getNow();
   }
 
   /**
@@ -102,29 +103,29 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       TestableTransport() throws IOException {
         super();
       }
-      
+
       Map<LocalEndpoint, PromiseStream<FlowConnection>> getConnectionStreams() {
         // Using reflection to access the protected field
         try {
-          java.lang.reflect.Field field = RealFlowTransport.class.getDeclaredField("connectionStreams");
+          Field field = RealFlowTransport.class.getDeclaredField("connectionStreams");
           field.setAccessible(true);
           @SuppressWarnings("unchecked")
-          Map<LocalEndpoint, PromiseStream<FlowConnection>> map = 
+          Map<LocalEndpoint, PromiseStream<FlowConnection>> map =
               (Map<LocalEndpoint, PromiseStream<FlowConnection>>) field.get(this);
           return map;
         } catch (Exception e) {
           return new ConcurrentHashMap<>();
         }
       }
-      
+
       void triggerAcceptError(LocalEndpoint endpoint) throws Exception {
         // Get the server channel
-        java.lang.reflect.Field field = RealFlowTransport.class.getDeclaredField("serverChannels");
+        Field field = RealFlowTransport.class.getDeclaredField("serverChannels");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
-        Map<LocalEndpoint, AsynchronousServerSocketChannel> map = 
+        Map<LocalEndpoint, AsynchronousServerSocketChannel> map =
             (Map<LocalEndpoint, AsynchronousServerSocketChannel>) field.get(this);
-        
+
         // Close the server channel to trigger an error on next accept
         AsynchronousServerSocketChannel channel = map.get(endpoint);
         if (channel != null) {
@@ -132,36 +133,37 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
         }
       }
     }
-    
+
     TestableTransport testTransport = new TestableTransport();
-    
+
     try {
       // Create a free port
       AsynchronousSocketChannel tempChannel = AsynchronousSocketChannel.open();
       tempChannel.bind(new InetSocketAddress("localhost", 0));
       int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
       tempChannel.close();
-      
+
       // Listen on the port
       LocalEndpoint endpoint = LocalEndpoint.localhost(port);
       FlowStream<FlowConnection> stream = testTransport.listen(endpoint);
-      
+
       // Get next connection (won't complete yet)
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-      
+
       // Trigger an error by closing the server channel
       testTransport.triggerAcceptError(endpoint);
-      
-      // Wait for the accept future to complete exceptionally
-      pumpUntilDone(acceptFuture);
-      
-      // Verify the future completed exceptionally
-      Assertions.assertTrue(acceptFuture.isCompletedExceptionally());
-      
+
+      try {
+        acceptFuture.getNow();
+        fail("Expected ExecutionException");
+      } catch (ExecutionException e) {
+        // Expected exception
+      }
+
       // Verify the stream was closed
       PromiseStream<FlowConnection> promiseStream = testTransport.getConnectionStreams().get(endpoint);
       if (promiseStream != null) {
-        Assertions.assertTrue(promiseStream.isClosed());
+        assertTrue(promiseStream.isClosed());
       }
     } finally {
       testTransport.close();
@@ -176,27 +178,31 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     // Start listening
     LocalEndpoint endpoint = LocalEndpoint.localhost(testPort);
     FlowStream<FlowConnection> stream = null;
-    
+
     try {
       // This should fail since the testPort is already bound
       stream = transport.listen(endpoint);
     } catch (Exception e) {
       // Expected exception
     }
-    
+
     if (stream != null) {
       // If we got a stream (should only happen if testPort wasn't actually bound)
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-      
+
       // Close the transport, which should close the stream
       transport.close();
-      
+
       // Wait for the accept future to complete exceptionally
-      pumpUntilDone(acceptFuture);
-      Assertions.assertTrue(acceptFuture.isCompletedExceptionally());
+      try {
+        acceptFuture.getNow();
+        fail("Expected ExecutionException");
+      } catch (ExecutionException e) {
+        // Expected exception
+      }
     }
   }
-  
+
   /**
    * Tests the close method when there's an error during shutdown.
    */
@@ -207,31 +213,34 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       ErrorOnShutdownTransport() throws IOException {
         super();
       }
-      
+
       @Override
       public FlowFuture<Void> close() {
         // Use reflection to break the channelGroup
         try {
-          java.lang.reflect.Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
+          Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
           field.setAccessible(true);
           field.set(this, null);
         } catch (Exception e) {
           // Ignore
         }
-        
+
         // Now call close, which should handle the NPE gracefully
         return super.close();
       }
     }
-    
+
     ErrorOnShutdownTransport testTransport = new ErrorOnShutdownTransport();
-    
+
     // Close the transport (should handle the error)
     FlowFuture<Void> closeFuture = testTransport.close();
-    pumpUntilDone(closeFuture);
-    
-    // Future might complete normally or exceptionally depending on implementation
-    // We mainly want to ensure no exceptions are thrown
+
+    // Wait for the close future to complete
+    try {
+      closeFuture.getNow();
+    } catch (ExecutionException e) {
+      // Expected exception
+    }
   }
 
   /**
@@ -244,21 +253,21 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       TestableTransport() throws IOException {
         super();
       }
-      
+
       void breakServerSocketsMap() throws Exception {
         // Get the server channels map and replace it with null
-        java.lang.reflect.Field field = RealFlowTransport.class.getDeclaredField("serverChannels");
+        Field field = RealFlowTransport.class.getDeclaredField("serverChannels");
         field.setAccessible(true);
         field.set(this, null);
       }
     }
-    
+
     TestableTransport testTransport = new TestableTransport();
-    
+
     try {
       // Break the server sockets map
       testTransport.breakServerSocketsMap();
-      
+
       // Try to listen - should handle the error
       try {
         LocalEndpoint endpoint = LocalEndpoint.localhost(0);
@@ -271,7 +280,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       testTransport.close();
     }
   }
-  
+
   /**
    * Tests the connect completion handler's failed path in RealFlowTransport.
    * This specifically targets the inner class CompletionHandler for connection establishment.
@@ -283,15 +292,15 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       TestableConnectTransport() throws IOException {
         super();
       }
-      
+
       FlowFuture<FlowConnection> connectWithException() throws Exception {
         // Create a connect future with a handler that will fail in a specific way
         FlowFuture<FlowConnection> result = new FlowFuture<>();
         FlowPromise<FlowConnection> promise = result.getPromise();
-        
+
         // Create a socket that will be closed during the connection process
         AsynchronousSocketChannel channel = AsynchronousSocketChannel.open(getChannelGroup());
-        
+
         // Create a modified completion handler that will force specific errors
         CompletionHandler<Void, Void> handler = new CompletionHandler<>() {
           @Override
@@ -299,17 +308,17 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
             try {
               // Force a specific error by closing the channel first
               channel.close();
-              
+
               // Now try to get the local address, which should fail
               channel.getLocalAddress();
-              
+
               // We shouldn't get here
               promise.complete(null);
             } catch (IOException e) {
               failed(e, attachment);
             }
           }
-          
+
           @Override
           public void failed(Throwable exc, Void attachment) {
             try {
@@ -321,7 +330,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
             promise.completeExceptionally(exc);
           }
         };
-        
+
         // Create a port that isn't listened on
         // Find a free port
         int freePort;
@@ -329,36 +338,32 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
           tempServer.bind(new InetSocketAddress(0));
           freePort = ((InetSocketAddress) tempServer.getLocalAddress()).getPort();
         }
-        
+
         try {
           // Trigger the connect operation with our handler
           channel.connect(new InetSocketAddress("localhost", freePort), null, handler);
         } catch (Exception e) {
           promise.completeExceptionally(e);
         }
-        
+
         return result;
       }
-      
+
       AsynchronousChannelGroup getChannelGroup() throws Exception {
-        java.lang.reflect.Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
+        Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
         field.setAccessible(true);
         return (AsynchronousChannelGroup) field.get(this);
       }
     }
-    
+
     TestableConnectTransport testTransport = new TestableConnectTransport();
-    
+
     try {
       FlowFuture<FlowConnection> connectFuture = testTransport.connectWithException();
-      pumpUntilDone(connectFuture);
-      
-      // The future should fail with an exception
-      Assertions.assertTrue(connectFuture.isCompletedExceptionally());
-      
+
       try {
         connectFuture.getNow();
-        Assertions.fail("Expected exception not thrown");
+        fail("Expected exception not thrown");
       } catch (Exception e) {
         // Expected
       }
@@ -366,7 +371,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       testTransport.close();
     }
   }
-  
+
   /**
    * Tests the accept completion handler's failed path in RealFlowTransport.
    * This specifically targets the inner class CompletionHandler for connection acceptance.
@@ -378,17 +383,17 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       TestableAcceptTransport() throws IOException {
         super();
       }
-      
-      void forceAcceptCompletionError(AsynchronousServerSocketChannel serverChannel, 
-          LocalEndpoint endpoint) throws Exception {
+
+      void forceAcceptCompletionError(AsynchronousServerSocketChannel serverChannel,
+                                      LocalEndpoint endpoint) throws Exception {
         // Get the connection stream
-        java.lang.reflect.Field streamsField = 
+        Field streamsField =
             RealFlowTransport.class.getDeclaredField("connectionStreams");
         streamsField.setAccessible(true);
         @SuppressWarnings("unchecked")
-        Map<LocalEndpoint, PromiseStream<FlowConnection>> streams = 
+        Map<LocalEndpoint, PromiseStream<FlowConnection>> streams =
             (Map<LocalEndpoint, PromiseStream<FlowConnection>>) streamsField.get(this);
-        
+
         // Create our own completion handler with forced errors
         serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Void>() {
           @Override
@@ -396,10 +401,10 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
             try {
               // Force a specific error by closing the channel first
               clientChannel.close();
-              
+
               // Now try to get the remote address, which should fail
               clientChannel.getRemoteAddress();
-              
+
               // We shouldn't get here - the code should throw above
               PromiseStream<FlowConnection> stream = streams.get(endpoint);
               if (stream != null) {
@@ -409,7 +414,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
               failed(e, attachment);
             }
           }
-          
+
           @Override
           public void failed(Throwable exc, Void attachment) {
             // Test retry behavior when the server channel is still open
@@ -420,27 +425,27 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
         });
       }
     }
-    
+
     TestableAcceptTransport testTransport = new TestableAcceptTransport();
-    
+
     try {
       // Setup a server to listen
       AsynchronousServerSocketChannel tempChannel = AsynchronousServerSocketChannel.open();
       tempChannel.bind(new InetSocketAddress("localhost", 0));
       int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
       LocalEndpoint endpoint = LocalEndpoint.localhost(port);
-      
+
       // Force the accept completion handler to fail in specific ways
       testTransport.forceAcceptCompletionError(tempChannel, endpoint);
-      
+
       // Create a client to connect to our server
       try (AsynchronousSocketChannel clientChannel = AsynchronousSocketChannel.open()) {
         // Connect to trigger the accept
         clientChannel.connect(new InetSocketAddress("localhost", port)).get();
-        
+
         // Give some time for the handler to execute
         Thread.sleep(100);
-        
+
         // The test succeeds if no exceptions are thrown
       }
     } finally {
