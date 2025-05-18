@@ -238,11 +238,6 @@ public class RealFlowTransport implements FlowTransport {
     serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Void>() {
       @Override
       public void completed(AsynchronousSocketChannel clientChannel, Void attachment) {
-        // Skip if transport or stream is already closed
-        if (closed.get() || connectionStream.isClosed()) {
-          return;
-        }
-        
         try {
           // Create endpoints
           InetSocketAddress remoteAddress = (InetSocketAddress) clientChannel.getRemoteAddress();
@@ -263,11 +258,6 @@ public class RealFlowTransport implements FlowTransport {
 
       @Override
       public void failed(Throwable exc, Void attachment) {
-        // Skip if transport or stream is already closed
-        if (closed.get() || connectionStream.isClosed()) {
-          return;
-        }
-        
         warn(logger, "Error accepting connection", exc);
         connectionStream.closeExceptionally(exc);
         connectionStreams.remove(localEndpoint);
