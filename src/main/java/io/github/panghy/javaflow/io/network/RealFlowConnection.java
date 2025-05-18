@@ -211,14 +211,9 @@ public class RealFlowConnection implements FlowConnection {
           // Prepare buffer for reading
           readBuffer.flip();
 
-          // Create a properly sized result buffer and safely copy the data
-          byte[] tmp = new byte[bytesRead];
-          // Only read what's available and don't go beyond buffer limit
-          for (int i = 0; i < bytesRead && readBuffer.hasRemaining(); i++) {
-            tmp[i] = readBuffer.get();
-          }
-
-          ByteBuffer result = ByteBuffer.wrap(tmp);
+          ByteBuffer result = ByteBuffer.allocate(bytesRead);
+          result.put(readBuffer);
+          result.flip();
 
           // Send to the stream
           receivePromiseStream.send(result);
@@ -237,10 +232,7 @@ public class RealFlowConnection implements FlowConnection {
 
       @Override
       public void failed(Throwable exc, ByteBuffer readBuffer) {
-        // Close the connection on error
-        if (!closed.get()) {
-          close();
-        }
+        close();
       }
     });
   }
