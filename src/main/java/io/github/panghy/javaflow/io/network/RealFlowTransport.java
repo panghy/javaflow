@@ -4,7 +4,6 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
-import io.github.panghy.javaflow.util.LoggingUtil;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import static io.github.panghy.javaflow.util.IOUtil.closeQuietly;
+import static io.github.panghy.javaflow.util.LoggingUtil.warn;
 
 /**
  * A real implementation of FlowTransport using Java NIO's asynchronous channels.
@@ -238,6 +238,11 @@ public class RealFlowTransport implements FlowTransport {
     serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Void>() {
       @Override
       public void completed(AsynchronousSocketChannel clientChannel, Void attachment) {
+        // Skip if transport or stream is already closed
+        if (closed.get() || connectionStream.isClosed()) {
+          return;
+        }
+        
         try {
           // Create endpoints
           InetSocketAddress remoteAddress = (InetSocketAddress) clientChannel.getRemoteAddress();
@@ -249,10 +254,8 @@ public class RealFlowTransport implements FlowTransport {
           // Send the connection to the stream
           connectionStream.send(connection);
 
-          // Continue accepting
-          if (!closed.get() && !connectionStream.isClosed()) {
-            serverChannel.accept(null, this);
-          }
+          // Continue accepting - always accept again if not closed
+          serverChannel.accept(null, this);
         } catch (IOException e) {
           failed(e, attachment);
         }
@@ -260,12 +263,14 @@ public class RealFlowTransport implements FlowTransport {
 
       @Override
       public void failed(Throwable exc, Void attachment) {
-        if (!closed.get() && !connectionStream.isClosed()) {
-          LoggingUtil.warn(logger, "Error accepting connection", exc);
-
-          connectionStream.closeExceptionally(exc);
-          connectionStreams.remove(localEndpoint);
+        // Skip if transport or stream is already closed
+        if (closed.get() || connectionStream.isClosed()) {
+          return;
         }
+        
+        warn(logger, "Error accepting connection", exc);
+        connectionStream.closeExceptionally(exc);
+        connectionStreams.remove(localEndpoint);
       }
     });
   }
