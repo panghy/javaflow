@@ -62,62 +62,62 @@ public abstract class AbstractFlowTest {
   protected void onTearDown() {
     // Default implementation does nothing
   }
-  
+
   /**
    * Pumps the scheduler until all specified futures are done or a maximum number of steps is reached.
    * This method simulates the passage of time in small increments to allow delayed futures to complete.
-   *
+   * <p>
    * WARNING: This method should ONLY be used for tests in a simulated environment.
    * Do NOT use this method for tests involving real file systems, network I/O, or other
    * blocking operations, as it cannot properly wait for these operations to complete.
-   * For real I/O operations, use future.toCompletableFuture().get() instead.
+   * For real I/O operations, use {@link FlowFuture#getNow()} instead.
    *
    * @param futures The futures to wait for completion
    */
   protected void pumpUntilDone(FlowFuture<?>... futures) {
     int maxSteps = 50; // Maximum number of time steps
     int steps = 0;
-    
+
     // First pump to process any immediately ready tasks
     testScheduler.pump();
-    
+
     // Check if all futures are completed
     boolean allDone = checkAllFuturesDone(futures);
-    
+
     // If not all done, advance time in small increments
     while (!allDone && steps < maxSteps) {
       // Advance time by a small increment and pump
       testScheduler.advanceTime(0.01); // 10ms in simulation time
       testScheduler.pump(); // Make sure to pump after each time advance
-      
+
       // Check if all futures are completed after time advancement
       allDone = checkAllFuturesDone(futures);
-      
+
       steps++;
     }
-    
+
     // If we still haven't completed all futures, use larger time increments
     if (!allDone) {
       System.out.println("Futures not done after small steps, trying larger steps");
-      
+
       // Try with medium delay
       testScheduler.advanceTime(0.1); // 100ms
       testScheduler.pump();
-      
+
       // Check again
       allDone = checkAllFuturesDone(futures);
-      
+
       // If still not done, use increasingly larger delays
       if (!allDone) {
         testScheduler.advanceTime(0.5); // 500ms
         testScheduler.pump();
         allDone = checkAllFuturesDone(futures);
-        
+
         if (!allDone) {
           testScheduler.advanceTime(1.0); // 1 second
           testScheduler.pump();
           allDone = checkAllFuturesDone(futures);
-          
+
           if (!allDone) {
             testScheduler.advanceTime(3.0); // 3 seconds
             testScheduler.pump();
@@ -126,7 +126,7 @@ public abstract class AbstractFlowTest {
         }
       }
     }
-    
+
     // Final check to fail fast if futures aren't done
     for (FlowFuture<?> future : futures) {
       if (!future.isDone()) {
@@ -134,13 +134,13 @@ public abstract class AbstractFlowTest {
         warning.append("WARNING: Future ").append(future)
             .append(" is still not done after significant time advancement!");
         System.err.println(warning);
-        
+
         // This helps debugging by showing the current state
         System.err.println("Current simulation time: " + currentTimeSeconds() + " seconds");
       }
     }
   }
-  
+
   /**
    * Checks if all futures are completed.
    *
@@ -164,28 +164,28 @@ public abstract class AbstractFlowTest {
   protected void advanceTime(double seconds) {
     testScheduler.advanceTime(seconds);
   }
-  
+
   /**
    * Pumps the scheduler to process any pending tasks.
-   * 
+   *
    * @return The number of tasks processed
    */
   protected int pump() {
     return testScheduler.pump();
   }
-  
+
   /**
    * Gets the current simulation time in seconds.
-   * 
+   *
    * @return The current time in seconds
    */
   protected double currentTimeSeconds() {
     return testScheduler.getSimulatedScheduler().getClock().currentTimeSeconds();
   }
-  
+
   /**
    * Gets the current simulation time in milliseconds.
-   * 
+   *
    * @return The current time in milliseconds
    */
   protected long currentTimeMillis() {
