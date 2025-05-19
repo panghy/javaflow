@@ -78,6 +78,33 @@ public interface FlowTransport {
    * @return A stream of incoming connections
    */
   FlowStream<FlowConnection> listen(LocalEndpoint localEndpoint);
+  
+  /**
+   * Starts listening for incoming connections on an available port.
+   * This method is useful for tests that need a guaranteed available port.
+   * 
+   * <p>If the port in the provided localEndpoint is 0, a random available port will be chosen.
+   * The actual bound port can be retrieved from the returned ConnectionListener.</p>
+   *
+   * @param localEndpoint The local endpoint to listen on (port 0 for auto-selection)
+   * @return A ConnectionListener containing the stream of connections and the actual bound endpoint
+   */
+  default ConnectionListener listenOnAvailablePort(LocalEndpoint localEndpoint) {
+    // Default implementation uses the regular listen method, but implementations
+    // should override this to provide actual port information
+    FlowStream<FlowConnection> stream = listen(localEndpoint);
+    return new ConnectionListener(stream, localEndpoint);
+  }
+  
+  /**
+   * Starts listening for incoming connections on an available port on localhost.
+   * This is a convenience method primarily for testing.
+   *
+   * @return A ConnectionListener containing the stream of connections and the actual bound endpoint
+   */
+  default ConnectionListener listenOnAvailablePort() {
+    return listenOnAvailablePort(LocalEndpoint.localhost(0));
+  }
 
   /**
    * Gets the default instance of FlowTransport.

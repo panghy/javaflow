@@ -54,6 +54,18 @@ public interface FlowStream<T> {
   boolean isClosed();
 
   /**
+   * Returns a future that completes when this stream is closed.
+   * This can be used to be notified when the stream is closed.
+   *
+   * @return A future that completes when the stream is closed
+   */
+  default FlowFuture<Void> onClose() {
+    // Default implementation creates a new future and returns it
+    // Implementations should override this to provide proper behavior
+    return new FlowFuture<>();
+  }
+
+  /**
    * Maps the values in this stream to another type.
    *
    * @param <R> The result type

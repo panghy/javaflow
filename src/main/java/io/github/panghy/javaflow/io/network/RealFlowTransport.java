@@ -191,6 +191,45 @@ public class RealFlowTransport implements FlowTransport {
   }
 
   @Override
+  public ConnectionListener listenOnAvailablePort(LocalEndpoint localEndpoint) {
+    if (closed.get()) {
+      PromiseStream<FlowConnection> errorStream = new PromiseStream<>();
+      errorStream.closeExceptionally(new IOException("Transport is closed"));
+      return new ConnectionListener(errorStream.getFutureStream(), localEndpoint);
+    }
+
+    // Create a new promise stream for connections
+    PromiseStream<FlowConnection> connectionStream = new PromiseStream<>();
+
+    try {
+      // Open the server socket
+      AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(channelGroup);
+
+      // Bind to the provided address with port 0 to get a random available port
+      InetSocketAddress bindAddress = localEndpoint.toInetSocketAddress();
+      serverChannel.bind(bindAddress);
+
+      // Get the actual bound address with the assigned port
+      InetSocketAddress boundAddress = (InetSocketAddress) serverChannel.getLocalAddress();
+      LocalEndpoint boundEndpoint = LocalEndpoint.create(
+          boundAddress.getHostString(), boundAddress.getPort());
+
+      // Store the server channel and connection stream using the bound endpoint
+      serverChannels.put(boundEndpoint, serverChannel);
+      connectionStreams.put(boundEndpoint, connectionStream);
+
+      // Start accepting connections
+      startAccepting(serverChannel, boundEndpoint, connectionStream);
+
+      // Return both the stream and the bound endpoint
+      return new ConnectionListener(connectionStream.getFutureStream(), boundEndpoint);
+    } catch (IOException e) {
+      connectionStream.closeExceptionally(e);
+      return new ConnectionListener(connectionStream.getFutureStream(), localEndpoint);
+    }
+  }
+
+  @Override
   public FlowFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       try {
@@ -263,5 +302,14 @@ public class RealFlowTransport implements FlowTransport {
         connectionStreams.remove(localEndpoint);
       }
     });
+  }
+
+  /**
+   * For testing purposes only.
+   *
+   * @return The map of server channels
+   */
+  Map<LocalEndpoint, AsynchronousServerSocketChannel> getServerChannels() {
+    return serverChannels;
   }
 }

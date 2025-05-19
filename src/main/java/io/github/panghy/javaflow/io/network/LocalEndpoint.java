@@ -84,4 +84,16 @@ public class LocalEndpoint extends Endpoint {
   public static LocalEndpoint localhost(int port) {
     return new LocalEndpoint("localhost", port);
   }
+  
+  /**
+   * Creates a local endpoint with the specified host and port.
+   * This is a factory method alternative to using the constructor.
+   *
+   * @param host The hostname or IP address to bind to
+   * @param port The port number to bind to
+   * @return A local endpoint with the specified host and port
+   */
+  public static LocalEndpoint create(String host, int port) {
+    return new LocalEndpoint(host, port);
+  }
 }

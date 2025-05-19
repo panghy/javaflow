@@ -158,6 +158,32 @@ public class SimulatedFlowTransport implements FlowTransport {
     // Return the incoming connection stream
     return node.getIncomingConnections();
   }
+  
+  @Override
+  public ConnectionListener listenOnAvailablePort(LocalEndpoint requestedEndpoint) {
+    if (closed.get()) {
+      PromiseStream<FlowConnection> errorStream = new PromiseStream<>();
+      errorStream.closeExceptionally(new IOException("Transport is closed"));
+      return new ConnectionListener(errorStream.getFutureStream(), requestedEndpoint);
+    }
+    
+    // In simulation, we can just use a random port number without conflicts
+    // If the requested port is 0, generate a random port between 10000 and 65535
+    LocalEndpoint actualEndpoint;
+    if (requestedEndpoint.getPort() == 0) {
+      int randomPort = 10000 + (int) (Math.random() * 55536);
+      actualEndpoint = LocalEndpoint.create(
+          requestedEndpoint.getHost(), randomPort);
+    } else {
+      actualEndpoint = requestedEndpoint;
+    }
+    
+    // Get or create the node for this endpoint
+    SimulatedNode node = getOrCreateNode(actualEndpoint);
+    
+    // Return the connection listener with the assigned port
+    return new ConnectionListener(node.getIncomingConnections(), actualEndpoint);
+  }
 
   @Override
   public FlowFuture<Void> close() {
