@@ -32,21 +32,11 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
   private RealFlowTransport transport;
-  private FlowStream<FlowConnection> connectionStream;
-  private LocalEndpoint serverEndpoint;
+  private ConnectionListener connectionListener;
 
   @BeforeEach
   void setUp() throws Exception {
     transport = new RealFlowTransport();
-
-    // Get a random free port
-    AsynchronousSocketChannel tempChannel = AsynchronousSocketChannel.open();
-    tempChannel.bind(new InetSocketAddress("localhost", 0));
-    int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
-    tempChannel.close();
-
-    // Create endpoint
-    serverEndpoint = LocalEndpoint.localhost(port);
   }
 
   @AfterEach
@@ -61,8 +51,10 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    */
   @Test
   void testListenAndConnect() throws Exception {
-    // Start listening
-    connectionStream = transport.listen(serverEndpoint);
+    // Start listening on an available port
+    connectionListener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = connectionListener.getStream();
+    LocalEndpoint serverEndpoint = connectionListener.getBoundEndpoint();
 
     // Get next connection future
     FlowFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
@@ -133,8 +125,10 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
   @Test
   @Timeout(value = 10, unit = TimeUnit.SECONDS)
   void testCloseWithActiveConnections() throws Exception {
-    // Start listening
-    connectionStream = transport.listen(serverEndpoint);
+    // Start listening on an available port
+    connectionListener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = connectionListener.getStream();
+    LocalEndpoint serverEndpoint = connectionListener.getBoundEndpoint();
 
     // Connect a client
     FlowFuture<FlowConnection> connectFuture = transport.connect(
@@ -181,8 +175,10 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    */
   @Test
   void testListenOnSameEndpointTwice() {
-    // Listen on an endpoint
-    connectionStream = transport.listen(serverEndpoint);
+    // Listen on an available port
+    connectionListener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = connectionListener.getStream();
+    LocalEndpoint serverEndpoint = connectionListener.getBoundEndpoint();
 
     // Try to listen again - should return the same stream
     FlowStream<FlowConnection> secondStream = transport.listen(serverEndpoint);
@@ -196,25 +192,16 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    */
   @Test
   void testListenOnMultipleEndpoints() throws Exception {
-    // Get multiple free ports
-    AsynchronousSocketChannel[] tempChannels = new AsynchronousSocketChannel[3];
-    int[] ports = new int[3];
+    // Create multiple listeners on available ports
+    int numEndpoints = 3;
+    ConnectionListener[] listeners = new ConnectionListener[numEndpoints];
+    FlowStream<FlowConnection>[] streams = new FlowStream[numEndpoints];
+    LocalEndpoint[] endpoints = new LocalEndpoint[numEndpoints];
 
-    for (int i = 0; i < tempChannels.length; i++) {
-      tempChannels[i] = AsynchronousSocketChannel.open();
-      tempChannels[i].bind(new InetSocketAddress("localhost", 0));
-      ports[i] = ((InetSocketAddress) tempChannels[i].getLocalAddress()).getPort();
-      tempChannels[i].close();
-    }
-
-    // Create endpoints
-    LocalEndpoint[] endpoints = new LocalEndpoint[3];
-    @SuppressWarnings("unchecked")
-    FlowStream<FlowConnection>[] streams = new FlowStream[3];
-
-    for (int i = 0; i < endpoints.length; i++) {
-      endpoints[i] = LocalEndpoint.localhost(ports[i]);
-      streams[i] = transport.listen(endpoints[i]);
+    for (int i = 0; i < numEndpoints; i++) {
+      listeners[i] = transport.listenOnAvailablePort();
+      streams[i] = listeners[i].getStream();
+      endpoints[i] = listeners[i].getBoundEndpoint();
     }
 
     // Connect to each endpoint
@@ -224,14 +211,14 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
       // Connect
       FlowFuture<FlowConnection> connectFuture = transport.connect(
-          new Endpoint("localhost", ports[i]));
+          new Endpoint("localhost", endpoints[i].getPort()));
 
       FlowConnection clientConnection = connectFuture.getNow();
 
       FlowConnection serverConnection = acceptFuture.getNow();
 
       // Verify the connections
-      assertEquals(ports[i], clientConnection.getRemoteEndpoint().getPort());
+      assertEquals(endpoints[i].getPort(), clientConnection.getRemoteEndpoint().getPort());
 
       // Close the connections
       clientConnection.close();
@@ -265,8 +252,10 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     // The best we can do is to verify that the code doesn't crash if accept fails.
     // This is mostly just to hit the code paths and improve coverage.
 
-    // Start listening
-    connectionStream = transport.listen(serverEndpoint);
+    // Start listening on an available port
+    connectionListener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = connectionListener.getStream();
+    LocalEndpoint serverEndpoint = connectionListener.getBoundEndpoint();
 
     // Get the next connection future
     FlowFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
@@ -292,11 +281,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    */
   @Test
   void testCloseTransportDuringAccept() throws Exception {
-    // Start listening
-    connectionStream = transport.listen(serverEndpoint);
+    // Start listening on an available port
+    connectionListener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> localStream = connectionListener.getStream();
 
     // Get the next connection future
-    FlowFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
+    FlowFuture<FlowConnection> acceptFuture = localStream.nextAsync();
 
     // No client has connected yet, so acceptFuture should not be done
     assertFalse(acceptFuture.isDone());
@@ -326,10 +316,10 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
       // Try to listen on the same port
       LocalEndpoint endpoint = LocalEndpoint.localhost(boundPort);
 
-      FlowStream<FlowConnection> stream = transport.listen(endpoint);
+      FlowStream<FlowConnection> localStream = transport.listen(endpoint);
 
       // Try to get a connection
-      FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
+      FlowFuture<FlowConnection> acceptFuture = localStream.nextAsync();
       try {
         acceptFuture.getNow();
         fail("Expected ExecutionException");
@@ -347,11 +337,14 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
   @Test
   void testConnectLocalAddressError() throws Exception {
     // This is hard to test directly without mocking
-    // Instead, let's set up a somewhat pathological case:
+    // Instead, let's set up a somewhat pathological case where we connect to a non-existent server:
 
-    // Connect to the server
+    // Get a random high port number that's likely not in use
+    int randomPort = 40000 + (int) (Math.random() * 10000);
+
+    // Connect to a non-existent server
     FlowFuture<FlowConnection> connectFuture = transport.connect(
-        new Endpoint("localhost", serverEndpoint.getPort()));
+        new Endpoint("localhost", randomPort));
 
     try {
       connectFuture.getNow();
@@ -369,8 +362,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     RealFlowTransport customTransport = new RealFlowTransport();
 
     try {
-      // Start listening
-      FlowStream<FlowConnection> stream = customTransport.listen(serverEndpoint);
+      // Start listening on an available port
+      ConnectionListener listener = customTransport.listenOnAvailablePort();
+      FlowStream<FlowConnection> stream = listener.getStream();
 
       // Get the next connection future
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
@@ -397,14 +391,11 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     RealFlowTransport customTransport = new RealFlowTransport();
 
     try {
-      // Start listening on a different port
-      AsynchronousSocketChannel tempChannel = AsynchronousSocketChannel.open();
-      tempChannel.bind(new InetSocketAddress("localhost", 0));
-      int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
-      tempChannel.close();
-
-      LocalEndpoint customEndpoint = LocalEndpoint.localhost(port);
-      FlowStream<FlowConnection> stream = customTransport.listen(customEndpoint);
+      // Start listening on an available port
+      ConnectionListener listener = customTransport.listenOnAvailablePort();
+      FlowStream<FlowConnection> stream = listener.getStream();
+      LocalEndpoint customEndpoint = listener.getBoundEndpoint();
+      int port = customEndpoint.getPort();
 
       // Create several connections, using a smaller number to reduce resource usage
       final int numConnections = 5;

@@ -137,15 +137,10 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     TestableTransport testTransport = new TestableTransport();
 
     try {
-      // Create a free port
-      AsynchronousSocketChannel tempChannel = AsynchronousSocketChannel.open();
-      tempChannel.bind(new InetSocketAddress("localhost", 0));
-      int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
-      tempChannel.close();
-
-      // Listen on the port
-      LocalEndpoint endpoint = LocalEndpoint.localhost(port);
-      FlowStream<FlowConnection> stream = testTransport.listen(endpoint);
+      // Listen on an available port
+      ConnectionListener listener = testTransport.listenOnAvailablePort();
+      FlowStream<FlowConnection> stream = listener.getStream();
+      LocalEndpoint endpoint = listener.getBoundEndpoint();
 
       // Get next connection (won't complete yet)
       FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
@@ -268,10 +263,9 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       // Break the server sockets map
       testTransport.breakServerSocketsMap();
 
-      // Try to listen - should handle the error
+      // Try to listen using the available port pattern - should handle the error
       try {
-        LocalEndpoint endpoint = LocalEndpoint.localhost(0);
-        testTransport.listen(endpoint);
+        testTransport.listenOnAvailablePort();
         // If it doesn't throw, that's also fine
       } catch (Exception e) {
         // Expected exception

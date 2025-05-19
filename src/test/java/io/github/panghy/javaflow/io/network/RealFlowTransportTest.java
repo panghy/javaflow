@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -56,19 +54,13 @@ public class RealFlowTransportTest {
   }
 
   private RealFlowTransport transport;
-  private int basePort;
 
   @BeforeEach
   public void setUp() {
     try {
-      // Find an available port for testing
-      try (ServerSocket socket = new ServerSocket(0)) {
-        basePort = socket.getLocalPort();
-      }
-
       // Create a real transport
       transport = new RealFlowTransport();
-    } catch (IOException e) {
+    } catch (Exception e) {
       throw new RuntimeException("Failed to initialize RealFlowTransportTest", e);
     }
   }
@@ -88,11 +80,10 @@ public class RealFlowTransportTest {
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testBasicConnectionAndCommunication() throws Exception {
-    // Define server endpoint
-    LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
-
-    // Start the server listening for connections
-    FlowStream<FlowConnection> connectionStream = transport.listen(serverEndpoint);
+    // Start the server listening on an available port
+    ConnectionListener listener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = listener.getStream();
+    LocalEndpoint serverEndpoint = listener.getBoundEndpoint();
 
     // Create latches to synchronize operations
     CountDownLatch serverAcceptLatch = new CountDownLatch(1);
@@ -152,11 +143,10 @@ public class RealFlowTransportTest {
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testReceiveStream() throws Exception {
-    // Define server endpoint
-    LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
-
-    // Start the server listening for connections
-    FlowStream<FlowConnection> connectionStream = transport.listen(serverEndpoint);
+    // Start the server listening on an available port
+    ConnectionListener listener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = listener.getStream();
+    LocalEndpoint serverEndpoint = listener.getBoundEndpoint();
 
     // Create latches to synchronize operations
     CountDownLatch serverAcceptLatch = new CountDownLatch(1);
@@ -219,11 +209,10 @@ public class RealFlowTransportTest {
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   void testMultipleClients() throws Exception {
-    // Define server endpoint
-    LocalEndpoint serverEndpoint = LocalEndpoint.localhost(basePort);
-
-    // Start the server listening for connections
-    FlowStream<FlowConnection> connectionStream = transport.listen(serverEndpoint);
+    // Start the server listening on an available port
+    ConnectionListener listener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> connectionStream = listener.getStream();
+    LocalEndpoint serverEndpoint = listener.getBoundEndpoint();
 
     // Number of clients to create
     int numClients = 3;

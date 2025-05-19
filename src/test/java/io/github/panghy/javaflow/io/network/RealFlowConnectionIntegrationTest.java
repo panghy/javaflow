@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -151,7 +153,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
       sendFuture.getNow();
       fail("Expected ExecutionException");
     } catch (ExecutionException e) {
-      assertTrue(e.getCause() instanceof IOException);
+      assertInstanceOf(IOException.class, e.getCause());
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
 
@@ -162,7 +164,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
       receiveFuture.getNow();
       fail("Expected ExecutionException");
     } catch (ExecutionException e) {
-      assertTrue(e.getCause() instanceof IOException);
+      assertInstanceOf(IOException.class, e.getCause());
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
   }
@@ -330,71 +332,71 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     for (int i = 0; i < largeData.length; i++) {
       largeData[i] = (byte) (i % 256);
     }
-    
+
     ByteBuffer largeBuffer = ByteBuffer.wrap(largeData);
-    
+
     // Send the large buffer from client to server
     FlowFuture<Void> sendFuture = clientConnection.send(largeBuffer);
-    
+
     // Wait for the send to complete
     sendFuture.getNow();
-    
+
     // Verify the future completed successfully
     assertTrue(sendFuture.isDone(), "Send future should be completed");
     assertFalse(sendFuture.isCompletedExceptionally(), "Send should not complete exceptionally");
-    
+
     // On the server side, we'll receive the data in chunks
     ByteBuffer combinedBuffer = ByteBuffer.allocate(LARGE_SIZE);
-    
+
     // Loop until we've received all data (with timeout protection)
     int totalBytesReceived = 0;
     long startTime = System.currentTimeMillis();
-    
+
     while (totalBytesReceived < LARGE_SIZE) {
       // Ensure we don't get stuck in an infinite loop
       if (System.currentTimeMillis() - startTime > 30000) { // 30-second timeout
         fail("Timed out waiting for all data to be received");
       }
-      
+
       // Receive a chunk of data
       FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(8192);
       ByteBuffer chunk = receiveFuture.getNow();
-      
+
       // Add the chunk to our combined buffer
       int chunkSize = chunk.remaining();
       combinedBuffer.put(chunk);
       totalBytesReceived += chunkSize;
-      
-      System.out.println("Received chunk of " + chunkSize + " bytes, total: " + 
-          totalBytesReceived + "/" + LARGE_SIZE);
-      
+
+      System.out.println("Received chunk of " + chunkSize + " bytes, total: " +
+                         totalBytesReceived + "/" + LARGE_SIZE);
+
       // If we've received enough data for verification, we can break early
       if (totalBytesReceived > 5 * 1024 * 1024) { // 5MB is enough for verification
         break;
       }
     }
-    
+
     // Prepare the buffer for reading
     combinedBuffer.flip();
-    
+
     // Create a byte array to hold the received data
     byte[] receivedData = new byte[combinedBuffer.remaining()];
     combinedBuffer.get(receivedData);
-    
+
     // Verify the received data matches the sent data (check first 1MB)
     for (int i = 0; i < Math.min(1024 * 1024, receivedData.length); i++) {
-      assertEquals((byte) (i % 256), receivedData[i], 
+      assertEquals((byte) (i % 256), receivedData[i],
           "Data mismatch at position " + i);
     }
-    
+
     // This test has successfully verified:
     // 1. Large buffers can be sent correctly (which must use partial writes internally)
     // 2. The bufferToWrite.hasRemaining() branch must have been executed
     //    for the data to be sent correctly
-    
+
     System.out.println("Successfully verified partial write functionality");
   }
-  
+
   /**
    * Tests the read completion handler by closing the socket during a read.
    */
@@ -434,28 +436,95 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   }
 
   /**
-   * Helper method to create a client-server connection pair.
+   * Helper method to create a client-server connection pair on an available port.
    *
-   * @param port The port to connect to
    * @return Array containing [clientConnection, serverConnection]
    */
-  private FlowConnection[] createClientServerConnectionPair(int port) throws Exception {
+  private FlowConnection[] createClientServerConnectionPair() throws Exception {
     // Create a transport
     RealFlowTransport transport = new RealFlowTransport();
 
-    // Set up server
-    LocalEndpoint localEndpoint = LocalEndpoint.localhost(port);
-    FlowStream<FlowConnection> stream = transport.listen(localEndpoint);
+    // Set up server on any available port
+    ConnectionListener listener = transport.listenOnAvailablePort();
+    FlowStream<FlowConnection> stream = listener.getStream();
+    int boundPort = listener.getPort();
 
-    // Connect client
-    FlowFuture<FlowConnection> connectFuture = transport.connect(new Endpoint("localhost", port));
-    FlowConnection clientConnection = connectFuture.getNow();
+    // Connect client with a timeout
+    FlowFuture<FlowConnection> connectFuture = transport.connect(new Endpoint("localhost", boundPort));
 
-    // Accept server connection
+    // Use a CountDownLatch to wait for completion with a timeout
+    CountDownLatch connectLatch = new CountDownLatch(1);
+    AtomicReference<FlowConnection> clientConnectionRef = new AtomicReference<>();
+    AtomicReference<Throwable> connectErrorRef = new AtomicReference<>();
+
+    connectFuture.whenComplete((connection, error) -> {
+      if (error != null) {
+        connectErrorRef.set(error);
+      } else {
+        clientConnectionRef.set(connection);
+      }
+      connectLatch.countDown();
+    });
+
+    // Wait up to 5 seconds for connection
+    if (!connectLatch.await(5, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Connection timed out after 5 seconds");
+    }
+
+    // Check for connection error
+    if (connectErrorRef.get() != null) {
+      throw new RuntimeException("Connection failed", connectErrorRef.get());
+    }
+
+    FlowConnection clientConnection = clientConnectionRef.get();
+    if (clientConnection == null) {
+      throw new RuntimeException("Client connection is null despite successful future");
+    }
+
+    // Accept server connection with timeout
     FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-    FlowConnection serverConnection = acceptFuture.getNow();
+
+    // Use a CountDownLatch to wait for server acceptance with a timeout
+    CountDownLatch acceptLatch = new CountDownLatch(1);
+    AtomicReference<FlowConnection> serverConnectionRef = new AtomicReference<>();
+    AtomicReference<Throwable> acceptErrorRef = new AtomicReference<>();
+
+    acceptFuture.whenComplete((connection, error) -> {
+      if (error != null) {
+        acceptErrorRef.set(error);
+      } else {
+        serverConnectionRef.set(connection);
+      }
+      acceptLatch.countDown();
+    });
+
+    // Wait up to 5 seconds for server acceptance
+    if (!acceptLatch.await(5, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Server acceptance timed out after 5 seconds");
+    }
+
+    // Check for acceptance error
+    if (acceptErrorRef.get() != null) {
+      throw new RuntimeException("Server acceptance failed", acceptErrorRef.get());
+    }
+
+    FlowConnection serverConnection = serverConnectionRef.get();
+    if (serverConnection == null) {
+      throw new RuntimeException("Server connection is null despite successful future");
+    }
 
     return new FlowConnection[]{clientConnection, serverConnection};
+  }
+
+  /**
+   * Helper method to create a client-server connection pair.
+   * This overload is kept for backward compatibility with existing tests.
+   *
+   * @param port The port to connect to (ignored - will use an available port)
+   * @return Array containing [clientConnection, serverConnection]
+   */
+  private FlowConnection[] createClientServerConnectionPair(int port) throws Exception {
+    return createClientServerConnectionPair();
   }
 
   /**
@@ -464,14 +533,8 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
    */
   @Test
   void testReadCompletionHandlerFailurePath() throws Exception {
-    // Create a temporary server endpoint to use for this test
-    AsynchronousServerSocketChannel tempChannel = AsynchronousServerSocketChannel.open();
-    tempChannel.bind(new InetSocketAddress("localhost", 0));
-    int tempPort = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
-    tempChannel.close();
-
-    // Get a client connection 
-    FlowConnection[] connections = createClientServerConnectionPair(tempPort);
+    // Get a client connection pair using our available port method
+    FlowConnection[] connections = createClientServerConnectionPair();
     FlowConnection clientConnection = connections[0];
     FlowConnection serverConnection = connections[1];
 
@@ -480,10 +543,55 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes());
     FlowFuture<Void> sendFuture = clientConnection.send(buffer);
 
+    // Wait for send to complete with timeout
+    CountDownLatch sendLatch = new CountDownLatch(1);
+    AtomicReference<Throwable> sendErrorRef = new AtomicReference<>();
+
+    sendFuture.whenComplete((result, error) -> {
+      if (error != null) {
+        sendErrorRef.set(error);
+      }
+      sendLatch.countDown();
+    });
+
+    if (!sendLatch.await(5, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Send operation timed out after 5 seconds");
+    }
+
+    if (sendErrorRef.get() != null) {
+      throw new RuntimeException("Send operation failed", sendErrorRef.get());
+    }
+
     // Read from the server side to verify connection
     FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
 
-    ByteBuffer receiveBuffer = receiveFuture.getNow();
+    // Wait for receive to complete with timeout
+    CountDownLatch receiveLatch = new CountDownLatch(1);
+    AtomicReference<ByteBuffer> receiveBufferRef = new AtomicReference<>();
+    AtomicReference<Throwable> receiveErrorRef = new AtomicReference<>();
+
+    receiveFuture.whenComplete((buffer1, error) -> {
+      if (error != null) {
+        receiveErrorRef.set(error);
+      } else {
+        receiveBufferRef.set(buffer1);
+      }
+      receiveLatch.countDown();
+    });
+
+    if (!receiveLatch.await(5, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Receive operation timed out after 5 seconds");
+    }
+
+    if (receiveErrorRef.get() != null) {
+      throw new RuntimeException("Receive operation failed", receiveErrorRef.get());
+    }
+
+    ByteBuffer receiveBuffer = receiveBufferRef.get();
+    if (receiveBuffer == null) {
+      throw new RuntimeException("Receive buffer is null despite successful future");
+    }
+
     byte[] bytes = new byte[receiveBuffer.remaining()];
     receiveBuffer.get(bytes);
     String receivedMessage = new String(bytes);
@@ -512,39 +620,38 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     // Now try to read from the closed channel - this should trigger the failed path
     FlowFuture<ByteBuffer> errorReceiveFuture = serverConnection.receive(1024);
 
-    // Verify that the future failed with the expected exception
-    boolean isCompleted = errorReceiveFuture.isDone();
-    boolean isExceptional = errorReceiveFuture.isCompletedExceptionally();
+    // Wait for the receive operation to complete or timeout
+    CountDownLatch errorReceiveLatch = new CountDownLatch(1);
+    AtomicReference<ByteBuffer> errorBufferRef = new AtomicReference<>();
+    AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-    System.out.println("Future completed: " + isCompleted);
-    System.out.println("Future exceptionally: " + isExceptional);
-
-    if (!isExceptional && isCompleted) {
-      try {
-        ByteBuffer buf = errorReceiveFuture.getNow();
-        System.out.println("Received buffer size: " + (buf != null ? buf.remaining() : "null"));
-      } catch (Exception e) {
-        System.out.println("Exception when getting future value: " + e);
+    errorReceiveFuture.whenComplete((buffer1, error) -> {
+      if (error != null) {
+        errorRef.set(error);
+      } else {
+        errorBufferRef.set(buffer1);
       }
+      errorReceiveLatch.countDown();
+    });
+
+    // Wait up to 5 seconds for the error to happen
+    if (!errorReceiveLatch.await(5, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Error receive operation timed out after 5 seconds");
     }
 
-    assertTrue(errorReceiveFuture.isCompletedExceptionally(),
-        "Future should have completed exceptionally");
+    // Verify that an error occurred (should be true because channel was closed)
+    assertNotNull(errorRef.get(), "Expected an error but none occurred");
 
-    try {
-      ByteBuffer buf = errorReceiveFuture.getNow();
-      fail("Expected ExecutionException but got result: " +
-           (buf != null ? "Buffer with " + buf.remaining() + " bytes" : "null"));
-    } catch (ExecutionException e) {
-      System.out.println("Got expected exception: " + e);
-      System.out.println("Cause: " + e.getCause());
-      assertTrue(e.getCause() instanceof IOException,
-          "Expected IOException but got: " + e.getCause().getClass().getName());
+    // Log the error details for debugging
+    Throwable error = errorRef.get();
+    System.out.println("Error type: " + error.getClass().getName());
+    System.out.println("Error message: " + error.getMessage());
+    // If it's not an ExecutionException, it should be directly related to I/O
+    boolean isIORelated = error instanceof IOException &&
+                          error.getMessage() != null &&
+                          error.getMessage().contains("closed");
 
-      String message = e.getCause().getMessage();
-      System.out.println("Message: " + message);
-      assertTrue(message != null && message.contains("closed"),
-          "Expected message to contain 'closed' but was: " + message);
-    }
+    assertTrue(isIORelated,
+        "Expected an I/O related exception due to closed channel but got: " + error.getClass().getName());
   }
 }

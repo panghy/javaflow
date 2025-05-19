@@ -33,18 +33,12 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
 
+  private ConnectionListener connectionListener;
   private LocalEndpoint serverEndpoint;
 
   @BeforeEach
   void setUp() throws Exception {
-    // Get a random free port
-    AsynchronousSocketChannel tempChannel = AsynchronousSocketChannel.open();
-    tempChannel.bind(new InetSocketAddress("localhost", 0));
-    int port = ((InetSocketAddress) tempChannel.getLocalAddress()).getPort();
-    tempChannel.close();
-
-    // Create endpoint
-    serverEndpoint = LocalEndpoint.localhost(port);
+    // We'll initialize serverEndpoint as needed in individual tests
   }
 
   @AfterEach
@@ -69,10 +63,9 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       // Method to simulate an error condition in the completed() method
       @SuppressWarnings("unchecked")
       void simulateAcceptCompletedWithErrorCondition() throws Exception {
-        // Create a server channel
-        AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(
-            getChannelGroup());
-        serverChannel.bind(serverEndpoint.toInetSocketAddress());
+        // Start listening on an available port
+        ConnectionListener listener = listenOnAvailablePort();
+        LocalEndpoint endpoint = listener.getBoundEndpoint();
 
         // Get the connectionStreams field to create the necessary context
         Field streamsField = RealFlowTransport.class.getDeclaredField("connectionStreams");
@@ -80,16 +73,15 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         Map<LocalEndpoint, PromiseStream<FlowConnection>> streams =
             (Map<LocalEndpoint, PromiseStream<FlowConnection>>) streamsField.get(this);
 
-        // Create a promise stream for connections
-        PromiseStream<FlowConnection> connectionStream = new PromiseStream<>();
-        streams.put(serverEndpoint, connectionStream);
+        // Get the promise stream for this endpoint
+        PromiseStream<FlowConnection> connectionStream = streams.get(endpoint);
 
-        // Get the serverChannels field to add our server channel
+        // Get the serverChannels field to get the server channel
         Field channelsField = RealFlowTransport.class.getDeclaredField("serverChannels");
         channelsField.setAccessible(true);
         Map<LocalEndpoint, AsynchronousServerSocketChannel> channels =
             (Map<LocalEndpoint, AsynchronousServerSocketChannel>) channelsField.get(this);
-        channels.put(serverEndpoint, serverChannel);
+        AsynchronousServerSocketChannel serverChannel = channels.get(endpoint);
 
         // Create a special client channel that will throw when getRemoteAddress is called
         AsynchronousSocketChannel clientChannel = AsynchronousSocketChannel.open(getChannelGroup());
@@ -110,7 +102,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
                 } catch (IOException e) {
                   // Expected - this simulates the error path
                   connectionStream.closeExceptionally(e);
-                  streams.remove(serverEndpoint);
+                  streams.remove(endpoint);
                 }
               }
 
@@ -227,8 +219,10 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
     RealFlowTransport transport = new RealFlowTransport();
 
     try {
-      // Listen on the endpoint
-      FlowStream<FlowConnection> stream1 = transport.listen(serverEndpoint);
+      // Start listening on an available port
+      connectionListener = transport.listenOnAvailablePort();
+      FlowStream<FlowConnection> stream1 = connectionListener.getStream();
+      serverEndpoint = connectionListener.getBoundEndpoint();
 
       // Listen again on the same endpoint - should return the same stream
       FlowStream<FlowConnection> stream2 = transport.listen(serverEndpoint);
@@ -308,17 +302,19 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       }
 
       void testWithClosedStream() throws Exception {
-        // Create a server channel
-        AsynchronousServerSocketChannel serverChannel = AsynchronousServerSocketChannel.open(
-            getChannelGroup());
-        serverChannel.bind(serverEndpoint.toInetSocketAddress());
+        // Start listening on an available port
+        ConnectionListener listener = listenOnAvailablePort();
+        LocalEndpoint endpoint = listener.getBoundEndpoint();
 
-        // Create a promise stream for connections and immediately close it
+        // Get the server channel
+        AsynchronousServerSocketChannel serverChannel = this.getServerChannels().get(endpoint);
+
+        // Create a new promise stream and close it immediately
         PromiseStream<FlowConnection> connectionStream = new PromiseStream<>();
         connectionStream.close();
 
-        // Call startAccepting which should return immediately because stream is closed
-        startAccepting(serverChannel, serverEndpoint, connectionStream);
+        // Call startAccepting with our closed stream
+        startAccepting(serverChannel, endpoint, connectionStream);
 
         // Close the server channel
         serverChannel.close();
