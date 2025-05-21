@@ -1,13 +1,13 @@
 package io.github.panghy.javaflow.rpc;
 
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the EndpointId class.
@@ -21,7 +21,7 @@ public class EndpointIdTest {
     EndpointId endpointId = new EndpointId(id);
     
     // Verify that the ID is stored correctly
-    assertEquals(id, endpointId.getId());
+    assertEquals(id, endpointId.id());
   }
   
   @Test
@@ -94,7 +94,7 @@ public class EndpointIdTest {
     String toString = endpointId.toString();
     assertNotNull(toString);
     assertTrue(toString.contains(id));
-    assertEquals("EndpointId[" + id + "]", toString);
+    assertEquals("EndpointId[id=" + id + "]", toString);
   }
   
   @Test
@@ -103,10 +103,10 @@ public class EndpointIdTest {
     EndpointId endpointId = new EndpointId("");
     
     // Verify that the ID is stored correctly
-    assertEquals("", endpointId.getId());
+    assertEquals("", endpointId.id());
     
     // Verify that toString works correctly with an empty ID
-    assertEquals("EndpointId[]", endpointId.toString());
+    assertEquals("EndpointId[id=]", endpointId.toString());
   }
   
   @Test
@@ -116,9 +116,9 @@ public class EndpointIdTest {
     EndpointId endpointId = new EndpointId(id);
     
     // Verify that the ID is stored correctly
-    assertEquals(id, endpointId.getId());
+    assertEquals(id, endpointId.id());
     
     // Verify that toString works correctly with special characters
-    assertEquals("EndpointId[" + id + "]", endpointId.toString());
+    assertEquals("EndpointId[id=" + id + "]", endpointId.toString());
   }
 }
