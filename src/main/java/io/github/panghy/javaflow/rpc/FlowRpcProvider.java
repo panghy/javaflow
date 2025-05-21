@@ -88,8 +88,6 @@ public class FlowRpcProvider {
    * @return A new FlowRpcTransport instance
    */
   private static FlowRpcTransport createDefaultTransport() {
-    // This will be implemented to create either a real or simulated transport
-    // For now, return null as a placeholder
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 }

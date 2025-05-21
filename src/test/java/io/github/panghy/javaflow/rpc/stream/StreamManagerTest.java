@@ -63,7 +63,7 @@ public class StreamManagerTest {
     // Verify the message was sent
     verify(mockSender).sendMessage(
         eq(testEndpoint),
-        eq(RpcMessageHeader.MessageType.STREAM_VALUE),
+        eq(RpcMessageHeader.MessageType.STREAM_DATA),
         eq(streamId),
         eq("test value"));
   }
@@ -127,10 +127,10 @@ public class StreamManagerTest {
     streamManager.registerIncomingStream(streamId, localStream);
 
     // Handle an incoming value
-    boolean result = streamManager.handleStreamValue(streamId, "test value");
+    boolean result = streamManager.receiveData(streamId, "test value");
     
     // Verify the result
-    assertTrue(result, "handleStreamValue should return true for registered stream");
+    assertTrue(result, "receiveData should return true for registered stream");
     
     // Now let's manually check the stream to see if it received the value
     // We can use CompletableFuture to do this from outside Flow's actor model
@@ -193,7 +193,7 @@ public class StreamManagerTest {
     UUID nonExistentStreamId = UUID.randomUUID();
 
     // Try to handle a value for a non-existent stream
-    boolean result = streamManager.handleStreamValue(nonExistentStreamId, "test value");
+    boolean result = streamManager.receiveData(nonExistentStreamId, "test value");
 
     // Verify handling failed
     assertFalse(result);
@@ -237,7 +237,7 @@ public class StreamManagerTest {
     assertTrue(localStream.getFutureStream().isClosed());
 
     // Verify we can no longer handle values for this stream
-    result = streamManager.handleStreamValue(streamId, "test value");
+    result = streamManager.receiveData(streamId, "test value");
     assertFalse(result);
   }
 
@@ -265,8 +265,8 @@ public class StreamManagerTest {
     assertTrue(localStream2.getFutureStream().isClosed());
 
     // Verify no messages can be sent to the streams
-    boolean result1 = streamManager.handleStreamValue(incomingId1, "test");
-    boolean result2 = streamManager.handleStreamValue(incomingId2, 123);
+    boolean result1 = streamManager.receiveData(incomingId1, "test");
+    boolean result2 = streamManager.receiveData(incomingId2, 123);
 
     assertFalse(result1);
     assertFalse(result2);

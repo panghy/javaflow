@@ -97,13 +97,14 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 | 4.4 | **File I/O Operations** - Non-blocking file read/write operations | ✅ Completed |
 | 4.5 | **I/O Event Integration** - Integration of I/O events with the event loop | ✅ Completed |
 | 4.6 | **Flow Transport Layer** - Message-based communication between components | ✅ Completed |
-| 4.7 | **RPC Framework** - Promise/Future-based remote procedure calls | 🔄 In Progress (Implementation) |
-| 4.8 | **Serialization Infrastructure** - Data serialization for network operations | 🔄 In Progress |
-| 4.9 | **Timeout Handling** - I/O operation timeout management | ✅ Completed |
-| 4.10 | **I/O Error Propagation** - Proper error handling for I/O operations | ✅ Completed |
-| 4.11 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | ✅ Completed |
-| 4.12 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | ✅ Completed |
-| 4.13 | **Utilities and Testing** - Helper utilities for I/O operations | ✅ Completed |
+| 4.7 | **RPC Framework Interface Design** - Promise/Future-based remote procedure calls | ✅ Completed |
+| 4.8 | **RPC Framework Implementation** - Complete implementation of RPC transport | 🔄 In Progress |
+| 4.9 | **Serialization Infrastructure** - Data serialization for network operations | 🔄 In Progress |
+| 4.10 | **Timeout Handling** - I/O operation timeout management | ✅ Completed |
+| 4.11 | **I/O Error Propagation** - Proper error handling for I/O operations | ✅ Completed |
+| 4.12 | **ByteBuffer-Based I/O** - Efficient memory management for I/O operations | ✅ Completed |
+| 4.13 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | ✅ Completed |
+| 4.14 | **Utilities and Testing** - Helper utilities for I/O operations | ✅ Completed |
 
 Phase 4 is making excellent progress, with most major components now completed. Both the file system I/O and network transport implementations are complete, providing comprehensive asynchronous APIs that integrate seamlessly with the actor model. The system includes both real and simulated implementations, enabling deterministic testing of I/O-heavy code.
 
@@ -119,7 +120,7 @@ Key completed functionality includes:
 - Simulated implementations for deterministic testing
 - Utility classes for common I/O operations
 
-Work continues on the RPC framework, with significant progress made in both implementation and testing. Core interfaces and simulated transport infrastructure have been developed and thoroughly tested. The framework allows promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. All I/O operations are non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow. The implemented test suite ensures high code coverage (85% line coverage and 75% branch coverage), providing robustness as development continues.
+Work continues on the RPC framework, with significant progress made in design and interface definition. Core RPC interfaces have been developed and test infrastructure is in place, though the actual RPC transport implementation is still in progress. The framework design allows promises to cross network boundaries, providing location transparency where the same code can work for both local and remote communication. The architecture supports loopback endpoints for maximum efficiency in local communication, endpoint resolution for service discovery, and a robust serialization framework. All I/O operations are designed to be non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow. While the interface and design work is complete, the implementation of the actual RPC transport is still ongoing.
 
 ## Requirements
 
@@ -213,7 +214,9 @@ JavaFlow provides:
 - **Endpoint & LocalEndpoint**: Addressing mechanism for network communications
 - **SimulationParameters**: Configurable simulation behavior for realistic testing
 - **IOUtil**: Utility classes for I/O operations
-- **RPC Framework** (coming soon): Promise-based remote procedure calls with location transparency
+- **RPC Framework Interface**: Interface design for promise-based remote procedure calls
+- **ConnectionManager**: Connection management for RPC with automatic reconnection
+- **EndpointId & EndpointResolver**: Service discovery and addressing for RPC services
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -353,11 +356,14 @@ void testFileOperations() {
     }
 }
 
-// Using RPC framework (coming in Phase 4)
+// Using RPC framework (interface designed, implementation in progress in Phase 4)
 FlowFuture<UserInfo> userLookup = startActor(() -> {
+    // This code demonstrates the intended API for the RPC framework
+    // The actual implementation is still in progress
+    
     // Get reference to remote service
-    UserServiceInterface userService = FlowTransport.getInstance()
-        .getEndpoint(new EndpointId("user-service"), UserServiceInterface.class);
+    UserServiceInterface userService = FlowRpcTransport.getInstance()
+        .getRoundRobinEndpoint(new EndpointId("user-service"), UserServiceInterface.class);
     
     // Call remote service using promise-based API
     UserInfo user = await(userService.getUserAsync(new GetUserRequest("user123")));

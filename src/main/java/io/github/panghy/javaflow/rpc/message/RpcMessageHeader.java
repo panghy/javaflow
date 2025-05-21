@@ -28,6 +28,11 @@ import java.util.UUID;
  * </ul>
  */
 public class RpcMessageHeader {
+  
+  /**
+   * Flag for error responses.
+   */
+  public static final int FLAG_ERROR = 1;
 
   /**
    * Enumeration of possible RPC message types.
@@ -54,9 +59,9 @@ public class RpcMessageHeader {
     PROMISE_COMPLETE(4),
     
     /**
-     * A stream value notification.
+     * A stream data notification.
      */
-    STREAM_VALUE(5),
+    STREAM_DATA(5),
     
     /**
      * A stream close notification.
@@ -87,6 +92,7 @@ public class RpcMessageHeader {
   private final UUID messageId;
   private final String methodId;
   private final int payloadLength;
+  private final int flags;
   
   /**
    * Creates a new RPC message header.
@@ -97,10 +103,24 @@ public class RpcMessageHeader {
    * @param payloadLength The length of the payload in bytes
    */
   public RpcMessageHeader(MessageType type, UUID messageId, String methodId, int payloadLength) {
+    this(type, messageId, methodId, payloadLength, 0);
+  }
+  
+  /**
+   * Creates a new RPC message header with flags and payload length.
+   *
+   * @param type          The message type
+   * @param messageId     The unique message ID
+   * @param methodId      The method identifier
+   * @param payloadLength The length of the payload in bytes
+   * @param flags         The flags for this message
+   */
+  public RpcMessageHeader(MessageType type, UUID messageId, String methodId, int payloadLength, int flags) {
     this.type = type;
     this.messageId = messageId;
     this.methodId = methodId;
     this.payloadLength = payloadLength;
+    this.flags = flags;
   }
   
   /**
@@ -140,6 +160,24 @@ public class RpcMessageHeader {
   }
   
   /**
+   * Gets the message flags.
+   *
+   * @return The message flags
+   */
+  public int getFlags() {
+    return flags;
+  }
+  
+  /**
+   * Checks if this message has the error flag set.
+   *
+   * @return true if the error flag is set, false otherwise
+   */
+  public boolean isError() {
+    return (flags & FLAG_ERROR) != 0;
+  }
+  
+  /**
    * Serializes this header to a ByteBuffer.
    *
    * @return A ByteBuffer containing the serialized header
@@ -151,10 +189,11 @@ public class RpcMessageHeader {
     // - Method ID length (2 bytes)
     // - Method ID (variable)
     // - Payload length (4 bytes)
+    // - Flags (4 bytes)
     
     // Calculate total size
     int methodIdSize = methodId != null ? methodId.getBytes().length : 0;
-    int totalSize = 1 + 16 + 2 + methodIdSize + 4;
+    int totalSize = 1 + 16 + 2 + methodIdSize + 4 + 4;
     
     ByteBuffer buffer = ByteBuffer.allocate(totalSize);
     
@@ -181,6 +220,9 @@ public class RpcMessageHeader {
     
     // Write payload length
     buffer.putInt(payloadLength);
+    
+    // Write flags
+    buffer.putInt(flags);
     
     // Reset position for reading
     buffer.flip();
@@ -216,7 +258,13 @@ public class RpcMessageHeader {
     // Read payload length
     int payloadLength = buffer.getInt();
     
-    return new RpcMessageHeader(type, messageId, methodId, payloadLength);
+    // Read flags (if available)
+    int flags = 0;
+    if (buffer.hasRemaining()) {
+      flags = buffer.getInt();
+    }
+    
+    return new RpcMessageHeader(type, messageId, methodId, payloadLength, flags);
   }
   
   @Override
@@ -226,6 +274,7 @@ public class RpcMessageHeader {
         ", messageId=" + messageId +
         ", methodId='" + methodId + '\'' +
         ", payloadLength=" + payloadLength +
+        ", flags=" + flags +
         '}';
   }
 }

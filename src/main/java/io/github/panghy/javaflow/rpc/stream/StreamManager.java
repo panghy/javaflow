@@ -4,7 +4,9 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
+import io.github.panghy.javaflow.rpc.serialization.TypeToken;
 
+import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>Creating and tracking RemotePromiseStream instances</li>
  *   <li>Mapping stream IDs to local PromiseStream instances</li>
  *   <li>Forwarding stream values and close events across the network</li>
+ *   <li>Preserving generic type information across the network</li>
  * </ul>
  * 
  * <p>This component is used by the RPC transport to implement the streaming
@@ -31,6 +34,9 @@ public class StreamManager {
   
   // Maps stream IDs to RemotePromiseStream instances (for outgoing streams)
   private final Map<UUID, RemotePromiseStream<?>> outgoingStreams = new ConcurrentHashMap<>();
+  
+  // Maps stream IDs to type information
+  private final Map<UUID, Type> streamTypeInfo = new ConcurrentHashMap<>();
   
   // The RPC message sender function (to be injected by the transport implementation)
   private StreamMessageSender messageSender;
@@ -74,9 +80,41 @@ public class StreamManager {
     UUID streamId = UUID.randomUUID();
     RemotePromiseStream<T> stream = new RemotePromiseStream<>(streamId, destination, valueType, this);
     outgoingStreams.put(streamId, stream);
+    streamTypeInfo.put(streamId, valueType);
     
     // Set up cleanup when the stream is closed
-    stream.getFutureStream().onClose().whenComplete((v, ex) -> outgoingStreams.remove(streamId));
+    stream.getFutureStream().onClose().whenComplete((v, ex) -> {
+      outgoingStreams.remove(streamId);
+      streamTypeInfo.remove(streamId);
+    });
+    
+    return stream;
+  }
+  
+  /**
+   * Creates a new remote promise stream with generic type information.
+   *
+   * @param <T>         The type of value in the stream
+   * @param destination The destination endpoint
+   * @param typeToken   The type token including generic information
+   * @return A new RemotePromiseStream
+   */
+  public <T> RemotePromiseStream<T> createRemoteStream(EndpointId destination, TypeToken<T> typeToken) {
+    UUID streamId = UUID.randomUUID();
+    @SuppressWarnings("unchecked")
+    Class<T> rawType = (Class<T>) getRawType(typeToken.getType());
+    
+    RemotePromiseStream<T> stream = new RemotePromiseStream<>(streamId, destination, rawType, this);
+    stream.setValueTypeInfo(typeToken.getType());
+    
+    outgoingStreams.put(streamId, stream);
+    streamTypeInfo.put(streamId, typeToken.getType());
+    
+    // Set up cleanup when the stream is closed
+    stream.getFutureStream().onClose().whenComplete((v, ex) -> {
+      outgoingStreams.remove(streamId);
+      streamTypeInfo.remove(streamId);
+    });
     
     return stream;
   }
@@ -84,15 +122,47 @@ public class StreamManager {
   /**
    * Registers a local promise stream to receive values from a remote endpoint.
    *
-   * @param <T>     The type of value in the stream
+   * @param <T>      The type of value in the stream
    * @param streamId The ID of the remote stream
-   * @param stream  The local stream to receive values
+   * @param stream   The local stream to receive values
    */
   public <T> void registerIncomingStream(UUID streamId, PromiseStream<T> stream) {
     incomingStreams.put(streamId, stream);
     
     // Set up cleanup when the stream is closed
-    stream.getFutureStream().onClose().whenComplete((v, ex) -> incomingStreams.remove(streamId));
+    stream.getFutureStream().onClose().whenComplete((v, ex) -> {
+      incomingStreams.remove(streamId);
+      streamTypeInfo.remove(streamId);
+    });
+  }
+  
+  /**
+   * Registers a local promise stream with generic type information.
+   *
+   * @param <T>       The type of value in the stream
+   * @param streamId  The ID of the remote stream
+   * @param stream    The local stream to receive values
+   * @param typeToken The type token including generic information
+   */
+  public <T> void registerIncomingStream(UUID streamId, PromiseStream<T> stream, TypeToken<T> typeToken) {
+    incomingStreams.put(streamId, stream);
+    streamTypeInfo.put(streamId, typeToken.getType());
+    
+    // Set up cleanup when the stream is closed
+    stream.getFutureStream().onClose().whenComplete((v, ex) -> {
+      incomingStreams.remove(streamId);
+      streamTypeInfo.remove(streamId);
+    });
+  }
+  
+  /**
+   * Gets the type information for a stream.
+   *
+   * @param streamId The stream ID
+   * @return The type information, or null if not found
+   */
+  public Type getStreamTypeInfo(UUID streamId) {
+    return streamTypeInfo.get(streamId);
   }
   
   /**
@@ -105,7 +175,7 @@ public class StreamManager {
    */
   public <T> void sendToStream(EndpointId destination, UUID streamId, T value) {
     if (messageSender != null) {
-      messageSender.sendMessage(destination, RpcMessageHeader.MessageType.STREAM_VALUE, streamId, value);
+      messageSender.sendMessage(destination, RpcMessageHeader.MessageType.STREAM_DATA, streamId, value);
     }
   }
   
@@ -120,6 +190,26 @@ public class StreamManager {
       messageSender.sendMessage(destination, RpcMessageHeader.MessageType.STREAM_CLOSE, streamId, null);
     }
     outgoingStreams.remove(streamId);
+    streamTypeInfo.remove(streamId);
+  }
+  
+  /**
+   * Closes a stream with an optional exception.
+   *
+   * @param streamId   The stream ID
+   * @param exception  The exception, or null for normal close
+   */
+  public void closeStream(UUID streamId, Throwable exception) {
+    PromiseStream<?> stream = incomingStreams.remove(streamId);
+    streamTypeInfo.remove(streamId);
+    
+    if (stream != null) {
+      if (exception != null) {
+        stream.closeExceptionally(exception);
+      } else {
+        stream.close();
+      }
+    }
   }
   
   /**
@@ -134,10 +224,11 @@ public class StreamManager {
       messageSender.sendMessage(destination, RpcMessageHeader.MessageType.STREAM_CLOSE, streamId, exception);
     }
     outgoingStreams.remove(streamId);
+    streamTypeInfo.remove(streamId);
   }
   
   /**
-   * Handles an incoming stream value message.
+   * Receives data for an incoming stream.
    *
    * @param <T>      The type of value
    * @param streamId The stream ID
@@ -145,7 +236,7 @@ public class StreamManager {
    * @return true if the stream was found and the value was delivered, false otherwise
    */
   @SuppressWarnings("unchecked")
-  public <T> boolean handleStreamValue(UUID streamId, T value) {
+  public <T> boolean receiveData(UUID streamId, T value) {
     PromiseStream<?> stream = incomingStreams.get(streamId);
     if (stream != null) {
       try {
@@ -154,6 +245,7 @@ public class StreamManager {
       } catch (ClassCastException e) {
         // Type mismatch, close the stream
         incomingStreams.remove(streamId);
+        streamTypeInfo.remove(streamId);
         stream.closeExceptionally(
             new ClassCastException("Stream value type mismatch: " + value.getClass().getName()));
         return false;
@@ -171,6 +263,8 @@ public class StreamManager {
    */
   public boolean handleStreamClose(UUID streamId, Throwable exception) {
     PromiseStream<?> stream = incomingStreams.remove(streamId);
+    streamTypeInfo.remove(streamId);
+    
     if (stream != null) {
       if (exception != null) {
         stream.closeExceptionally(exception);
@@ -194,8 +288,23 @@ public class StreamManager {
           new IllegalStateException("RPC transport was shut down"));
     }
     incomingStreams.clear();
-    
-    // Clear outgoing streams
     outgoingStreams.clear();
+    streamTypeInfo.clear();
+  }
+  
+  /**
+   * Extracts the raw type from a Type object.
+   *
+   * @param type The type
+   * @return The raw class
+   */
+  private static Class<?> getRawType(Type type) {
+    if (type instanceof Class<?>) {
+      return (Class<?>) type;
+    } else if (type instanceof java.lang.reflect.ParameterizedType) {
+      return (Class<?>) ((java.lang.reflect.ParameterizedType) type).getRawType();
+    } else {
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
 }

@@ -1,16 +1,18 @@
 package io.github.panghy.javaflow.rpc;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
+import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Additional tests for the {@link RpcServiceInterface} interface
@@ -27,14 +29,14 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
   }
   
   /**
-   * A service implementation that overrides the registerRemote method.
+   * A service implementation that overrides the registerAsLoopback method.
    */
   private static class CustomRegistrationService implements RpcServiceInterface {
     private EndpointId lastRegisteredId;
     private boolean registerCalled = false;
     
     @Override
-    public void registerRemote(EndpointId endpointId) {
+    public void registerAsLoopback(EndpointId endpointId) {
       lastRegisteredId = endpointId;
       registerCalled = true;
     }
@@ -67,52 +69,23 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
       readyPromise.completeExceptionally(t);
     }
   }
-
-  /**
-   * Tests the default implementation of registerRemote.
-   */
-  @Test
-  void testDefaultRegisterRemote() {
-    // Create a service with the default implementation
-    MinimalService service = new MinimalService();
-    
-    // Store the original default transport
-    FlowRpcTransport originalTransport = FlowRpcProvider.getDefaultTransport();
-    
-    try {
-      // Create a mock transport for testing
-      MockFlowRpcTransport mockTransport = new MockFlowRpcTransport();
-      FlowRpcProvider.setDefaultTransport(mockTransport);
-      
-      // Call registerRemote
-      EndpointId testId = new EndpointId("test-service");
-      service.registerRemote(testId);
-      
-      // Verify the transport was called with the correct parameters
-      assertTrue(mockTransport.wasRegisterEndpointCalled());
-      assertEquals(testId, mockTransport.getLastRegisteredId());
-      assertSame(service, mockTransport.getLastRegisteredService());
-    } finally {
-      // Restore the original transport
-      FlowRpcProvider.setDefaultTransport(originalTransport);
-    }
-  }
   
   /**
-   * Tests a custom implementation of registerRemote.
+   * Tests a custom implementation of registerAsLoopback.
    */
   @Test
-  void testCustomRegisterRemote() {
+  void testCustomRegisterAsLoopback() {
     CustomRegistrationService service = new CustomRegistrationService();
     
-    // Call registerRemote
+    // Call registerAsLoopback
     EndpointId testId = new EndpointId("custom-service");
-    service.registerRemote(testId);
+    service.registerAsLoopback(testId);
     
     // Verify our implementation was called
     assertTrue(service.wasRegisterCalled());
     assertEquals(testId, service.getLastRegisteredId());
   }
+  
   
   /**
    * Tests the default implementation of ready().
@@ -191,14 +164,47 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     private boolean registerEndpointCalled = false;
     
     @Override
-    public void registerEndpoint(EndpointId id, Object service) {
+    public void registerLoopbackEndpoint(EndpointId id, Object service) {
       this.lastRegisteredId = id;
       this.lastRegisteredService = service;
       this.registerEndpointCalled = true;
     }
+    
+    @Override
+    public void registerLocalEndpoint(EndpointId id, Object implementation, Endpoint physicalEndpoint) {
+      // Not used in these tests
+    }
+    
+    @Override
+    public void registerRemoteEndpoint(EndpointId id, Endpoint physicalEndpoint) {
+      // Not used in these tests
+    }
+    
+    @Override
+    public void registerRemoteEndpoints(EndpointId id, List<Endpoint> physicalEndpoints) {
+      // Not used in these tests
+    }
 
     @Override
-    public <T> T getEndpoint(EndpointId id, Class<T> interfaceClass) {
+    public <T> T getLocalEndpoint(EndpointId id, Class<T> interfaceClass) {
+      // Not used in these tests
+      return null;
+    }
+    
+    @Override
+    public <T> T getRoundRobinEndpoint(EndpointId id, Class<T> interfaceClass) {
+      // Not used in these tests
+      return null;
+    }
+
+    @Override
+    public <T> T getSpecificEndpoint(EndpointId id, Class<T> interfaceClass, Endpoint physicalEndpoint) {
+      // Not used in these tests
+      return null;
+    }
+
+    @Override
+    public List<Endpoint> getRemoteEndpoints(EndpointId id) {
       // Not used in these tests
       return null;
     }

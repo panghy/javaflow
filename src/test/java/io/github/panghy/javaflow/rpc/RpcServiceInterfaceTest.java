@@ -57,15 +57,15 @@ public class RpcServiceInterfaceTest {
   }
   
   @Test
-  public void testRegisterRemote() {
+  public void testRegisterAsLoopback() {
     TestService service = new TestService();
     EndpointId endpointId = new EndpointId("test-service");
     
-    // Call registerRemote
-    service.registerRemote(endpointId);
+    // Call registerAsLoopback
+    service.registerAsLoopback(endpointId);
     
     // Verify the transport was called to register the service
-    verify(mockTransport).registerEndpoint(eq(endpointId), eq(service));
+    verify(mockTransport).registerLoopbackEndpoint(eq(endpointId), eq(service));
   }
   
   @Test
@@ -119,7 +119,7 @@ public class RpcServiceInterfaceTest {
     TestService mockRemoteService = mock(TestService.class);
     
     // Configure the mock transport to return our mock service
-    when(mockTransport.getEndpoint(eq(remoteId), eq(TestService.class)))
+    when(mockTransport.getRoundRobinEndpoint(eq(remoteId), eq(TestService.class)))
         .thenReturn(mockRemoteService);
     
     // Create a mock future for the echo call
@@ -128,7 +128,7 @@ public class RpcServiceInterfaceTest {
     when(mockRemoteService.echoAsync(any())).thenReturn(mockFuture);
     
     // Get the remote service via the transport
-    TestService remoteService = FlowRpcTransport.getInstance().getEndpoint(remoteId, TestService.class);
+    TestService remoteService = FlowRpcTransport.getInstance().getRoundRobinEndpoint(remoteId, TestService.class);
     
     // Call a method on the remote service
     FlowFuture<String> result = remoteService.echoAsync("Test");

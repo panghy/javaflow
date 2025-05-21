@@ -98,6 +98,31 @@ public class RemotePromiseTracker {
   }
 
   /**
+   * Creates a promise for an incoming RPC call.
+   *
+   * @param <T>        The type of value the promise will deliver
+   * @param promiseId  The ID of the promise
+   * @param endpointId The endpoint ID that owns this promise
+   * @return A promise that will deliver its result over the connection when completed
+   */
+  public <T> FlowPromise<T> createIncomingPromise(UUID promiseId,
+                                                  EndpointId endpointId) {
+    FlowFuture<T> future = new FlowFuture<>();
+    FlowPromise<T> promise = future.getPromise();
+
+    // When the promise is completed, send the result to the source
+    future.whenComplete((result, error) -> {
+      if (error != null) {
+        sendErrorToEndpoint(endpointId, promiseId, error);
+      } else {
+        sendResultToEndpoint(endpointId, promiseId, result);
+      }
+    });
+
+    return promise;
+  }
+
+  /**
    * Completes a local promise for a remote ID with a result.
    *
    * @param <T>             The type of value the promise will deliver

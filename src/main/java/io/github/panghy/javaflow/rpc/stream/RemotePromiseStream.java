@@ -3,6 +3,7 @@ package io.github.panghy.javaflow.rpc.stream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 
+import java.lang.reflect.Type;
 import java.util.UUID;
 
 /**
@@ -15,7 +16,7 @@ import java.util.UUID;
  * the remote endpoint, where they are delivered to the actual PromiseStream.</p>
  * 
  * <p>This enables the RPC framework to support the streaming pattern seamlessly
- * across network boundaries.</p>
+ * across network boundaries, including proper handling of generic type information.</p>
  * 
  * @param <T> The type of value flowing through this stream
  */
@@ -26,6 +27,9 @@ public class RemotePromiseStream<T> extends PromiseStream<T> {
   private final Class<T> valueType;
   private final StreamManager streamManager;
   
+  // Complete type information including generics
+  private Type valueTypeInfo;
+  
   /**
    * Creates a new RemotePromiseStream.
    *
@@ -35,11 +39,12 @@ public class RemotePromiseStream<T> extends PromiseStream<T> {
    * @param streamManager The manager for remote streams
    */
   public RemotePromiseStream(UUID streamId, EndpointId destination, 
-                             Class<T> valueType, StreamManager streamManager) {
+                           Class<T> valueType, StreamManager streamManager) {
     this.streamId = streamId;
     this.destination = destination;
     this.valueType = valueType;
     this.streamManager = streamManager;
+    this.valueTypeInfo = valueType; // Default to the raw type
   }
   
   @Override
@@ -86,11 +91,30 @@ public class RemotePromiseStream<T> extends PromiseStream<T> {
   }
   
   /**
-   * Gets the type of values in this stream.
+   * Gets the raw type of values in this stream.
    *
    * @return The value type
    */
   public Class<T> getValueType() {
     return valueType;
+  }
+  
+  /**
+   * Gets the complete type information for values in this stream,
+   * including generic type parameters.
+   *
+   * @return The complete type information
+   */
+  public Type getValueTypeInfo() {
+    return valueTypeInfo;
+  }
+  
+  /**
+   * Sets the complete type information for values in this stream.
+   *
+   * @param valueTypeInfo The complete type information
+   */
+  public void setValueTypeInfo(Type valueTypeInfo) {
+    this.valueTypeInfo = valueTypeInfo;
   }
 }
