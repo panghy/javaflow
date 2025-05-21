@@ -1,5 +1,9 @@
 package io.github.panghy.javaflow.rpc.serialization;
 
+import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.core.FlowPromise;
+import io.github.panghy.javaflow.core.PromiseStream;
+
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,10 +52,42 @@ public class FlowSerialization {
   private static final Map<String, SerializerFactory> serializerFactories = new ConcurrentHashMap<>();
   
   // Default serializer for types without a specific serializer
-  private static Serializer<Object> defaultSerializer;
+  private static Serializer<Object> defaultSerializer = new DefaultSerializer<>();
 
+  // Flag to control whether system types are initialized
+  private static boolean systemTypesInitialized = false;
+  
   // Private constructor to prevent instantiation
   private FlowSerialization() {
+  }
+  
+  /**
+   * Initializes serializers for system types.
+   * This is called automatically on first use of the FlowSerialization class.
+   */
+  private static void initializeSystemTypes() {
+    if (systemTypesInitialized) {
+      return;
+    }
+    
+    // Register serializers for primitive types and common Java types
+    registerSerializer(String.class, new DefaultSerializer<>());
+    registerSerializer(Integer.class, new DefaultSerializer<>());
+    registerSerializer(Long.class, new DefaultSerializer<>());
+    registerSerializer(Boolean.class, new DefaultSerializer<>());
+    registerSerializer(Byte.class, new DefaultSerializer<>());
+    registerSerializer(Short.class, new DefaultSerializer<>());
+    registerSerializer(Float.class, new DefaultSerializer<>());
+    registerSerializer(Double.class, new DefaultSerializer<>());
+    registerSerializer(Character.class, new DefaultSerializer<>());
+    
+    // Note: Special types like FlowPromise and PromiseStream are not registered directly
+    // as they require contextual information (promiseTracker, streamManager, destination)
+    // that is only available at the time of serialization/deserialization.
+    // These types are handled by the SystemTypeSerializerFactory which is applied
+    // by the RPC transport when needed.
+    
+    systemTypesInitialized = true;
   }
 
   /**
@@ -100,10 +136,27 @@ public class FlowSerialization {
    */
   @SuppressWarnings("unchecked")
   public static <T> Serializer<T> getSerializer(Class<T> type) {
+    // Initialize system types if needed
+    if (!systemTypesInitialized) {
+      initializeSystemTypes();
+    }
+    
     // Check for direct registration
     Serializer<?> serializer = serializers.get(type);
     if (serializer != null) {
       return (Serializer<T>) serializer;
+    }
+    
+    // Special handling for system types
+    if (FlowPromise.class.isAssignableFrom(type) || 
+        PromiseStream.class.isAssignableFrom(type) ||
+        FlowFuture.class.isAssignableFrom(type)) {
+      // System types need special handling by SystemTypeSerializerFactory
+      // If we're here, it means we don't have a factory registered yet,
+      // so we'll return a serializer that throws an appropriate exception
+      throw new IllegalStateException(
+          "No serializer found for system type " + type.getName() + 
+          ". System types require contextual information and must be handled by a SystemTypeSerializerFactory.");
     }
 
     // Check for package-based factories
@@ -169,6 +222,27 @@ public class FlowSerialization {
 
     Serializer<T> serializer = getSerializer(type);
     return serializer.deserialize(buffer, type);
+  }
+  
+  /**
+   * Deserializes an object from a ByteBuffer, using an appropriate serializer
+   * based on the object's class information in the buffer.
+   *
+   * @param buffer The buffer containing the serialized object
+   * @return The deserialized object
+   */
+  @SuppressWarnings("unchecked")
+  public static Object deserialize(ByteBuffer buffer) {
+    if (buffer == null || buffer.remaining() == 0) {
+      return null;
+    }
+    
+    // For simplicity, assume the first bytes represent a string class name
+    // This is a placeholder implementation - a real implementation would use
+    // something like the type code from the serialized data
+    
+    // For now, just use the default serializer with Object.class
+    return deserialize(buffer, Object.class);
   }
   
   /**
