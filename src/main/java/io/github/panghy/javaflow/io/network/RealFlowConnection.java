@@ -60,6 +60,12 @@ public class RealFlowConnection implements FlowConnection {
   private final FlowPromise<Void> closePromise;
   private final PromiseStream<ByteBuffer> receivePromiseStream = new PromiseStream<>();
 
+  // For holding partial buffers when a receive() call doesn't consume an entire buffer
+  private ByteBuffer pendingReadBuffer = null;
+
+  // Lock for synchronizing access to the pendingReadBuffer
+  private final Object pendingBufferLock = new Object();
+
   /**
    * Creates a new RealFlowConnection backed by the given AsynchronousSocketChannel.
    *
@@ -120,8 +126,117 @@ public class RealFlowConnection implements FlowConnection {
       return FlowFuture.failed(new IOException("Connection is closed"));
     }
 
-    // We're using the continuous reading approach, so just get from the stream
-    return receivePromiseStream.getFutureStream().nextAsync();
+    // Make sure maxBytes is a positive value
+    if (maxBytes <= 0) {
+      return FlowFuture.failed(new IllegalArgumentException("maxBytes must be positive"));
+    }
+
+    // Create the result future
+    FlowFuture<ByteBuffer> resultFuture = new FlowFuture<>();
+    FlowPromise<ByteBuffer> resultPromise = resultFuture.getPromise();
+
+    // First, check if we have a pending buffer from a previous read
+    boolean hasPendingData = false;
+    ByteBuffer result = null;
+
+    synchronized (pendingBufferLock) {
+      if (pendingReadBuffer != null && pendingReadBuffer.hasRemaining()) {
+        hasPendingData = true;
+
+        if (pendingReadBuffer.remaining() > maxBytes) {
+          // The pending buffer has more data than requested
+          // Create a slice with maxBytes
+          ByteBuffer slice = ByteBuffer.allocate(maxBytes);
+
+          // Save the original limit
+          int originalLimit = pendingReadBuffer.limit();
+
+          try {
+            // Set temporary limit to only read maxBytes
+            pendingReadBuffer.limit(pendingReadBuffer.position() + maxBytes);
+            slice.put(pendingReadBuffer);
+            slice.flip();
+
+            // Restore the original limit
+            pendingReadBuffer.limit(originalLimit);
+
+            // Use this slice as our result
+            result = slice;
+          } catch (Exception e) {
+            pendingReadBuffer.limit(originalLimit);
+            resultPromise.completeExceptionally(e);
+            return resultFuture;
+          }
+        } else {
+          // The pending buffer is smaller than or equal to maxBytes
+          // Use it entirely
+          ByteBuffer completeBuffer = ByteBuffer.allocate(pendingReadBuffer.remaining());
+          completeBuffer.put(pendingReadBuffer);
+          completeBuffer.flip();
+
+          // Clear the pending buffer since we've used it all
+          pendingReadBuffer = null;
+
+          // Use the complete buffer as our result
+          result = completeBuffer;
+        }
+      }
+    }
+
+    // If we have pending data, complete with the result
+    if (hasPendingData) {
+      resultPromise.complete(result);
+      return resultFuture;
+    }
+
+    // No pending buffer, get from the stream
+    FlowFuture<ByteBuffer> nextBufferFuture = receivePromiseStream.getFutureStream().nextAsync();
+    nextBufferFuture.whenComplete((buffer, ex) -> {
+      if (ex != null) {
+        resultPromise.completeExceptionally(ex);
+        return;
+      }
+
+      // Check if the received buffer is larger than the requested maxBytes
+      if (buffer.remaining() > maxBytes) {
+        // Create a new buffer with exactly maxBytes from the original
+        ByteBuffer limitedBuffer = ByteBuffer.allocate(maxBytes);
+
+        // Save original limit for later
+        int originalLimit = buffer.limit();
+
+        try {
+          // Set a new limit that respects maxBytes
+          buffer.limit(buffer.position() + maxBytes);
+          limitedBuffer.put(buffer);
+          limitedBuffer.flip();
+
+          // Store the remaining data as pending for the next read
+          buffer.limit(originalLimit);
+
+          if (buffer.hasRemaining()) {
+            synchronized (pendingBufferLock) {
+              // Create a copy of the remaining data as our pending buffer
+              ByteBuffer remainingBuffer = ByteBuffer.allocate(buffer.remaining());
+              remainingBuffer.put(buffer);
+              remainingBuffer.flip();
+              pendingReadBuffer = remainingBuffer;
+            }
+          }
+
+          resultPromise.complete(limitedBuffer);
+        } catch (Exception e) {
+          // Restore the buffer's limit if there was an exception
+          buffer.limit(originalLimit);
+          resultPromise.completeExceptionally(e);
+        }
+      } else {
+        // If buffer is smaller than or equal to maxBytes, return it as is
+        resultPromise.complete(buffer);
+      }
+    });
+
+    return resultFuture;
   }
 
   @Override
@@ -167,6 +282,11 @@ public class RealFlowConnection implements FlowConnection {
         // Close the receive stream
         receivePromiseStream.close();
 
+        // Clear any pending read buffer
+        synchronized (pendingBufferLock) {
+          pendingReadBuffer = null;
+        }
+
         // Complete the close promise
         closePromise.complete(null);
       } catch (IOException e) {
@@ -176,6 +296,9 @@ public class RealFlowConnection implements FlowConnection {
 
     return closePromise.getFuture();
   }
+
+  // Default size for read buffers (4KB is a reasonable size for many network operations)
+  private static final int DEFAULT_READ_BUFFER_SIZE = 4096;
 
   /**
    * Starts the continuous reading process from the channel.
@@ -187,7 +310,7 @@ public class RealFlowConnection implements FlowConnection {
     }
 
     // Create a ReadHandler that properly handles each read operation
-    continueReading(ByteBuffer.allocate(8192));
+    continueReading(ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE));
   }
 
   /**
@@ -216,7 +339,7 @@ public class RealFlowConnection implements FlowConnection {
           receivePromiseStream.send(result);
 
           // Continue reading with a fresh buffer
-          continueReading(ByteBuffer.allocate(8192));
+          continueReading(ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE));
         } else if (bytesRead < 0) {
           // End of stream reached, close the connection
           close();

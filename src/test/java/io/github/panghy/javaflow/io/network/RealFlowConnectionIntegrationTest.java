@@ -4,7 +4,6 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -76,7 +75,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
 
     // Get the accepted channel
     serverSideChannel = acceptedChannelRef.get();
-    Assertions.assertNotNull(serverSideChannel, "Server side channel not created");
+    assertNotNull(serverSideChannel, "Server side channel not created");
 
     // Create RealFlowConnections on both sides
     Endpoint clientLocalEndpoint = new Endpoint((InetSocketAddress) clientChannel.getLocalAddress());
@@ -428,8 +427,8 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     Endpoint remoteEndpoint = clientConnection.getRemoteEndpoint();
 
     // Verify they're not null
-    Assertions.assertNotNull(localEndpoint);
-    Assertions.assertNotNull(remoteEndpoint);
+    assertNotNull(localEndpoint);
+    assertNotNull(remoteEndpoint);
 
     // Verify they have the correct port
     assertEquals(port, remoteEndpoint.getPort());

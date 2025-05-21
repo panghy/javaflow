@@ -65,9 +65,12 @@ public interface FlowConnection {
 
   /**
    * Reads available data from the connection.
+   * This method will return a ByteBuffer containing at most maxBytes bytes.
+   * If more data is available, it will be returned in subsequent calls to this method.
    *
-   * @param maxBytes The maximum number of bytes to read
+   * @param maxBytes The maximum number of bytes to read (must be positive)
    * @return A future that completes with the data read from the connection
+   * @throws IllegalArgumentException if maxBytes is not positive
    */
   FlowFuture<ByteBuffer> receive(int maxBytes);
 
