@@ -9,6 +9,7 @@ This document details the design for JavaFlow's RPC (Remote Procedure Call) fram
 3. **Stream Support**: Native support for bidirectional streaming via PromiseStream/FutureStream
 4. **Serialization Agnosticism**: Allowing users to supply their own serialization mechanism
 5. **Simulation Compatibility**: The same RPC code should run transparently in both real and simulation modes
+6. **Endpoint Resolution**: Flexible mapping between logical services and physical network locations
 
 ## Core Concepts
 
@@ -106,7 +107,7 @@ UserInfo user = Flow.await(userService.getUserAsync(new GetUserRequest(userId)))
 The RPC framework consists of several key components:
 
 1. **Transport Layer**: Provides low-level network connectivity
-2. **Endpoint Registry**: Maps logical endpoints to physical network locations
+2. **Endpoint Resolver**: Maps logical service IDs to physical network locations
 3. **Promise Registry**: Tracks pending promises that cross network boundaries
 4. **Serialization Layer**: Converts Java objects to/from wire format
 5. **Service Interfaces**: The user-defined PromiseStream-based interfaces
@@ -127,6 +128,49 @@ public interface FlowTransport {
     FlowFuture<Void> close();
 }
 ```
+
+#### Endpoint Resolution
+
+The endpoint resolution system provides a flexible way to map between logical service identifiers (EndpointId) and physical network locations (Endpoint). This enables service discovery, load balancing, and failover capabilities.
+
+```java
+public interface EndpointResolver {
+    // Register a local endpoint (service on this node)
+    void registerLocalEndpoint(EndpointId id, Object implementation, Endpoint physicalEndpoint);
+    
+    // Register a remote endpoint (service on another node)
+    void registerRemoteEndpoint(EndpointId id, Endpoint physicalEndpoint);
+    
+    // Register multiple endpoints for a service (for load balancing)
+    void registerRemoteEndpoints(EndpointId id, List<Endpoint> physicalEndpoints);
+    
+    // Check if an endpoint is registered locally
+    boolean isLocalEndpoint(EndpointId id);
+    
+    // Get the local implementation of an endpoint
+    Optional<Object> getLocalImplementation(EndpointId id);
+    
+    // Resolve an endpoint (using load balancing if multiple endpoints exist)
+    Optional<Endpoint> resolveEndpoint(EndpointId id);
+    
+    // Resolve a specific endpoint instance by index
+    Optional<Endpoint> resolveEndpoint(EndpointId id, int index);
+    
+    // Get all physical endpoints for a logical service
+    List<Endpoint> getAllEndpoints(EndpointId id);
+    
+    // Unregister endpoints
+    boolean unregisterLocalEndpoint(EndpointId id);
+    boolean unregisterRemoteEndpoint(EndpointId id, Endpoint physicalEndpoint);
+    boolean unregisterAllEndpoints(EndpointId id);
+}
+```
+
+The default implementation (`DefaultEndpointResolver`) provides:
+- In-memory storage of endpoint mappings
+- Round-robin load balancing for multiple physical endpoints
+- Distinction between local and remote endpoints
+- Thread-safe operations
 
 #### Promise Registry
 
@@ -293,6 +337,87 @@ A crucial aspect of this design is compatibility with JavaFlow's simulation capa
 
 The same service interface code will work in both production and simulation.
 
+## Endpoint Resolution System
+
+The endpoint resolution system is a key component for building scalable distributed applications. It provides:
+
+### 1. Logical to Physical Mapping
+
+The system maps logical endpoint identifiers (EndpointId) to physical network locations (Endpoint):
+
+```java
+// Define a logical service ID
+EndpointId authServiceId = new EndpointId("authentication-service");
+
+// Register physical locations for the service
+resolver.registerRemoteEndpoints(authServiceId, Arrays.asList(
+    new Endpoint("auth-1.example.com", 9001),
+    new Endpoint("auth-2.example.com", 9001),
+    new Endpoint("auth-3.example.com", 9001)
+));
+
+// The system will handle routing to the appropriate physical endpoint
+AuthService auth = transport.getEndpoint(authServiceId, AuthService.class);
+```
+
+### 2. Load Balancing
+
+When multiple physical endpoints are registered for a service, the system provides automatic load balancing:
+
+```java
+// Get a proxy that uses round-robin load balancing
+UserService userService = transport.getRoundRobinEndpoint(
+    userServiceId, UserService.class);
+
+// Each call may go to a different physical endpoint
+userService.getUserInfo(userId1);  // Goes to endpoint 1
+userService.getUserInfo(userId2);  // Goes to endpoint 2
+userService.getUserInfo(userId3);  // Goes to endpoint 3
+userService.getUserInfo(userId4);  // Cycles back to endpoint 1
+```
+
+### 3. Specific Endpoint Targeting
+
+When needed, clients can target specific instances of a service:
+
+```java
+// Target a specific endpoint by index
+UserService specificInstance = transport.getSpecificEndpoint(
+    userServiceId, UserService.class, 2);  // Always use endpoint at index 2
+
+// All calls go to the same physical endpoint
+specificInstance.getUserInfo(userId1);  // Goes to endpoint 2
+specificInstance.getUserInfo(userId2);  // Goes to endpoint 2
+```
+
+### 4. Local Optimization
+
+The system optimizes for local endpoints, avoiding network serialization when possible:
+
+```java
+// Check if a service is local
+if (resolver.isLocalEndpoint(serviceId)) {
+    // Get direct access to the local implementation
+    ServiceInterface localService = transport.getLocalEndpoint(
+        serviceId, ServiceInterface.class);
+    
+    // Direct method call with no network overhead
+    localService.performOperation();
+}
+```
+
+### 5. Dynamic Service Discovery
+
+Services can be added, removed, or modified at runtime:
+
+```java
+// Register a new service node
+resolver.registerRemoteEndpoint(serviceId, new Endpoint("new-node", 9001));
+
+// Unregister a failed node
+resolver.unregisterRemoteEndpoint(serviceId, failedEndpoint);
+```
+
 ## Reliability and Error Handling
 
 ### Delivery Guarantees
@@ -432,6 +557,38 @@ public class KeyValueStoreImpl {
 }
 ```
 
+### Using Endpoint Resolution
+
+```java
+// Get the RPC transport and its implementation
+FlowRpcTransport transport = FlowRpcTransport.getInstance();
+FlowRpcTransportImpl rpcTransport = (FlowRpcTransportImpl) transport;
+
+// Register a service with multiple instances
+EndpointId storageServiceId = new EndpointId("storage-service");
+rpcTransport.registerRemoteEndpoints(storageServiceId, Arrays.asList(
+    new Endpoint("storage-1", 9001),
+    new Endpoint("storage-2", 9002),
+    new Endpoint("storage-3", 9003)
+));
+
+// Get a proxy with round-robin load balancing
+StorageService storageService = rpcTransport.getRoundRobinEndpoint(
+    storageServiceId, StorageService.class);
+
+// Make some calls that will be distributed across all instances
+for (int i = 0; i < 5; i++) {
+    Flow.await(storageService.store("key" + i, "value" + i));
+}
+
+// Target a specific instance for special operations
+StorageService storageNode2 = rpcTransport.getSpecificEndpoint(
+    storageServiceId, StorageService.class, 1);  // Index 1 = second node
+
+// This call always goes to storage-2
+Flow.await(storageNode2.performMaintenance());
+```
+
 ### Client Usage
 
 ```java
@@ -465,17 +622,22 @@ To ensure high performance in the RPC system:
 3. **Backpressure**: Apply flow control on streams to prevent overwhelming receivers
 4. **Zero-Copy**: When possible, use zero-copy buffers for large payloads
 5. **Efficient Serialization**: Support for efficient binary formats like Protocol Buffers
+6. **Load Balancing**: Distribute work across multiple physical endpoints
+7. **Local Optimization**: Bypass network layer for local endpoints
 
 ## Implementation Plan
 
 The RPC framework will be implemented in these stages:
 
-1. **Core Interface Types**: Define the base PromiseStream and serialization interfaces
-2. **Local Transport**: Implement in-process message passing (testing ground for the API)
-3. **Network Transport**: Build the transport layer on top of async I/O
-4. **Serialization**: Implement the core serialization framework
-5. **Promise/Stream Networking**: Enable promises and streams to cross the network
-6. **Integration with Simulation**: Ensure compatibility with future simulation capabilities
+1. **Core Interface Types**: Define the base PromiseStream and serialization interfaces (✅ Completed)
+2. **API Design**: Design the FlowRpcTransport interface and API structures (✅ Completed)  
+3. **Serialization Framework**: Implement the core serialization infrastructure (🔄 In Progress)
+4. **Endpoint Resolution**: Implement the endpoint resolution system with load balancing (✅ Completed)
+5. **Local Transport**: Implement in-process message passing via loopback endpoints (🔄 In Progress)
+6. **Network Transport**: Build the transport layer on top of async I/O (🔄 In Progress)
+7. **Promise/Stream Networking**: Enable promises and streams to cross the network (🔄 In Progress)
+8. **Integration with Simulation**: Ensure compatibility with future simulation capabilities (🔄 In Progress)
+9. **Full Implementation**: Complete the implementation of FlowRpcTransport (⏳ Planned)
 
 ## Conclusion
 
@@ -485,8 +647,16 @@ This design emphasizes:
 
 1. **Consistency**: The same actor code works locally or remotely
 2. **Flexibility**: Support for different message patterns (request/reply, notifications, streams)
-3. **Integration**: Seamless incorporation with the rest of the JavaFlow framework
-4. **Performance**: Efficient communication with minimal overhead
-5. **Testability**: Compatible with deterministic simulation for thorough testing
+3. **Scalability**: Advanced endpoint resolution with load balancing and failover
+4. **Integration**: Seamless incorporation with the rest of the JavaFlow framework
+5. **Performance**: Efficient communication with minimal overhead
+6. **Testability**: Compatible with deterministic simulation for thorough testing
 
-Following this design, the JavaFlow RPC framework will allow developers to build distributed systems with the same ease and confidence that the actor model brings to concurrent programming.
+**Current Implementation Status:**
+- Core interface design and API structures are complete
+- Serialization framework implementation has begun
+- ConnectionManager implementation is in progress
+- EndpointResolver system is implemented
+- The actual implementation of FlowRpcTransport is still pending
+
+Following this design, once fully implemented, the JavaFlow RPC framework will allow developers to build distributed systems with the same ease and confidence that the actor model brings to concurrent programming.
