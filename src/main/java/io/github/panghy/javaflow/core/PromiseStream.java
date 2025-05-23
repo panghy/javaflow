@@ -10,6 +10,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static io.github.panghy.javaflow.Flow.startActor;
+
 /**
  * A promise-based implementation of a stream in the JavaFlow actor system.
  * This class allows values to be sent to a stream and consumed asynchronously.
@@ -231,7 +233,7 @@ public class PromiseStream<T> {
       PromiseStream<R> result = new PromiseStream<>();
 
       // Start an actor that pulls from this stream and pushes to the result stream
-      Flow.startActor(() -> {
+      startActor(() -> {
         try {
           while (true) {
             // Check if we should stop
@@ -266,7 +268,7 @@ public class PromiseStream<T> {
       PromiseStream<E> result = new PromiseStream<>();
 
       // Start an actor that pulls from this stream, filters, and pushes to the result stream
-      Flow.startActor(() -> {
+      startActor(() -> {
         try {
           while (true) {
             // Check if we should stop
@@ -327,7 +329,7 @@ public class PromiseStream<T> {
       }
 
       // Start an actor that processes all remaining elements in the stream
-      Flow.startActor(() -> {
+      startActor(() -> {
         try {
           while (true) {
             FlowFuture<Boolean> hasNextFuture = hasNextAsync();
