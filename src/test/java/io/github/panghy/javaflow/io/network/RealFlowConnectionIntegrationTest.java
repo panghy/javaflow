@@ -2,6 +2,7 @@ package io.github.panghy.javaflow.io.network;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
+import io.github.panghy.javaflow.core.StreamClosedException;
 import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import java.nio.channels.CompletionHandler;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -336,44 +338,47 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
 
     // Send the large buffer from client to server
     FlowFuture<Void> sendFuture = clientConnection.send(largeBuffer);
+    sendFuture.toCompletableFuture().whenComplete((result, error) -> {
+      if (error == null) {
+        System.out.println("Send completed successfully");
+      } else {
+        System.err.println("Send failed: " + error.getMessage());
+      }
+    });
 
-    // Wait for the send to complete
+    // On the server side, start receiving data in chunks immediately
+    // This prevents the send buffer from filling up and blocking
+    ByteBuffer combinedBuffer = ByteBuffer.allocate(LARGE_SIZE);
+
+    // Start a concurrent task to receive data
+    AtomicInteger totalBytesReceived = new AtomicInteger(0);
+    long startTime = System.currentTimeMillis();
+
+    while (totalBytesReceived.get() < LARGE_SIZE) {
+      // Ensure we don't get stuck in an infinite loop
+      if (System.currentTimeMillis() - startTime > 30000) { // 30-second timeout
+        throw new RuntimeException("Timed out waiting for all data to be received");
+      }
+
+      // Receive a chunk of data
+      System.out.println("Waiting for next chunk...");
+      ByteBuffer chunk = serverConnection.receive(8192).getNow();
+
+      // Add the chunk to our combined buffer
+      int chunkSize = chunk.remaining();
+      combinedBuffer.put(chunk);
+      totalBytesReceived.addAndGet(chunkSize);
+
+      System.out.println("Received chunk of " + chunkSize + " bytes, total: " +
+                         totalBytesReceived.get() + "/" + LARGE_SIZE);
+    }
+
+    // Now wait for the send to complete
     sendFuture.getNow();
 
     // Verify the future completed successfully
     assertTrue(sendFuture.isDone(), "Send future should be completed");
     assertFalse(sendFuture.isCompletedExceptionally(), "Send should not complete exceptionally");
-
-    // On the server side, we'll receive the data in chunks
-    ByteBuffer combinedBuffer = ByteBuffer.allocate(LARGE_SIZE);
-
-    // Loop until we've received all data (with timeout protection)
-    int totalBytesReceived = 0;
-    long startTime = System.currentTimeMillis();
-
-    while (totalBytesReceived < LARGE_SIZE) {
-      // Ensure we don't get stuck in an infinite loop
-      if (System.currentTimeMillis() - startTime > 30000) { // 30-second timeout
-        fail("Timed out waiting for all data to be received");
-      }
-
-      // Receive a chunk of data
-      FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(8192);
-      ByteBuffer chunk = receiveFuture.getNow();
-
-      // Add the chunk to our combined buffer
-      int chunkSize = chunk.remaining();
-      combinedBuffer.put(chunk);
-      totalBytesReceived += chunkSize;
-
-      System.out.println("Received chunk of " + chunkSize + " bytes, total: " +
-                         totalBytesReceived + "/" + LARGE_SIZE);
-
-      // If we've received enough data for verification, we can break early
-      if (totalBytesReceived > 5 * 1024 * 1024) { // 5MB is enough for verification
-        break;
-      }
-    }
 
     // Prepare the buffer for reading
     combinedBuffer.flip();
@@ -646,7 +651,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     System.out.println("Error type: " + error.getClass().getName());
     System.out.println("Error message: " + error.getMessage());
     // If it's not an ExecutionException, it should be directly related to I/O
-    boolean isIORelated = error instanceof IOException &&
+    boolean isIORelated = error instanceof StreamClosedException &&
                           error.getMessage() != null &&
                           error.getMessage().contains("closed");
 

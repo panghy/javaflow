@@ -50,7 +50,7 @@ public interface RpcServiceInterface {
    * @param endpointId The endpoint ID to register with
    */
   default void registerAsLoopback(EndpointId endpointId) {
-    FlowRpcTransport.getInstance().registerLoopbackEndpoint(endpointId, this);
+    FlowRpcTransport.getInstance().getEndpointResolver().registerLoopbackEndpoint(endpointId, this);
   }
 
   /**
@@ -62,14 +62,14 @@ public interface RpcServiceInterface {
    * @param physicalEndpoint The physical network endpoint to use
    */
   default void registerAsLocal(EndpointId endpointId, Endpoint physicalEndpoint) {
-    FlowRpcTransport.getInstance().registerLocalEndpoint(endpointId, this, physicalEndpoint);
+    FlowRpcTransport.getInstance().getEndpointResolver().registerLocalEndpoint(endpointId, this, physicalEndpoint);
   }
 
   /**
    * Gets a future that completes when this service is registered and ready.
    * This can be used to wait for the service to be fully initialized before use.
    *
-   * @return A future that comple tes when the service is ready
+   * @return A future that completes when the service is ready
    */
   default FlowFuture<Void> ready() {
     // By default, services are ready immediately

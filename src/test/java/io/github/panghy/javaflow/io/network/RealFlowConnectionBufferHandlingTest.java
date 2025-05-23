@@ -559,6 +559,11 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
     System.arraycopy(firstData, 0, expectedFirstChunk, 0, 100);
     assertArrayEquals(expectedFirstChunk, firstReceivedChunk);
 
+    // Receive rest of first buffer (900 bytes)
+    FlowFuture<ByteBuffer> secondReceiveFuture = serverConnection.receive(1000); // More than needed
+    ByteBuffer secondReceiveBuffer = secondReceiveFuture.getNow();
+    assertEquals(900, secondReceiveBuffer.remaining());
+
     // Send second buffer (500 bytes)
     byte[] secondData = new byte[500];
     for (int i = 0; i < secondData.length; i++) {
@@ -568,11 +573,6 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
     ByteBuffer secondSendBuffer = ByteBuffer.wrap(secondData);
     FlowFuture<Void> secondSendFuture = clientConnection.send(secondSendBuffer);
     secondSendFuture.getNow();
-
-    // Receive rest of first buffer (900 bytes)
-    FlowFuture<ByteBuffer> secondReceiveFuture = serverConnection.receive(1000); // More than needed
-    ByteBuffer secondReceiveBuffer = secondReceiveFuture.getNow();
-    assertEquals(900, secondReceiveBuffer.remaining());
 
     byte[] secondReceivedChunk = new byte[secondReceiveBuffer.remaining()];
     secondReceiveBuffer.get(secondReceivedChunk);

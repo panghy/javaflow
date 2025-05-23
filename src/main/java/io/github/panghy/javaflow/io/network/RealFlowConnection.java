@@ -10,6 +10,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * A real implementation of FlowConnection using Java NIO's AsynchronousSocketChannel.
@@ -22,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Key features of this implementation include:</p>
  * <ul>
- *   <li>Continuous reading from the socket to feed a stream of data packets</li>
+ *   <li>Lazy, pull-based reading from the socket only when data is requested</li>
  *   <li>Automatic handling of partial writes for large messages</li>
  *   <li>Automatic connection closure on I/O errors</li>
  *   <li>Bridge between NIO's CompletionHandler API and Flow's Promise/Future API</li>
@@ -44,7 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li>The connection is automatically closed when I/O errors occur</li>
  *   <li>Attempting to use a closed connection will result in IOException</li>
- *   <li>The connection maintains its own continuous read loop to populate the receive stream</li>
+ *   <li>The connection reads from the socket only when data is requested by consumers</li>
  * </ul>
  *
  * @see FlowConnection
@@ -66,6 +69,15 @@ public class RealFlowConnection implements FlowConnection {
   // Lock for synchronizing access to the pendingReadBuffer
   private final Object pendingBufferLock = new Object();
 
+  // Default size for read buffers
+  private static final int DEFAULT_READ_BUFFER_SIZE = 4096;
+
+  // Flag to track if a read operation is currently in progress
+  private final AtomicBoolean readInProgress = new AtomicBoolean(false);
+
+  // Configurable read buffer size
+  private int readBufferSize = DEFAULT_READ_BUFFER_SIZE;
+
   /**
    * Creates a new RealFlowConnection backed by the given AsynchronousSocketChannel.
    *
@@ -81,8 +93,7 @@ public class RealFlowConnection implements FlowConnection {
     FlowFuture<Void> closeFuture = new FlowFuture<>();
     this.closePromise = closeFuture.getPromise();
 
-    // Start reading from the channel continuously
-    startReading();
+    // No automatic reading - only read when requested
   }
 
   @Override
@@ -94,30 +105,99 @@ public class RealFlowConnection implements FlowConnection {
     FlowFuture<Void> result = new FlowFuture<>();
     FlowPromise<Void> promise = result.getPromise();
 
-    // Get a duplicate of the buffer to avoid position changes affecting the caller
-    ByteBuffer bufferToWrite = data.duplicate();
+    // Large direct buffer - write in chunks to avoid excessive direct memory usage
+    writeInChunks(data, promise);
 
-    // Perform the write
-    channel.write(bufferToWrite, null, new CompletionHandler<Integer, Void>() {
+    return result;
+  }
+
+  /**
+   * Writes a large buffer in chunks to avoid exhausting direct buffer memory.
+   */
+  private void writeInChunks(ByteBuffer data, FlowPromise<Void> promise) {
+    // Save the original position and limit
+    int originalPosition = data.position();
+    int originalLimit = data.limit();
+
+    // Create a chunk buffer that we'll reuse
+    final int CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    ByteBuffer chunk = ByteBuffer.allocateDirect(Math.min(CHUNK_SIZE, data.remaining()));
+
+    CompletionHandler<Integer, Void> handler = new CompletionHandler<>() {
       @Override
       public void completed(Integer bytesWritten, Void attachment) {
-        if (bufferToWrite.hasRemaining()) {
-          // Not all bytes were written, continue writing
-          channel.write(bufferToWrite, null, this);
-        } else {
-          // All bytes written
-          promise.complete(null);
+        try {
+          if (chunk.hasRemaining()) {
+            // Continue writing the current chunk
+            channel.write(chunk, null, this);
+          } else if (data.hasRemaining()) {
+            // Current chunk is done, prepare the next chunk
+            chunk.clear();
+            int bytesToCopy = Math.min(chunk.capacity(), data.remaining());
+
+            // Save data's limit and temporarily adjust it
+            int savedLimit = data.limit();
+            data.limit(data.position() + bytesToCopy);
+
+            // Copy data to chunk
+            chunk.put(data);
+            chunk.flip();
+
+            // Restore data's limit
+            data.limit(savedLimit);
+
+            // Write the next chunk
+            channel.write(chunk, null, this);
+          } else {
+            // All data written successfully
+            // Restore original position and limit
+            data.position(originalPosition);
+            data.limit(originalLimit);
+            promise.complete(null);
+          }
+        } catch (Exception e) {
+          // Restore original position and limit on error
+          data.position(originalPosition);
+          data.limit(originalLimit);
+          promise.completeExceptionally(e);
+          close();
         }
       }
 
       @Override
       public void failed(Throwable exc, Void attachment) {
+        // Restore original position and limit on error
+        data.position(originalPosition);
+        data.limit(originalLimit);
         promise.completeExceptionally(exc);
         close();
       }
-    });
+    };
 
-    return result;
+    // Start writing the first chunk
+    try {
+      int bytesToCopy = Math.min(chunk.capacity(), data.remaining());
+
+      // Save data's limit and temporarily adjust it
+      int savedLimit = data.limit();
+      data.limit(data.position() + bytesToCopy);
+
+      // Copy data to chunk
+      chunk.put(data);
+      chunk.flip();
+
+      // Restore data's limit
+      data.limit(savedLimit);
+
+      // Start the write
+      channel.write(chunk, null, handler);
+    } catch (Exception e) {
+      // Restore original position and limit on error
+      data.position(originalPosition);
+      data.limit(originalLimit);
+      promise.completeExceptionally(e);
+      close();
+    }
   }
 
   @Override
@@ -151,22 +231,16 @@ public class RealFlowConnection implements FlowConnection {
           // Save the original limit
           int originalLimit = pendingReadBuffer.limit();
 
-          try {
-            // Set temporary limit to only read maxBytes
-            pendingReadBuffer.limit(pendingReadBuffer.position() + maxBytes);
-            slice.put(pendingReadBuffer);
-            slice.flip();
+          // Set temporary limit to only read maxBytes
+          pendingReadBuffer.limit(pendingReadBuffer.position() + maxBytes);
+          slice.put(pendingReadBuffer);
+          slice.flip();
 
-            // Restore the original limit
-            pendingReadBuffer.limit(originalLimit);
+          // Restore the original limit
+          pendingReadBuffer.limit(originalLimit);
 
-            // Use this slice as our result
-            result = slice;
-          } catch (Exception e) {
-            pendingReadBuffer.limit(originalLimit);
-            resultPromise.completeExceptionally(e);
-            return resultFuture;
-          }
+          // Use this slice as our result
+          result = slice;
         } else {
           // The pending buffer is smaller than or equal to maxBytes
           // Use it entirely
@@ -179,6 +253,11 @@ public class RealFlowConnection implements FlowConnection {
 
           // Use the complete buffer as our result
           result = completeBuffer;
+
+          // Since we've consumed all pending data, trigger a new read if not already in progress
+          if (readInProgress.compareAndSet(false, true)) {
+            performRead();
+          }
         }
       }
     }
@@ -189,7 +268,7 @@ public class RealFlowConnection implements FlowConnection {
       return resultFuture;
     }
 
-    // No pending buffer, get from the stream
+    // Wait for data from the stream
     FlowFuture<ByteBuffer> nextBufferFuture = receivePromiseStream.getFutureStream().nextAsync();
     nextBufferFuture.whenComplete((buffer, ex) -> {
       if (ex != null) {
@@ -236,12 +315,75 @@ public class RealFlowConnection implements FlowConnection {
       }
     });
 
+    // Try to start a read if not already in progress
+    if (readInProgress.compareAndSet(false, true)) {
+      try {
+        performRead();
+      } catch (Exception e) {
+        resultPromise.completeExceptionally(e);
+        readInProgress.set(false);
+        close();
+      }
+    }
+
     return resultFuture;
   }
 
   @Override
   public FlowStream<ByteBuffer> receiveStream() {
-    return receivePromiseStream.getFutureStream();
+    // Return a wrapper that triggers reads when nextAsync is called
+    return new FlowStream<>() {
+      private final FlowStream<ByteBuffer> delegate = receivePromiseStream.getFutureStream();
+
+      @Override
+      public FlowFuture<ByteBuffer> nextAsync() {
+        // Try to start a read if not already in progress
+        if (readInProgress.compareAndSet(false, true)) {
+          performRead();
+        }
+        return delegate.nextAsync();
+      }
+
+      @Override
+      public FlowFuture<Boolean> hasNextAsync() {
+        return delegate.hasNextAsync();
+      }
+
+      @Override
+      public FlowFuture<Void> closeExceptionally(Throwable exception) {
+        return delegate.closeExceptionally(exception);
+      }
+
+      @Override
+      public boolean isClosed() {
+        return delegate.isClosed();
+      }
+
+      @Override
+      public <R> FlowStream<R> map(Function<? super ByteBuffer, ? extends R> mapper) {
+        return delegate.map(mapper);
+      }
+
+      @Override
+      public FlowStream<ByteBuffer> filter(Predicate<? super ByteBuffer> predicate) {
+        return delegate.filter(predicate);
+      }
+
+      @Override
+      public FlowFuture<Void> forEach(Consumer<? super ByteBuffer> action) {
+        return delegate.forEach(action);
+      }
+
+      @Override
+      public FlowFuture<Void> close() {
+        return delegate.close();
+      }
+
+      @Override
+      public FlowFuture<Void> onClose() {
+        return delegate.onClose();
+      }
+    };
   }
 
   @Override
@@ -297,33 +439,17 @@ public class RealFlowConnection implements FlowConnection {
     return closePromise.getFuture();
   }
 
-  // Default size for read buffers (4KB is a reasonable size for many network operations)
-  private static final int DEFAULT_READ_BUFFER_SIZE = 4096;
-
   /**
-   * Starts the continuous reading process from the channel.
-   * This method sets up an asynchronous read loop that feeds data into the receive stream.
+   * Performs a single asynchronous read operation from the channel.
+   * This method will be called whenever data is requested and there's no active read operation.
    */
-  private void startReading() {
+  private void performRead() {
     if (closed.get()) {
+      readInProgress.set(false);
       return;
     }
 
-    // Create a ReadHandler that properly handles each read operation
-    continueReading(ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE));
-  }
-
-  /**
-   * Continues the reading process with a fresh buffer.
-   * This method ensures each read operation gets its own buffer and handler.
-   *
-   * @param buffer The buffer to read into
-   */
-  private void continueReading(ByteBuffer buffer) {
-    if (closed.get()) {
-      return;
-    }
-
+    ByteBuffer buffer = ByteBuffer.allocate(readBufferSize);
     channel.read(buffer, buffer, new CompletionHandler<>() {
       @Override
       public void completed(Integer bytesRead, ByteBuffer readBuffer) {
@@ -338,22 +464,47 @@ public class RealFlowConnection implements FlowConnection {
           // Send to the stream
           receivePromiseStream.send(result);
 
-          // Continue reading with a fresh buffer
-          continueReading(ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE));
+          // Mark that read operation is complete
+          readInProgress.set(false);
+
+          // If someone is waiting on the receiveStream or has called receive(), 
+          // automatically start another read
+          if (!receivePromiseStream.getFutureStream().isClosed() &&
+              !receivePromiseStream.nextPromisesEmpty()) {
+            if (readInProgress.compareAndSet(false, true)) {
+              performRead();
+            }
+          }
         } else if (bytesRead < 0) {
           // End of stream reached, close the connection
+          readInProgress.set(false);
           close();
         } else {
-          // Zero bytes read, try again with same buffer
+          // Zero bytes read, try again
           readBuffer.clear();
-          continueReading(readBuffer);
+          performRead();
         }
       }
 
       @Override
       public void failed(Throwable exc, ByteBuffer readBuffer) {
+        readInProgress.set(false);
         close();
       }
     });
+  }
+
+  /**
+   * Sets the read buffer size to use for subsequent read operations.
+   * This method can be called to customize the read buffer size.
+   *
+   * @param readSize The size in bytes to use for read buffers (must be positive)
+   * @throws IllegalArgumentException if readSize is not positive
+   */
+  public void setReadBufferSize(int readSize) {
+    if (readSize <= 0) {
+      throw new IllegalArgumentException("readSize must be positive");
+    }
+    this.readBufferSize = readSize;
   }
 }
