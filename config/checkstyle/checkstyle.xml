@@ -18,6 +18,11 @@
         <property name="fileNamePattern" value="module\-info\.java$"/>
     </module>
 
+    <!-- Suppression filter for specific exceptions -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/suppressions.xml"/>
+    </module>
+
     <!-- Checks for whitespace -->
     <module name="FileTabCharacter">
         <property name="eachLine" value="true"/>
