@@ -30,7 +30,6 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -139,12 +138,12 @@ class TupleUtil {
       this.end = end;
     }
 
-    int findNullTerminator(byte[] bytes, int from, int to) {
+    int findNullTerminator(ByteBuffer buffer, int from, int to) {
       nullCount = 0;
       int x = from;
       while (x < to) {
-        if (bytes[x] == 0x00) {
-          if (x + 1 >= to || bytes[x + 1] != (byte) 0xFF) {
+        if (buffer.get(x) == 0x00) {
+          if (x + 1 >= to || buffer.get(x + 1) != (byte) 0xFF) {
             return x;
           } else {
             nullCount++;
@@ -161,23 +160,11 @@ class TupleUtil {
   static class EncodeState {
     final ByteBuffer encodedBytes;
     int totalLength;
-    int versionPos;
 
     EncodeState(ByteBuffer dest) {
       encodedBytes = dest;
       encodedBytes.order(ByteOrder.BIG_ENDIAN);
       totalLength = 0;
-      versionPos = -1;
-    }
-
-    EncodeState add(byte[] encoded, int versionPos) {
-      if (versionPos >= 0 && this.versionPos >= 0) {
-        throw new IllegalArgumentException("Multiple incomplete Versionstamps included in Tuple");
-      }
-      encodedBytes.put(encoded);
-      totalLength += encoded.length;
-      this.versionPos = versionPos;
-      return this;
     }
 
     EncodeState add(byte[] encoded) {
@@ -315,6 +302,8 @@ class TupleUtil {
       encode(state, (UUID) t);
     } else if (t instanceof BigInteger) {
       encode(state, (BigInteger) t);
+    } else if (t instanceof Character) {
+      encode(state, (long) ((Character) t).charValue());
     } else if (t instanceof Number) {
       encode(state, ((Number) t).longValue());
     } else if (t instanceof List<?>) {
@@ -434,37 +423,50 @@ class TupleUtil {
     encode(state, value.elements);
   }
 
-  static void decode(DecodeState state, byte[] rep, int pos, int last) {
-    //System.out.println("Decoding '" + ArrayUtils.printable(rep) + "' at " + pos);
 
+  static void decode(DecodeState state, ByteBuffer buffer, int baseOffset) {
     // SOMEDAY: codes over 127 will be a problem with the signed Java byte mess
-    int code = rep[pos];
-    int start = pos + 1;
+    int code = buffer.get(baseOffset);
+    int start = baseOffset + 1;
     if (code == nil) {
       state.add(null, start);
     } else if (code == BYTES_CODE) {
-      int end = state.findNullTerminator(rep, start, last);
+      int end = state.findNullTerminator(buffer, start, buffer.limit());
       //System.out.println("End of byte string: " + end);
       byte[] range;
       if (state.nullCount == 0) {
-        range = Arrays.copyOfRange(rep, start, end);
+        range = new byte[end - start];
+        // Get slice from buffer
+        buffer.position(start);
+        buffer.get(range, 0, end - start);
       } else {
         ByteBuffer dest = ByteBuffer.allocate(end - start - state.nullCount);
-        ByteArrayUtil.replace(rep, start, end - start, NULL_ESCAPED_ARR, NULL_ARR, dest);
+        // Need to copy data to temp array for ByteArrayUtil.replace
+        byte[] temp = new byte[end - start];
+        buffer.position(start);
+        buffer.get(temp);
+        ByteArrayUtil.replace(temp, 0, temp.length, NULL_ESCAPED_ARR, NULL_ARR, dest);
         range = dest.array();
       }
       //System.out.println(" -> byte string contents: '" + ArrayUtils.printable(range) + "'");
       state.add(range, end + 1);
     } else if (code == STRING_CODE) {
-      int end = state.findNullTerminator(rep, start, last);
+      int end = state.findNullTerminator(buffer, start, buffer.limit());
       //System.out.println("End of UTF8 string: " + end);
       String str;
       ByteBuffer byteBuffer;
       if (state.nullCount == 0) {
-        byteBuffer = ByteBuffer.wrap(rep, start, end - start);
+        // Create a slice of the buffer for the string data
+        buffer.position(start);
+        byteBuffer = buffer.slice();
+        byteBuffer.limit(end - start);
       } else {
         byteBuffer = ByteBuffer.allocate(end - start - state.nullCount);
-        ByteArrayUtil.replace(rep, start, end - start, NULL_ESCAPED_ARR, NULL_ARR, byteBuffer);
+        // Need to copy data to temp array for ByteArrayUtil.replace
+        byte[] temp = new byte[end - start];
+        buffer.position(start);
+        buffer.get(temp);
+        ByteArrayUtil.replace(temp, 0, temp.length, NULL_ESCAPED_ARR, NULL_ARR, byteBuffer);
         byteBuffer.position(0);
       }
       try {
@@ -476,11 +478,13 @@ class TupleUtil {
       //System.out.println(" -> UTF8 string contents: '" + str + "'");
       state.add(str, end + 1);
     } else if (code == FLOAT_CODE) {
-      int rawFloatBits = ByteBuffer.wrap(rep, start, Float.BYTES).getInt();
+      buffer.position(start);
+      int rawFloatBits = buffer.getInt();
       float res = decodeFloatBits(rawFloatBits);
       state.add(res, start + Float.BYTES);
     } else if (code == DOUBLE_CODE) {
-      long rawDoubleBits = ByteBuffer.wrap(rep, start, Double.BYTES).getLong();
+      buffer.position(start);
+      long rawDoubleBits = buffer.getLong();
       double res = decodeDoubleBits(rawDoubleBits);
       state.add(res, start + Double.BYTES);
     } else if (code == FALSE_CODE) {
@@ -488,20 +492,25 @@ class TupleUtil {
     } else if (code == TRUE_CODE) {
       state.add(true, start);
     } else if (code == UUID_CODE) {
-      ByteBuffer bb = ByteBuffer.wrap(rep, start, UUID_BYTES).order(ByteOrder.BIG_ENDIAN);
-      long msb = bb.getLong();
-      long lsb = bb.getLong();
+      buffer.position(start);
+      ByteOrder originalOrder = buffer.order();
+      buffer.order(ByteOrder.BIG_ENDIAN);
+      long msb = buffer.getLong();
+      long lsb = buffer.getLong();
+      buffer.order(originalOrder);
       state.add(new UUID(msb, lsb), start + UUID_BYTES);
     } else if (code == POS_INT_END) {
-      int n = rep[start] & 0xff;
+      int n = buffer.get(start) & 0xff;
       byte[] intBytes = new byte[n + 1];
-      System.arraycopy(rep, start + 1, intBytes, 1, n);
+      buffer.position(start + 1);
+      buffer.get(intBytes, 1, n);
       BigInteger res = new BigInteger(intBytes);
       state.add(res, start + n + 1);
     } else if (code == NEG_INT_START) {
-      int n = (rep[start] ^ 0xff) & 0xff;
+      int n = (buffer.get(start) ^ 0xff) & 0xff;
       byte[] intBytes = new byte[n + 1];
-      System.arraycopy(rep, start + 1, intBytes, 1, n);
+      buffer.position(start + 1);
+      buffer.get(intBytes, 1, n);
       BigInteger origValue = new BigInteger(intBytes);
       BigInteger offset = BigInteger.ONE.shiftLeft(n * 8).subtract(BigInteger.ONE);
       state.add(origValue.subtract(offset), start + n + 1);
@@ -511,25 +520,26 @@ class TupleUtil {
       int n = positive ? code - INT_ZERO_CODE : INT_ZERO_CODE - code;
       int end = start + n;
 
-      if (last < end) {
+      if (buffer.limit() < end) {
         throw new IllegalArgumentException("Invalid tuple (possible truncation)");
       }
 
-      if (positive && (n < Long.BYTES || rep[start] > 0)) {
+      if (positive && (n < Long.BYTES || buffer.get(start) > 0)) {
         long res = 0L;
         for (int i = start; i < end; i++) {
-          res = (res << 8) | (rep[i] & 0xff);
+          res = (res << 8) | (buffer.get(i) & 0xff);
         }
         state.add(res, end);
-      } else if (!positive && (n < Long.BYTES || rep[start] < 0)) {
+      } else if (!positive && (n < Long.BYTES || buffer.get(start) < 0)) {
         long res = ~0L;
         for (int i = start; i < end; i++) {
-          res = (res << 8) | (rep[i] & 0xff);
+          res = (res << 8) | (buffer.get(i) & 0xff);
         }
         state.add(res + 1, end);
       } else {
         byte[] longBytes = new byte[9];
-        System.arraycopy(rep, start, longBytes, longBytes.length - n, n);
+        buffer.position(start);
+        buffer.get(longBytes, longBytes.length - n, n);
         if (!positive) {
           for (int i = longBytes.length - n; i < longBytes.length; i++) {
             longBytes[i] = (byte) (longBytes[i] ^ 0xff);
@@ -554,9 +564,9 @@ class TupleUtil {
       DecodeState subResult = new DecodeState();
       int endPos = start;
       boolean foundEnd = false;
-      while (endPos < last) {
-        if (rep[endPos] == nil) {
-          if (endPos + 1 < last && rep[endPos + 1] == (byte) 0xff) {
+      while (endPos < buffer.limit()) {
+        if (buffer.get(endPos) == nil) {
+          if (endPos + 1 < buffer.limit() && buffer.get(endPos + 1) == (byte) 0xff) {
             subResult.add(null, endPos + 2);
             endPos += 2;
           } else {
@@ -565,7 +575,7 @@ class TupleUtil {
             break;
           }
         } else {
-          decode(subResult, rep, endPos, last);
+          decode(subResult, buffer, endPos);
           endPos = subResult.end;
         }
       }
@@ -574,7 +584,7 @@ class TupleUtil {
       }
       state.add(subResult.values, endPos);
     } else {
-      throw new IllegalArgumentException("Unknown tuple data type " + code + " at index " + pos);
+      throw new IllegalArgumentException("Unknown tuple data type " + code + " at index " + baseOffset);
     }
   }
 
@@ -654,15 +664,56 @@ class TupleUtil {
   }
 
   static List<Object> unpack(byte[] bytes) {
+    return unpack(ByteBuffer.wrap(bytes));
+  }
+
+  static List<Object> unpack(ByteBuffer buffer) {
     try {
       DecodeState decodeState = new DecodeState();
-      int pos = 0;
-      int end = bytes.length;
-      while (pos < end) {
-        decode(decodeState, bytes, pos, end);
+      int originalPosition = buffer.position();
+      int pos = originalPosition;
+
+      while (pos < buffer.limit()) {
+        decode(decodeState, buffer, pos);
         pos = decodeState.end;
       }
+
+      // Advance buffer position by the amount we consumed
+      buffer.position(pos);
+
       return decodeState.values;
+    } catch (IndexOutOfBoundsException | BufferOverflowException e) {
+      throw new IllegalArgumentException("Invalid tuple (possible truncation)", e);
+    }
+  }
+
+  /**
+   * Unpacks a single item from the given ByteBuffer and advances its position.
+   * This is more efficient than unpacking all items when only the first is needed.
+   *
+   * @param buffer the buffer to read from. Position will be advanced past the read item.
+   * @return the first item unpacked from the buffer
+   * @throws IllegalArgumentException if the buffer doesn't contain valid tuple data
+   */
+  static Object unpackSingleItem(ByteBuffer buffer) {
+    if (!buffer.hasRemaining()) {
+      throw new IllegalArgumentException("No data to read from buffer");
+    }
+
+    try {
+      DecodeState decodeState = new DecodeState();
+      int originalPosition = buffer.position();
+
+      decode(decodeState, buffer, originalPosition);
+
+      if (decodeState.values.isEmpty()) {
+        throw new IllegalArgumentException("No data to read from buffer");
+      }
+
+      // Advance buffer position by the amount we consumed for the first item
+      buffer.position(decodeState.end);
+
+      return decodeState.values.getFirst();
     } catch (IndexOutOfBoundsException | BufferOverflowException e) {
       throw new IllegalArgumentException("Invalid tuple (possible truncation)", e);
     }
@@ -679,9 +730,6 @@ class TupleUtil {
     EncodeState state = new EncodeState(dest);
     encodeAll(state, items);
     dest.order(origOrder);
-    if (state.versionPos >= 0) {
-      throw new IllegalArgumentException("Incomplete Versionstamp included in vanilla tuple pack");
-    }
   }
 
   static byte[] pack(List<Object> items, int expectedSize) {
@@ -695,9 +743,8 @@ class TupleUtil {
     for (Object item : items) {
       if (item == null) {
         packedSize += nested ? 2 : 1;
-      } else if (item instanceof byte[]) {
-        byte[] bytes = (byte[]) item;
-        packedSize += 2 + bytes.length + ByteArrayUtil.nullCount((byte[]) item);
+      } else if (item instanceof byte[] bytes) {
+        packedSize += 2 + bytes.length + ByteArrayUtil.nullCount(bytes);
       } else if (item instanceof String) {
         int strPackedSize = StringUtil.packedSize((String) item);
         packedSize += 2 + strPackedSize;
@@ -709,14 +756,15 @@ class TupleUtil {
         packedSize += 1;
       } else if (item instanceof UUID) {
         packedSize += 1 + UUID_BYTES;
-      } else if (item instanceof BigInteger) {
-        BigInteger bigInt = (BigInteger) item;
+      } else if (item instanceof BigInteger bigInt) {
         int byteCount = minimalByteCount(bigInt);
         // If byteCount <= 8, then the encoding uses 1 byte for both the size
         // and type code. If byteCount > 8, then there is 1 byte for the type code
         // and 1 byte for the length. In both cases, the value is followed by
         // the byte count.
         packedSize += byteCount + ((byteCount <= 8) ? 1 : 2);
+      } else if (item instanceof Character) {
+        packedSize += 1 + minimalByteCount((long) ((Character) item).charValue());
       } else if (item instanceof Number) {
         packedSize += 1 + minimalByteCount(((Number) item).longValue());
       } else if (item instanceof List<?>) {

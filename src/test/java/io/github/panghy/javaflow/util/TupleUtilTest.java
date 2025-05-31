@@ -525,4 +525,131 @@ class TupleUtilTest {
     assertEquals(0, TupleUtil.compareItems(longVal, bigIntVal));
     assertEquals(0, TupleUtil.compareItems(bigIntVal, longVal));
   }
+
+  @Test
+  void testUnpackFromByteBuffer() {
+    // Test unpacking from ByteBuffer
+    byte[] packed = Tuple.packItems("hello", 42L, true);
+    ByteBuffer buffer = ByteBuffer.wrap(packed);
+    
+    List<Object> unpacked = TupleUtil.unpack(buffer);
+    
+    assertEquals(3, unpacked.size());
+    assertEquals("hello", unpacked.get(0));
+    assertEquals(42L, unpacked.get(1));
+    assertEquals(true, unpacked.get(2));
+    
+    // Buffer position should be advanced
+    assertEquals(packed.length, buffer.position());
+  }
+
+  @Test
+  void testUnpackFromByteBufferWithRemainingData() {
+    // Test unpacking from ByteBuffer with concatenated tuple data
+    // When two separately packed tuples are concatenated, unpack sees them as separate items
+    byte[] packed1 = Tuple.packItems("first");
+    byte[] packed2 = Tuple.packItems("second");
+    byte[] combined = new byte[packed1.length + packed2.length];
+    System.arraycopy(packed1, 0, combined, 0, packed1.length);
+    System.arraycopy(packed2, 0, combined, packed1.length, packed2.length);
+    
+    ByteBuffer buffer = ByteBuffer.wrap(combined);
+    
+    // Unpack all items from buffer (should see both items since they're concatenated)
+    List<Object> unpacked = TupleUtil.unpack(buffer);
+    assertEquals(2, unpacked.size());
+    assertEquals("first", unpacked.get(0));
+    assertEquals("second", unpacked.get(1));
+    assertEquals(combined.length, buffer.position()); // Should consume entire buffer
+  }
+
+  @Test
+  void testUnpackSingleItem() {
+    // Test unpacking single item from ByteBuffer
+    byte[] packed = Tuple.packItems("hello", 42L, true);
+    ByteBuffer buffer = ByteBuffer.wrap(packed);
+    
+    Object item = TupleUtil.unpackSingleItem(buffer);
+    
+    assertEquals("hello", item);
+    
+    // Buffer position should be advanced past the first item only
+    assertTrue(buffer.position() > 0);
+    assertTrue(buffer.position() < packed.length);
+    
+    // Should be able to read the next item
+    Object secondItem = TupleUtil.unpackSingleItem(buffer);
+    assertEquals(42L, secondItem);
+  }
+
+  @Test
+  void testUnpackSingleItemMultiple() {
+    // Test reading multiple single items sequentially
+    byte[] packed = Tuple.packItems("first", "second", "third");
+    ByteBuffer buffer = ByteBuffer.wrap(packed);
+    
+    String first = (String) TupleUtil.unpackSingleItem(buffer);
+    String second = (String) TupleUtil.unpackSingleItem(buffer);
+    String third = (String) TupleUtil.unpackSingleItem(buffer);
+    
+    assertEquals("first", first);
+    assertEquals("second", second);
+    assertEquals("third", third);
+    assertEquals(packed.length, buffer.position()); // Should have consumed entire buffer
+  }
+
+  @Test
+  void testUnpackSingleItemEmpty() {
+    // Test unpacking from empty buffer
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[0]);
+    
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+      TupleUtil.unpackSingleItem(buffer);
+    });
+    
+    assertEquals("No data to read from buffer", exception.getMessage());
+  }
+
+  @Test
+  void testUnpackSingleItemComplexTypes() {
+    // Test with complex types
+    byte[] originalBytes = {1, 2, 3, 4, 5};
+    byte[] packed = Tuple.packItems(originalBytes, "string", 42L);
+    ByteBuffer buffer = ByteBuffer.wrap(packed);
+    
+    byte[] readBytes = (byte[]) TupleUtil.unpackSingleItem(buffer);
+    String readString = (String) TupleUtil.unpackSingleItem(buffer);
+    Long readLong = (Long) TupleUtil.unpackSingleItem(buffer);
+    
+    assertArrayEquals(originalBytes, readBytes);
+    assertEquals("string", readString);
+    assertEquals(42L, readLong);
+    assertEquals(packed.length, buffer.position());
+  }
+
+  @Test
+  void testUnpackSingleItemNullValue() {
+    // Test with null values
+    byte[] packed = Tuple.packItems((String) null, "hello");
+    ByteBuffer buffer = ByteBuffer.wrap(packed);
+    
+    Object nullValue = TupleUtil.unpackSingleItem(buffer);
+    String stringValue = (String) TupleUtil.unpackSingleItem(buffer);
+    
+    assertEquals(null, nullValue);
+    assertEquals("hello", stringValue);
+  }
+
+  @Test
+  void testUnpackFromByteArrayStillWorks() {
+    // Test that the original byte array method still works (regression test)
+    byte[] packed = Tuple.packItems("hello", 42L, true);
+    
+    List<Object> unpacked = TupleUtil.unpack(packed);
+    
+    assertEquals(3, unpacked.size());
+    assertEquals("hello", unpacked.get(0));
+    assertEquals(42L, unpacked.get(1));
+    assertEquals(true, unpacked.get(2));
+  }
 }
