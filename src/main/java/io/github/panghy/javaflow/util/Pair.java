@@ -1,4 +1,4 @@
-package io.github.panghy.javaflow.rpc.util;
+package io.github.panghy.javaflow.util;
 
 /**
  * A simple container for a pair of values.
