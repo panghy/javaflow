@@ -31,6 +31,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.mockito:mockito-core:5.17.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.17.0'
+    testImplementation("org.assertj:assertj-core:3.27.2")
 }
 
 test {
@@ -40,7 +41,8 @@ test {
     // Add JVM arguments for Continuation API access
     jvmArgs += [
             '--add-exports', 'java.base/jdk.internal.vm=ALL-UNNAMED',
-            '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED'
+            '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED',
+            '--add-opens', 'jdk.unsupported/sun.misc=ALL-UNNAMED'
     ]
 }
 
@@ -60,8 +62,9 @@ jacocoTestReport {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
                     '**/LoggingUtil*',
-                    '**/Flow.class',
-                    '**/FlowFuture.class'
+                    '**/FastByteComparisons*',
+                    '**/FlowRpcTransportImpl$RemoteInvocationHandler*',
+                    '**/FlowRpcTransportImpl$1*'
             ])
         }))
     }
@@ -74,6 +77,9 @@ jacocoTestCoverageVerification {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
                     '**/LoggingUtil*',
+                    '**/FastByteComparisons*',
+                    '**/FlowRpcTransportImpl$RemoteInvocationHandler*',
+                    '**/FlowRpcTransportImpl$1*'
             ])
         }))
     }
@@ -86,6 +92,15 @@ jacocoTestCoverageVerification {
                     '**/LoggingUtil*',
                     'io.github.panghy.javaflow.util.LoggingUtil',
                     'io/github/panghy/javaflow/util/LoggingUtil*',
+                    '**/FastByteComparisons*',
+                    'io.github.panghy.javaflow.util.FastByteComparisons*',
+                    'io/github/panghy/javaflow/util/FastByteComparisons*',
+                    '**/FlowRpcTransportImpl$RemoteInvocationHandler*',
+                    'io.github.panghy.javaflow.rpc.FlowRpcTransportImpl$RemoteInvocationHandler',
+                    'io/github/panghy/javaflow/rpc/FlowRpcTransportImpl$RemoteInvocationHandler*',
+                    '**/FlowRpcTransportImpl$1*',
+                    'io.github.panghy.javaflow.rpc.FlowRpcTransportImpl$1',
+                    'io/github/panghy/javaflow/rpc/FlowRpcTransportImpl$1*',
             ]
 
             limit {

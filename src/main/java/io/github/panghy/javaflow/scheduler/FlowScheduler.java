@@ -238,6 +238,16 @@ public class FlowScheduler implements AutoCloseable {
   }
 
   /**
+   * Gets the time when the next timer will fire, or Long.MAX_VALUE if no timers are scheduled.
+   * This is useful for test scenarios where you want to advance time efficiently.
+   *
+   * @return The time in milliseconds of the next timer event
+   */
+  public long getNextTimerTime() {
+    return delegate.getNextTimerTime();
+  }
+
+  /**
    * Shuts down the scheduler.
    */
   @Override

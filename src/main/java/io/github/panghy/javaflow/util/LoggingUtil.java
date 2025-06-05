@@ -14,6 +14,23 @@ public final class LoggingUtil {
   }
 
   /**
+   * Gets the caller information from the stack trace.
+   * Skips LoggingUtil frames to find the actual caller.
+   */
+  private static StackTraceElement getCaller() {
+    StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+    // Skip: 0=getStackTrace, 1=getCaller, 2=debug/info/warn/error method
+    for (int i = 3; i < stack.length; i++) {
+      StackTraceElement element = stack[i];
+      if (!element.getClassName().equals(LoggingUtil.class.getName())) {
+        return element;
+      }
+    }
+    // Fallback if we can't find the caller
+    return stack.length > 3 ? stack[3] : stack[stack.length - 1];
+  }
+
+  /**
    * Logs a debug message if the logger's level permits it.
    *
    * @param logger  The logger to use
@@ -21,7 +38,8 @@ public final class LoggingUtil {
    */
   public static void debug(Logger logger, String message) {
     if (logger.isLoggable(Level.FINE)) {
-      logger.fine(message);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.FINE, caller.getClassName(), caller.getMethodName(), message);
     }
   }
 
@@ -33,7 +51,8 @@ public final class LoggingUtil {
    */
   public static void info(Logger logger, String message) {
     if (logger.isLoggable(Level.INFO)) {
-      logger.info(message);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.INFO, caller.getClassName(), caller.getMethodName(), message);
     }
   }
 
@@ -45,7 +64,8 @@ public final class LoggingUtil {
    */
   public static void warn(Logger logger, String message) {
     if (logger.isLoggable(Level.WARNING)) {
-      logger.warning(message);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.WARNING, caller.getClassName(), caller.getMethodName(), message);
     }
   }
 
@@ -57,7 +77,8 @@ public final class LoggingUtil {
    */
   public static void error(Logger logger, String message) {
     if (logger.isLoggable(Level.SEVERE)) {
-      logger.severe(message);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.SEVERE, caller.getClassName(), caller.getMethodName(), message);
     }
   }
 
@@ -70,7 +91,8 @@ public final class LoggingUtil {
    */
   public static void error(Logger logger, String message, Throwable throwable) {
     if (logger.isLoggable(Level.SEVERE)) {
-      logger.log(Level.SEVERE, message, throwable);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.SEVERE, caller.getClassName(), caller.getMethodName(), message, throwable);
     }
   }
 
@@ -83,7 +105,8 @@ public final class LoggingUtil {
    */
   public static void warn(Logger logger, String message, Throwable throwable) {
     if (logger.isLoggable(Level.WARNING)) {
-      logger.log(Level.WARNING, message, throwable);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.WARNING, caller.getClassName(), caller.getMethodName(), message, throwable);
     }
   }
 
@@ -96,7 +119,8 @@ public final class LoggingUtil {
    */
   public static void info(Logger logger, String message, Throwable throwable) {
     if (logger.isLoggable(Level.INFO)) {
-      logger.log(Level.INFO, message, throwable);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.INFO, caller.getClassName(), caller.getMethodName(), message, throwable);
     }
   }
 
@@ -109,7 +133,8 @@ public final class LoggingUtil {
    */
   public static void debug(Logger logger, String message, Throwable throwable) {
     if (logger.isLoggable(Level.FINE)) {
-      logger.log(Level.FINE, message, throwable);
+      StackTraceElement caller = getCaller();
+      logger.logp(Level.FINE, caller.getClassName(), caller.getMethodName(), message, throwable);
     }
   }
 }

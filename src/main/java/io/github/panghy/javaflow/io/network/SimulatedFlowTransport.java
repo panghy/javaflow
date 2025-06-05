@@ -268,7 +268,7 @@ public class SimulatedFlowTransport implements FlowTransport {
    * @return The simulated node
    */
   private SimulatedNode getOrCreateNode(Endpoint endpoint) {
-    return nodes.computeIfAbsent(endpoint, e -> new SimulatedNode(e));
+    return nodes.computeIfAbsent(endpoint, SimulatedNode::new);
   }
 
   /**

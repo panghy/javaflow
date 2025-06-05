@@ -364,8 +364,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Store task in the task map
     idToTask.put(taskId, flowTask);
 
-    debug(LOGGER, "Scheduling task " + taskId);
-
     taskLock.lock();
     try {
       readyTasks.add(flowTask);
@@ -634,8 +632,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Task task = idToTask.get(taskId);
 
     if (continuation != null && task != null) {
-      debug(LOGGER, "Resuming task " + taskId);
-
       // Mark as running
       task.setState(Task.TaskState.RUNNING);
 
@@ -663,7 +659,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
       // If the continuation is done, clean up
       if (continuation.isDone()) {
-        debug(LOGGER, "Task " + taskId + " completed");
         task.setState(Task.TaskState.COMPLETED);
         taskToContinuation.remove(taskId);
         taskToScope.remove(taskId);
@@ -768,8 +763,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
           // Process task if we got one
           if (task != null) {
-            debug(LOGGER, "Picking up task " + task.getId());
-
             if (taskToContinuation.containsKey(task.getId())) {
               // This is a resume task for an existing continuation
               resumeTask(task.getId());
@@ -810,7 +803,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * and yield when requested, allowing other tasks to run.</p>
    */
   private void startTask(Task task) {
-    debug(LOGGER, "Task " + task.getId() + " starting");
     task.setState(Task.TaskState.RUNNING);
 
     // Reset the task's priority boost time to the current time
@@ -852,7 +844,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // If the continuation completed without yielding, clean up
     if (continuation.isDone()) {
-      debug(LOGGER, "Task " + task.getId() + " completed immediately");
       task.setState(Task.TaskState.COMPLETED);
       taskToContinuation.remove(task.getId());
       taskToScope.remove(task.getId());
@@ -890,8 +881,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (task.getState() != Task.TaskState.RUNNING) {
       throw new IllegalStateException("task is not running");
     }
-
-    debug(LOGGER, "Task " + task.getId() + " suspending");
 
     // Mark this task as yielding
     task.setState(Task.TaskState.SUSPENDED);
@@ -987,8 +976,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param taskId The ID of the task to cancel
    */
   private void cancelTask(long taskId) {
-    debug(LOGGER, "Cancelling task " + taskId);
-
     taskLock.lock();
     try {
       Task task = idToTask.get(taskId);
@@ -1176,7 +1163,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // for their cleanup work
       for (Task task : idToTask.values()) {
         if (task.getState() == Task.TaskState.SUSPENDED) {
-          debug(LOGGER, "Resuming suspended task " + task.getId() + " for cleanup");
           readyTasks.add(task);
         }
         // mark all tasks as cancelled.
