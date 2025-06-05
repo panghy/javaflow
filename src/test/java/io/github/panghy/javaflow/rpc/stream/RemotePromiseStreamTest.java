@@ -1,21 +1,20 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the RemotePromiseStream class.

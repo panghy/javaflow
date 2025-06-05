@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

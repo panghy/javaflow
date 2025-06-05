@@ -1,8 +1,8 @@
 package io.github.panghy.javaflow.io.network;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -191,6 +191,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests listening on multiple endpoints.
    */
   @Test
+  @SuppressWarnings("unchecked")
   void testListenOnMultipleEndpoints() throws Exception {
     // Create multiple listeners on available ports
     int numEndpoints = 3;
@@ -335,16 +336,21 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests the failure path of connect when the local address can't be determined.
    */
   @Test
-  void testConnectLocalAddressError() throws Exception {
-    // This is hard to test directly without mocking
-    // Instead, let's set up a somewhat pathological case where we connect to a non-existent server:
-
-    // Get a random high port number that's likely not in use
-    int randomPort = 40000 + (int) (Math.random() * 10000);
+  void testConnectLocalAddressError() {
+    // Open a random port first.
+    // Grab that port and then close it.
+    AtomicInteger port = new AtomicInteger(0);
+    try (AsynchronousServerSocketChannel server =
+             AsynchronousServerSocketChannel.open().bind(new InetSocketAddress("localhost", 0))) {
+      port.set(((InetSocketAddress) server.getLocalAddress()).getPort());
+      server.close();
+    } catch (IOException e) {
+      fail("Failed to open server socket", e);
+    }
 
     // Connect to a non-existent server
     FlowFuture<FlowConnection> connectFuture = transport.connect(
-        new Endpoint("localhost", randomPort));
+        new Endpoint("localhost", port.get()));
 
     try {
       connectFuture.getNow();

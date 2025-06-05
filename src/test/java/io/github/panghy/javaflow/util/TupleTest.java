@@ -1496,4 +1496,51 @@ class TupleTest {
     assertEquals(105L, unpacked.getLong(1)); // 'i'
     assertEquals(33L, unpacked.getLong(2)); // '!'
   }
+
+  @Test
+  void testEdgeCasesForBetterCoverage() {
+    // Test with very large numbers
+    BigInteger bigInt = new BigInteger("12345678901234567890");
+    Tuple bigTuple = Tuple.from(bigInt);
+    assertEquals(bigInt, bigTuple.get(0));
+    
+    // Test encoding/decoding with different types to hit more branches
+    Tuple mixedTuple = Tuple.from("test", 42L, true, 3.14);
+    byte[] encoded = mixedTuple.pack();
+    Tuple decoded = Tuple.fromBytes(encoded);
+    
+    assertEquals(mixedTuple.size(), decoded.size());
+    assertEquals("test", decoded.get(0));
+    assertEquals(42L, decoded.get(1));
+    assertEquals(true, decoded.get(2));
+    assertEquals(3.14, decoded.get(3));
+    
+    // Test with null values in different positions
+    Tuple nullTuple = Tuple.from("first", null, "third");
+    byte[] nullEncoded = nullTuple.pack();
+    Tuple nullDecoded = Tuple.fromBytes(nullEncoded);
+    assertEquals("first", nullDecoded.get(0));
+    assertNull(nullDecoded.get(1));
+    assertEquals("third", nullDecoded.get(2));
+    
+    // Test comparison with different types to hit more equals branches
+    Tuple t1 = Tuple.from("same");
+    Tuple t2 = Tuple.from("same");
+    Tuple t3 = Tuple.from("different");
+    
+    assertEquals(t1, t2);
+    assertNotEquals(t3, t1);
+    assertNotEquals(null, t1);
+    
+    // Test hashCode with different values
+    assertNotEquals(t1.hashCode(), t3.hashCode());
+    
+    // Test fromList to hit additional branches
+    List<Object> itemList = Arrays.asList("hello", 123L, false);
+    Tuple fromListTuple = Tuple.fromList(itemList);
+    assertEquals(3, fromListTuple.size());
+    assertEquals("hello", fromListTuple.get(0));
+    assertEquals(123L, fromListTuple.get(1));
+    assertEquals(false, fromListTuple.get(2));
+  }
 }

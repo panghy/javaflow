@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.test.AbstractFlowTest;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;

@@ -4,7 +4,6 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.SimulatedClock;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

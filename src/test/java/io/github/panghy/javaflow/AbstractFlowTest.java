@@ -1,4 +1,4 @@
-package io.github.panghy.javaflow.test;
+package io.github.panghy.javaflow;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
@@ -6,6 +6,10 @@ import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TestScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Abstract base class for Flow-based tests that use a simulated scheduler.
@@ -24,6 +28,12 @@ public abstract class AbstractFlowTest {
    */
   @BeforeEach
   void setUpScheduler() {
+    Logger rootLogger = Logger.getLogger("");
+    rootLogger.setLevel(Level.FINE);  // Enable debug logging
+    ConsoleHandler consoleHandler = new ConsoleHandler();
+    consoleHandler.setLevel(Level.FINE);  // Enable debug logging in console
+    rootLogger.addHandler(consoleHandler);
+
     // Create a simulated scheduler with a simulated clock
     FlowScheduler simulatedScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
     testScheduler = new TestScheduler(simulatedScheduler);
@@ -65,76 +75,60 @@ public abstract class AbstractFlowTest {
 
   /**
    * Pumps the scheduler until all specified futures are done or a maximum number of steps is reached.
-   * This method simulates the passage of time in small increments to allow delayed futures to complete.
+   * This method is useful for waiting for asynchronous operations to complete in tests.
    * <p>
    * WARNING: This method should ONLY be used for tests in a simulated environment.
    * Do NOT use this method for tests involving real file systems, network I/O, or other
    * blocking operations, as it cannot properly wait for these operations to complete.
    * For real I/O operations, use {@link FlowFuture#getNow()} instead.
    *
-   * @param futures The futures to wait for completion
+   * @param futures The futures to wait for completion. If no futures are provided, the method
+   *            will still pump the scheduler to process any pending tasks.
    */
   protected void pumpUntilDone(FlowFuture<?>... futures) {
-    int maxSteps = 50; // Maximum number of time steps
-    int steps = 0;
+    int maxIterations = 1000; // Safety limit to avoid infinite loops
+    int iterations = 0;
 
-    // First pump to process any immediately ready tasks
-    testScheduler.pump();
+    // Continue processing until all futures are done or we hit the limit
+    while (iterations < maxIterations) {
+      iterations++;
 
-    // Check if all futures are completed
-    boolean allDone = checkAllFuturesDone(futures);
-
-    // If not all done, advance time in small increments
-    while (!allDone && steps < maxSteps) {
-      // Advance time by a small increment and pump
-      testScheduler.advanceTime(0.01); // 10ms in simulation time
-      testScheduler.pump(); // Make sure to pump after each time advance
-
-      // Check if all futures are completed after time advancement
-      allDone = checkAllFuturesDone(futures);
-
-      steps++;
-    }
-
-    // If we still haven't completed all futures, use larger time increments
-    if (!allDone) {
-      System.out.println("Futures not done after small steps, trying larger steps");
-
-      // Try with medium delay
-      testScheduler.advanceTime(0.1); // 100ms
-      testScheduler.pump();
-
-      // Check again
-      allDone = checkAllFuturesDone(futures);
-
-      // If still not done, use increasingly larger delays
-      if (!allDone) {
-        testScheduler.advanceTime(0.5); // 500ms
-        testScheduler.pump();
-        allDone = checkAllFuturesDone(futures);
-
-        if (!allDone) {
-          testScheduler.advanceTime(1.0); // 1 second
-          testScheduler.pump();
-          allDone = checkAllFuturesDone(futures);
-
-          if (!allDone) {
-            testScheduler.advanceTime(3.0); // 3 seconds
-            testScheduler.pump();
-            checkAllFuturesDone(futures);
-          }
+      // Step 1: Pump all ready tasks until there are none left
+      int tasksPumped;
+      do {
+        // Check if futures are done after each pump
+        if (futures.length > 0 && checkAllFuturesDone(futures)) {
+          return;
         }
+        tasksPumped = testScheduler.pump();
+      } while (tasksPumped > 0);
+
+      // Step 2: If no tasks are ready, advance time to the next timer
+      FlowScheduler scheduler = testScheduler.getSimulatedScheduler();
+      long nextTimerTime = scheduler.getNextTimerTime();
+
+      // If there's no timer and no ready tasks, we're stuck - bail out
+      if (nextTimerTime == Long.MAX_VALUE) {
+        System.err.println("No tasks and no timers - unable to make progress");
+        break;
+      }
+
+      // Calculate how much time to advance
+      long currentTime = (long) (currentTimeSeconds() * 1000);
+      long timeToAdvance = nextTimerTime - currentTime;
+
+      if (timeToAdvance > 0) {
+        // Advance time directly to the next timer
+        testScheduler.advanceTime(timeToAdvance);
       }
     }
 
-    // Final check to fail fast if futures aren't done
+    // Final check to report any incomplete futures
     for (FlowFuture<?> future : futures) {
       if (!future.isDone()) {
         String warning = "WARNING: Future " + future +
-                         " is still not done after significant time advancement!";
+                         " is still not done after " + iterations + " iterations!";
         System.err.println(warning);
-
-        // This helps debugging by showing the current state
         System.err.println("Current simulation time: " + currentTimeSeconds() + " seconds");
       }
     }

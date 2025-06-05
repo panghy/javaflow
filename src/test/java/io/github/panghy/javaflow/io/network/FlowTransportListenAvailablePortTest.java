@@ -1,13 +1,12 @@
 package io.github.panghy.javaflow.io.network;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Tests for the default listenOnAvailablePort implementation in the FlowTransport interface.

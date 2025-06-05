@@ -1,10 +1,10 @@
 package io.github.panghy.javaflow.io;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.core.FutureStream;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
+import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;

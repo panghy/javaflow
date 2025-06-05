@@ -3,7 +3,7 @@ package io.github.panghy.javaflow.rpc;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
-import io.github.panghy.javaflow.rpc.util.Pair;
+import io.github.panghy.javaflow.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

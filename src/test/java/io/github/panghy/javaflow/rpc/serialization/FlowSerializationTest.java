@@ -7,6 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.panghy.javaflow.core.FlowPromise;
+import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.core.PromiseStream;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
@@ -154,8 +158,7 @@ public class FlowSerializationTest {
 
   @Test
   void testFactoryBasedSerializer() {
-    // Clear any existing serializers
-    FlowSerialization.clear();
+    // Test factory-based serialization
     
     // Register the factory for our test package
     FlowSerialization.registerSerializerFactory(
@@ -248,16 +251,88 @@ public class FlowSerializationTest {
 
   @Test
   void testNoSerializerFound() {
-    // Create a new class that won't have a serializer
-    class UnregisteredClass {
+    // Use a class from a different package that won't have a serializer
+    // Use java.util.Random as it's unlikely to have a custom serializer registered
+    
+    // Save current default serializer and set to null
+    Serializer<Object> originalDefault = new DefaultSerializer();
+    FlowSerialization.setDefaultSerializer(null);
+    
+    try {
+      // This should throw an exception since we removed the default serializer
+      // and Random is not in our test package
+      assertThrows(IllegalStateException.class, () -> 
+          FlowSerialization.getSerializer(java.util.Random.class));
+    } finally {
+      // Restore default serializer
+      FlowSerialization.setDefaultSerializer(originalDefault);
+    }
+  }
+
+  @Test
+  void testSystemTypesSerialization() {
+    // Test that system types throw proper exceptions
+    assertThrows(IllegalStateException.class, () -> 
+        FlowSerialization.getSerializer(FlowFuture.class));
+      
+    assertThrows(IllegalStateException.class, () -> 
+        FlowSerialization.getSerializer(FlowPromise.class));
+      
+    assertThrows(IllegalStateException.class, () -> 
+        FlowSerialization.getSerializer(PromiseStream.class));
+  }
+
+  @Test
+  void testDeserializeNullBuffer() {
+    // Test deserializing null buffer
+    TestData result = FlowSerialization.deserialize(null, TestData.class);
+    assertNull(result);
+    
+    // Test deserializing empty buffer
+    ByteBuffer emptyBuffer = ByteBuffer.allocate(0);
+    TestData result2 = FlowSerialization.deserialize(emptyBuffer, TestData.class);
+    assertNull(result2);
+  }
+
+  @Test
+  void testPackageBasedSerializerNotFound() {
+    // Test when package-based factory returns null
+    class TestFactory implements SerializerFactory {
+      @Override
+      public <T> Serializer<T> createSerializer(Class<T> type) {
+        return null; // Always return null
+      }
     }
     
-    // Clear all serializers and factories
-    FlowSerialization.clear();
+    FlowSerialization.registerSerializerFactory("io.github.panghy.javaflow.rpc.serialization", 
+        new TestFactory());
     
-    // This should throw an exception
-    assertThrows(IllegalStateException.class, () -> {
-      FlowSerialization.getSerializer(UnregisteredClass.class);
-    });
+    // This should fall back to default serializer
+    String data = "fallback test";
+    ByteBuffer buffer = FlowSerialization.serialize(data);
+    String result = FlowSerialization.deserialize(buffer, String.class);
+    assertEquals(data, result);
+  }
+
+  @Test
+  void testClassWithoutPackage() {
+    // Test handling of classes without a package (edge case)
+    // In practice this is hard to create, but we can test the branch logic
+    
+    // Create a test class that appears to be in the default package
+    class DefaultPackageTestData {
+      final String value;
+      
+      DefaultPackageTestData(String value) {
+        this.value = value;
+      }
+    }
+    
+    // This should use the default serializer since no package-based factory matches
+    DefaultPackageTestData data = new DefaultPackageTestData("test");
+    // Since our default serializer only handles strings, this will return null
+    // but won't throw an exception
+    ByteBuffer buffer = FlowSerialization.serialize(data);
+    assertNotNull(buffer);
   }
 }

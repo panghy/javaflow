@@ -1,8 +1,8 @@
 package io.github.panghy.javaflow.io.network;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;

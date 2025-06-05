@@ -1,10 +1,11 @@
 package io.github.panghy.javaflow.rpc.util;
 
+import io.github.panghy.javaflow.util.Pair;
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
-import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the {@link Pair} utility class.

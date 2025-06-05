@@ -1,10 +1,10 @@
 package io.github.panghy.javaflow.rpc.error;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.util.RpcTimeoutUtil;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;

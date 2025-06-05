@@ -1,10 +1,10 @@
 package io.github.panghy.javaflow.rpc;
 
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
-import io.github.panghy.javaflow.test.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -169,12 +169,6 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
 
     @Override
     public <T> T getRpcStub(EndpointId id, Class<T> interfaceClass) {
-      // Not used in these tests
-      return null;
-    }
-
-    @Override
-    public <T> T getRpcStub(EndpointId id, Class<T> interfaceClass, int index) {
       // Not used in these tests
       return null;
     }
