@@ -51,6 +51,16 @@ public abstract class TypeToken<T> implements Serializable {
   }
   
   /**
+   * Creates a new TypeToken with the specified type.
+   * This constructor is used internally by the factory methods.
+   */
+  @SuppressWarnings("unchecked")
+  protected TypeToken(Type type) {
+    this.type = type;
+    this.rawType = (Class<? super T>) getRawType(type);
+  }
+  
+  /**
    * Creates a TypeToken from a Class object.
    *
    * @param <T> The type parameter
@@ -137,21 +147,9 @@ public abstract class TypeToken<T> implements Serializable {
    * @param <T> The type parameter
    */
   private static class SimpleTypeToken<T> extends TypeToken<T> {
-    private final Class<T> type;
     
     SimpleTypeToken(Class<T> type) {
-      this.type = type;
-    }
-    
-    @Override
-    public Type getType() {
-      return type;
-    }
-    
-    @SuppressWarnings("unchecked")
-    @Override
-    public Class<? super T> getRawType() {
-      return type;
+      super(type);
     }
   }
   
@@ -161,21 +159,9 @@ public abstract class TypeToken<T> implements Serializable {
    * @param <T> The type parameter
    */
   private static class ParameterizedTypeToken<T> extends TypeToken<T> {
-    private final ParameterizedType type;
     
     ParameterizedTypeToken(ParameterizedType type) {
-      this.type = type;
-    }
-    
-    @Override
-    public Type getType() {
-      return type;
-    }
-    
-    @SuppressWarnings("unchecked")
-    @Override
-    public Class<? super T> getRawType() {
-      return (Class<? super T>) type.getRawType();
+      super(type);
     }
   }
 }

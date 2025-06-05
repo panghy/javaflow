@@ -73,19 +73,26 @@ public class FlowSerialization {
     // Register serializers for primitive types and common Java types
     registerSerializer(String.class, new DefaultSerializer<>());
     registerSerializer(Integer.class, new DefaultSerializer<>());
+    registerSerializer(int.class, new DefaultSerializer<>());
     registerSerializer(Long.class, new DefaultSerializer<>());
+    registerSerializer(long.class, new DefaultSerializer<>());
     registerSerializer(Boolean.class, new DefaultSerializer<>());
+    registerSerializer(boolean.class, new DefaultSerializer<>());
     registerSerializer(Byte.class, new DefaultSerializer<>());
+    registerSerializer(byte.class, new DefaultSerializer<>());
     registerSerializer(Short.class, new DefaultSerializer<>());
+    registerSerializer(short.class, new DefaultSerializer<>());
     registerSerializer(Float.class, new DefaultSerializer<>());
+    registerSerializer(float.class, new DefaultSerializer<>());
     registerSerializer(Double.class, new DefaultSerializer<>());
+    registerSerializer(double.class, new DefaultSerializer<>());
     registerSerializer(Character.class, new DefaultSerializer<>());
+    registerSerializer(char.class, new DefaultSerializer<>());
     
     // Note: Special types like FlowPromise and PromiseStream are not registered directly
     // as they require contextual information (promiseTracker, streamManager, destination)
     // that is only available at the time of serialization/deserialization.
-    // These types are handled by the SystemTypeSerializerFactory which is applied
-    // by the RPC transport when needed.
+    // These types are handled by the RPC transport layer before serialization.
     
     systemTypesInitialized = true;
   }
@@ -151,12 +158,13 @@ public class FlowSerialization {
     if (FlowPromise.class.isAssignableFrom(type) || 
         PromiseStream.class.isAssignableFrom(type) ||
         FlowFuture.class.isAssignableFrom(type)) {
-      // System types need special handling by SystemTypeSerializerFactory
-      // If we're here, it means we don't have a factory registered yet,
-      // so we'll return a serializer that throws an appropriate exception
+      // System types need special handling by the RPC transport layer
+      // If we're here, it means we're trying to serialize a system type directly,
+      // which is not supported as they require contextual information
       throw new IllegalStateException(
           "No serializer found for system type " + type.getName() + 
-          ". System types require contextual information and must be handled by a SystemTypeSerializerFactory.");
+          ". System types require contextual information and must be handled " +
+          "by the RPC transport layer before serialization.");
     }
 
     // Check for package-based factories
