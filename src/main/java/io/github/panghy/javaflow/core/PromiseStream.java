@@ -31,6 +31,7 @@ public class PromiseStream<T> {
   private final AtomicReference<Throwable> closeException = new AtomicReference<>();
   private final FutureStream<T> futureStream;
   private final Object lock = new Object(); // Lock for synchronizing buffer and promise operations
+  private final FlowFuture<Void> closeFuture = new FlowFuture<>();
 
   /**
    * Creates a new PromiseStream.
@@ -119,6 +120,13 @@ public class PromiseStream<T> {
       while ((hasNextPromise = hasNextPromises.poll()) != null) {
         hasNextPromise.complete(false);
       }
+    }
+
+    // Complete the close future
+    if (exception instanceof StreamClosedException) {
+      closeFuture.getPromise().complete(null);
+    } else {
+      closeFuture.getPromise().completeExceptionally(exception);
     }
 
     return true;
@@ -229,6 +237,11 @@ public class PromiseStream<T> {
     }
 
     @Override
+    public FlowFuture<Void> onClose() {
+      return parent.closeFuture;
+    }
+
+    @Override
     public <R> FlowStream<R> map(Function<? super E, ? extends R> mapper) {
       PromiseStream<R> result = new PromiseStream<>();
 
@@ -304,8 +317,9 @@ public class PromiseStream<T> {
       FlowFuture<Void> result = new FlowFuture<>();
       FlowPromise<Void> promise = result.getPromise();
 
-      // If the stream is already closed with an exception, fail immediately
-      if (parent.closed.get() && parent.closeException.get() != null) {
+      // If the stream is already closed with a real exception (not StreamClosedException), fail immediately
+      if (parent.closed.get() && parent.closeException.get() != null 
+          && !(parent.closeException.get() instanceof StreamClosedException)) {
         Throwable exception = parent.closeException.get();
         promise.completeExceptionally(exception);
         return result;

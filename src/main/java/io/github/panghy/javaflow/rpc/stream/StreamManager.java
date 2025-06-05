@@ -240,8 +240,7 @@ public class StreamManager {
     PromiseStream<?> stream = incomingStreams.get(streamId);
     if (stream != null) {
       try {
-        ((PromiseStream<T>) stream).send(value);
-        return true;
+        return ((PromiseStream<T>) stream).send(value);
       } catch (ClassCastException e) {
         // Type mismatch, close the stream
         incomingStreams.remove(streamId);
