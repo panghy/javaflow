@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
 import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.io.network.Endpoint;
 
 /**
  * The main entry point for RPC operations in the JavaFlow actor system.
@@ -119,22 +120,6 @@ public interface FlowRpcTransport {
   <T> T getRpcStub(EndpointId id, Class<T> interfaceClass);
 
   /**
-   * Gets an RPC stub to a remote endpoint that targets a specific physical endpoint by index.
-   * The returned stub will forward all method calls to the specific physical endpoint instance.
-   *
-   * <p>The returned stub acts as a proxy to the remote service, handling the
-   * serialization, transport, and deserialization of method calls and their results.</p>
-   *
-   * @param id             The ID of the remote endpoint
-   * @param interfaceClass The interface class that the endpoint implements
-   * @param index          The index of the physical endpoint to target
-   * @param <T>            The interface type
-   * @return A stub that implements the specified interface
-   * @throws IllegalArgumentException If the index is invalid or the endpoint is not found
-   */
-  <T> T getRpcStub(EndpointId id, Class<T> interfaceClass, int index);
-
-  /**
    * Gets an RPC stub to a remote endpoint that targets a specific physical endpoint directly.
    * The returned stub will forward all method calls to the specified physical endpoint.
    *
@@ -163,7 +148,7 @@ public interface FlowRpcTransport {
    * @return A stub that implements the specified interface
    * @throws IllegalArgumentException If the endpoint is invalid
    */
-  <T> T getRpcStub(io.github.panghy.javaflow.io.network.Endpoint endpoint, Class<T> interfaceClass);
+  <T> T getRpcStub(Endpoint endpoint, Class<T> interfaceClass);
 
   /**
    * Gets a local stub that implements the specified interface.

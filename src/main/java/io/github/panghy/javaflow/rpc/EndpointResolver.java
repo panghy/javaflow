@@ -4,6 +4,7 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Resolves logical endpoint identifiers to physical network endpoints.
@@ -155,4 +156,15 @@ public interface EndpointResolver {
    * @return true if any endpoints were unregistered, false if none were registered
    */
   boolean unregisterAllEndpoints(EndpointId id);
+
+  /**
+   * Finds all logical endpoint IDs associated with a given physical endpoint.
+   * This performs a reverse lookup to find which EndpointIds are registered
+   * with the specified physical endpoint. A single physical endpoint may host
+   * multiple services.
+   *
+   * @param physicalEndpoint The physical endpoint to search for
+   * @return The set of associated EndpointIds, or empty set if not found
+   */
+  Set<EndpointId> findEndpointIds(Endpoint physicalEndpoint);
 }

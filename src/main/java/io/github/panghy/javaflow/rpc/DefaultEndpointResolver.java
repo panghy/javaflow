@@ -4,9 +4,11 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -205,7 +207,32 @@ public class DefaultEndpointResolver implements EndpointResolver {
     boolean removedRemote = (remoteEndpoints.remove(id) != null);
     return removedLoopback || removedLocal || removedRemote;
   }
-  
+
+  @Override
+  public Set<EndpointId> findEndpointIds(Endpoint physicalEndpoint) {
+    if (physicalEndpoint == null) {
+      return Collections.emptySet();
+    }
+
+    Set<EndpointId> result = new HashSet<>();
+
+    // Check local endpoints first
+    for (Map.Entry<EndpointId, LocalEndpointInfo> entry : localEndpoints.entrySet()) {
+      if (physicalEndpoint.equals(entry.getValue().getPhysicalEndpoint())) {
+        result.add(entry.getKey());
+      }
+    }
+
+    // Then check remote endpoints
+    for (Map.Entry<EndpointId, RemoteEndpointInfo> entry : remoteEndpoints.entrySet()) {
+      if (entry.getValue().containsEndpoint(physicalEndpoint)) {
+        result.add(entry.getKey());
+      }
+    }
+
+    return result;
+  }
+
   /**
    * Helper class to store information about a local endpoint.
    */
@@ -269,6 +296,10 @@ public class DefaultEndpointResolver implements EndpointResolver {
     
     public boolean isEmpty() {
       return endpoints.isEmpty();
+    }
+    
+    public boolean containsEndpoint(Endpoint endpoint) {
+      return endpoints.contains(endpoint);
     }
   }
 }
