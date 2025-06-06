@@ -78,8 +78,6 @@ jacocoTestCoverageVerification {
             fileTree(dir: it, exclude: [
                     '**/LoggingUtil*',
                     '**/FastByteComparisons*',
-                    '**/FlowRpcTransportImpl$RemoteInvocationHandler*',
-                    '**/FlowRpcTransportImpl$1*'
             ])
         }))
     }
@@ -95,12 +93,6 @@ jacocoTestCoverageVerification {
                     '**/FastByteComparisons*',
                     'io.github.panghy.javaflow.util.FastByteComparisons*',
                     'io/github/panghy/javaflow/util/FastByteComparisons*',
-                    '**/FlowRpcTransportImpl$RemoteInvocationHandler*',
-                    'io.github.panghy.javaflow.rpc.FlowRpcTransportImpl$RemoteInvocationHandler',
-                    'io/github/panghy/javaflow/rpc/FlowRpcTransportImpl$RemoteInvocationHandler*',
-                    '**/FlowRpcTransportImpl$1*',
-                    'io.github.panghy.javaflow.rpc.FlowRpcTransportImpl$1',
-                    'io/github/panghy/javaflow/rpc/FlowRpcTransportImpl$1*',
             ]
 
             limit {

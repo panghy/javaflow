@@ -269,7 +269,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   private void resetSchedulerExitLatch() {
     schedulerExitLatch.set(new CountDownLatch(1));
-    debug(LOGGER, "Reset scheduler exit latch");
   }
 
   /**
@@ -279,8 +278,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
    */
   public synchronized void start() {
     if (running.compareAndSet(false, true)) {
-      info(LOGGER, "Starting flow scheduler");
-
       draining.set(false);
 
       // Reset the scheduler exit latch when restarting
@@ -292,8 +289,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
             .name("flow-scheduler")
             .daemon(true)
             .start(this::schedulerLoop);
-      } else {
-        debug(LOGGER, "Carrier thread disabled, tasks will only execute via pump()");
       }
     }
   }
@@ -632,6 +627,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Task task = idToTask.get(taskId);
 
     if (continuation != null && task != null) {
+      if (task.getState() == Task.TaskState.COMPLETED || task.getState() == Task.TaskState.FAILED) {
+        throw new IllegalStateException("Cannot resume completed task");
+      }
+
       // Mark as running
       task.setState(Task.TaskState.RUNNING);
 
@@ -658,11 +657,17 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
 
       // If the continuation is done, clean up
-      if (continuation.isDone()) {
-        task.setState(Task.TaskState.COMPLETED);
+      if (continuation.isDone() || task.isCancelled()) {
         taskToContinuation.remove(taskId);
         taskToScope.remove(taskId);
         idToTask.remove(taskId);
+        yieldPromises.remove(taskId);
+        if (task.isCancelled()) {
+          debug(LOGGER, "Task " + taskId + " cancelled, cleaning up");
+        } else {
+          debug(LOGGER, "Continuation for task " + taskId + " completed");
+        }
+        task.setState(Task.TaskState.COMPLETED);
       }
     }
   }
@@ -824,7 +829,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
         // Execute the task
         task.getCallable().call();
-      } catch (Exception e) {
+      } catch (Throwable e) {
         if (task.isCancelled()) {
           return;
         }
@@ -844,10 +849,12 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // If the continuation completed without yielding, clean up
     if (continuation.isDone()) {
-      task.setState(Task.TaskState.COMPLETED);
       taskToContinuation.remove(task.getId());
       taskToScope.remove(task.getId());
       idToTask.remove(task.getId());
+      yieldPromises.remove(task.getId());
+      debug(LOGGER, "Task " + task.getId() + " completed");
+      task.setState(Task.TaskState.COMPLETED);
     }
   }
 
@@ -1071,9 +1078,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // First try to drain tasks
     drain();
 
-    // Then proceed with full shutdown
-    info(LOGGER, "Shutting down scheduler");
-
     // Wait for the scheduler loop to exit before cleaning up data structures
     if (schedulerThread != null) {
       try {
@@ -1138,8 +1142,6 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Already draining, just return
       return;
     }
-
-    info(LOGGER, "Putting scheduler in drain mode");
 
     // Complete all yield promises with cancellation exceptions
     taskLock.lock();

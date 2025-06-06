@@ -7,10 +7,6 @@ import io.github.panghy.javaflow.scheduler.TestScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  * Abstract base class for Flow-based tests that use a simulated scheduler.
  * Provides common setup, teardown, and utility methods for working with the
@@ -28,12 +24,6 @@ public abstract class AbstractFlowTest {
    */
   @BeforeEach
   void setUpScheduler() {
-    Logger rootLogger = Logger.getLogger("");
-    rootLogger.setLevel(Level.FINE);  // Enable debug logging
-    ConsoleHandler consoleHandler = new ConsoleHandler();
-    consoleHandler.setLevel(Level.FINE);  // Enable debug logging in console
-    rootLogger.addHandler(consoleHandler);
-
     // Create a simulated scheduler with a simulated clock
     FlowScheduler simulatedScheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
     testScheduler = new TestScheduler(simulatedScheduler);
@@ -109,7 +99,6 @@ public abstract class AbstractFlowTest {
 
       // If there's no timer and no ready tasks, we're stuck - bail out
       if (nextTimerTime == Long.MAX_VALUE) {
-        System.err.println("No tasks and no timers - unable to make progress");
         break;
       }
 

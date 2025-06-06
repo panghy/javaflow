@@ -76,6 +76,7 @@ public class TestScheduler {
       throw new IllegalStateException("Simulation is not active");
     }
 
+    simulatedScheduler.close();
     try {
       // Restore the original scheduler
       Flow.setScheduler(originalScheduler);
@@ -102,16 +103,10 @@ public class TestScheduler {
     int initialPumpTasks = pump();
 
     // Now advance the time
-    System.out.println("*** ADVANCING TIME by " + millis + "ms, current time: " +
-        simulatedScheduler.getClock().currentTimeMillis() + "ms");
     int timerTasks = simulatedScheduler.advanceTime(millis);
-    System.out.println("*** AFTER ADVANCING TIME: " + simulatedScheduler.getClock().currentTimeMillis() +
-        "ms, executed " + timerTasks + " timer tasks");
 
     // Pump again to process any tasks that became ready due to time advancement
     int finalPumpTasks = pump();
-
-    System.out.println("*** PUMPING after time advancement processed " + finalPumpTasks + " tasks");
 
     return initialPumpTasks + timerTasks + finalPumpTasks;
   }
@@ -138,15 +133,8 @@ public class TestScheduler {
       throw new IllegalStateException("Simulation is not active");
     }
 
-    // Get current time for context
-    long currentTime = simulatedScheduler.getClock().currentTimeMillis();
-
     // Run the pump
-    System.out.println("*** PUMPING at time: " + currentTime + "ms");
-    int processed = simulatedScheduler.pump();
-    System.out.println("*** PUMP processed " + processed + " tasks");
-
-    return processed;
+    return simulatedScheduler.pump();
   }
 
   /**

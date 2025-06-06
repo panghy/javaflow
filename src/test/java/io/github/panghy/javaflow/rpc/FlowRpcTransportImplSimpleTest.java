@@ -426,4 +426,22 @@ public class FlowRpcTransportImplSimpleTest {
     assertEquals(hashCode, remoteStub.hashCode()); // Should be consistent
     assertNotEquals(hashCode, anotherStub.hashCode()); // Different instances have different hashes
   }
+
+  @Test
+  public void testDirectEndpointStubToString() {
+    // Test the specific toString branch for direct endpoint without EndpointId
+    Endpoint directEndpoint = new Endpoint("direct-test", 8080);
+    
+    // Register endpoint first to avoid IllegalArgumentException  
+    EndpointId tempId = new EndpointId("temp-for-direct");
+    endpointResolver.registerRemoteEndpoint(tempId, directEndpoint);
+    
+    SimpleService directStub = rpcTransport.getRpcStub(directEndpoint, SimpleService.class);
+    
+    // This should hit the "direct ->" branch in toString for RemoteInvocationHandler
+    String toStringResult = directStub.toString();
+    assertTrue(toStringResult.contains("RemoteStub"));
+    assertTrue(toStringResult.contains("direct"));
+    assertTrue(toStringResult.contains(directEndpoint.toString()));
+  }
 }

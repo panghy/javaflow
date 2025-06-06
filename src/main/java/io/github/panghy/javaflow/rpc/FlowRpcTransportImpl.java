@@ -176,7 +176,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
    */
   void registerService(Object implementation, Class<?> interfaceClass) {
     ServiceRegistration registration = new ServiceRegistration(implementation, interfaceClass);
-    
+
     // Register all methods from the interface
     for (Method method : interfaceClass.getMethods()) {
       String methodId = ServiceRegistration.buildMethodId(method);
@@ -225,7 +225,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     debug(LOGGER, "Handling incoming connection from: " + connection.getRemoteEndpoint());
     // Create a message handler for this connection
     ConnectionMessageHandler handler = getConnectionHandler(connection);
-    
+
     // The handler's startMessageReader() will be called automatically when
     // the first message is registered, but for server-side we need to start
     // reading immediately to handle incoming requests
@@ -255,15 +255,15 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
    *
    * @param implementation The service implementation
    * @param interfaceClass The interface class
-   * @param localEndpoint The local endpoint to listen on
+   * @param localEndpoint  The local endpoint to listen on
    * @return The FlowStream for managing incoming connections
    */
-  public FlowStream<FlowConnection> registerServiceAndListen(Object implementation, 
-                                                             Class<?> interfaceClass, 
+  public FlowStream<FlowConnection> registerServiceAndListen(Object implementation,
+                                                             Class<?> interfaceClass,
                                                              LocalEndpoint localEndpoint) {
     // First register the service
     registerService(implementation, interfaceClass);
-    
+
     // Then start listening on the endpoint (only if not already listening)
     return startListening(localEndpoint);
   }
@@ -276,7 +276,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
         stream.close();
       }
       listeningEndpoints.clear();
-      
+
       // Close the connection manager
       return connectionManager.close();
     }
@@ -403,8 +403,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     return new RemotePromiseTracker.MessageSender() {
       @Override
       public <T> void sendResult(Endpoint destination, UUID promiseId, T result) {
-        debug(LOGGER, "MessageSender.sendResult called: destination=" + destination 
-            + ", promiseId=" + promiseId + ", result=" + result);
+        debug(LOGGER, "MessageSender.sendResult called: destination=" + destination
+                      + ", promiseId=" + promiseId + ", result=" + result);
         // Create a result message
         try {
           ByteBuffer payload = FlowSerialization.serialize(result);
@@ -500,7 +500,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       private void sendMessageToEndpoint(Endpoint destination, RpcMessage message) {
         debug(LOGGER, "sendMessageToEndpoint: sending " + message.getHeader().getType() + " to " + destination);
         ByteBuffer serializedMessage = message.serialize();
-        
+
         // First, check if we have an existing connection handler for this endpoint
         // This happens when the endpoint is the remote side of an incoming connection
         FlowConnection existingConnection = null;
@@ -510,7 +510,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             break;
           }
         }
-        
+
         if (existingConnection != null && existingConnection.isOpen()) {
           debug(LOGGER, "Using existing connection to " + destination + ", sending message");
           existingConnection.send(serializedMessage);
@@ -589,9 +589,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       try {
         RpcMessage message = RpcMessage.deserialize(buffer);
         UUID messageId = message.getHeader().getMessageId();
-        debug(LOGGER, "Handling message: type=" + message.getHeader().getType() 
-            + ", messageId=" + messageId 
-            + ", methodId=" + message.getHeader().getMethodId());
+        debug(LOGGER, "Handling message: type=" + message.getHeader().getType()
+                      + ", messageId=" + messageId
+                      + ", methodId=" + message.getHeader().getMethodId());
 
         switch (message.getHeader().getType()) {
           case REQUEST:
@@ -726,7 +726,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       UUID messageId = requestMessage.getHeader().getMessageId();
       String methodId = requestMessage.getHeader().getMethodId();
       debug(LOGGER, "Handling RPC request: messageId=" + messageId + ", methodId=" + methodId);
-      
+
       // Execute the request handling in an actor to ensure proper Flow context
       startActor(() -> {
         try {
@@ -739,7 +739,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                 "Method not found: " + methodId));
             return null;
           }
-          
+
           Method method = registration.methods.get(methodId);
           if (method == null) {
             warn(LOGGER, "Method not found in registration: " + methodId);
@@ -748,7 +748,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                 "Method not found: " + methodId));
             return null;
           }
-          
+
           // Deserialize arguments
           Object[] args;
           if (requestMessage.getPayload() == null || requestMessage.getPayload().remaining() == 0) {
@@ -757,24 +757,24 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             args = FlowSerialization.deserialize(requestMessage.getPayload(), Object[].class);
           }
           debug(LOGGER, "Deserialized " + args.length + " arguments");
-          
+
           // Process incoming arguments (reconstruct promises/streams from UUIDs)
           List<UUID> promiseIds = requestMessage.getPromiseIds();
           debug(LOGGER, "Promise IDs in request: " + promiseIds);
           Object[] processedArgs = processIncomingArguments(
               args, promiseIds, method.getParameterTypes(), connection.getRemoteEndpoint());
-          
+
           // Log processed arguments
           for (int i = 0; i < processedArgs.length; i++) {
-            debug(LOGGER, "Processed arg[" + i + "]: " + 
-                (processedArgs[i] == null ? "null" : processedArgs[i].getClass().getName() + " = " + processedArgs[i]));
+            debug(LOGGER, "Processed arg[" + i + "]: " +
+                          (processedArgs[i] == null ? "null" : processedArgs[i].getClass().getName() + " = " + processedArgs[i]));
           }
-          
+
           // Invoke the method
-          debug(LOGGER, "Invoking method: " + method.getName() + " on " 
-              + registration.implementation.getClass().getName());
+          debug(LOGGER, "Invoking method: " + method.getName() + " on "
+                        + registration.implementation.getClass().getName());
           Object result = method.invoke(registration.implementation, processedArgs);
-          
+
           // Handle the result based on return type
           if (method.getReturnType() == void.class) {
             debug(LOGGER, "Sending void response for messageId=" + messageId);
@@ -783,7 +783,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             debug(LOGGER, "Sending response with result for messageId=" + messageId);
             sendResponse(messageId, result);
           }
-          
+
         } catch (Exception e) {
           warn(LOGGER, "Error handling RPC request", e);
           sendErrorResponse(messageId, e);
@@ -791,19 +791,19 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
         return null;
       });
     }
-    
-    private Object[] processIncomingArguments(Object[] args, List<UUID> promiseIds, 
-                                             Class<?>[] paramTypes, Endpoint sourceEndpoint) {
+
+    private Object[] processIncomingArguments(Object[] args, List<UUID> promiseIds,
+                                              Class<?>[] paramTypes, Endpoint sourceEndpoint) {
       if (args == null || args.length == 0) {
         return args;
       }
-      
+
       Object[] processed = new Object[args.length];
-      
+
       for (int i = 0; i < args.length; i++) {
         Object arg = args[i];
         Class<?> paramType = paramTypes[i];
-        
+
         // Check if this argument is a UUID that represents a promise or stream
         if (arg instanceof UUID id && promiseIds != null && promiseIds.contains(id)) {
           if (FlowPromise.class.isAssignableFrom(paramType)) {
@@ -825,16 +825,16 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           processed[i] = convertArgumentType(arg, paramType);
         }
       }
-      
+
       return processed;
     }
-    
-    
+
+
     private Object convertArgumentType(Object value, Class<?> targetType) {
       if (value == null) {
         return null;
       }
-      
+
       // Handle numeric conversions since Tuple stores all integers as Long
       // Only allow non-precision losing conversions
       if (value instanceof Long longValue) {
@@ -882,15 +882,15 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           return floatValue.doubleValue();
         }
       }
-      
+
       // No conversion needed
       return value;
     }
-    
+
     private void sendResponse(UUID messageId, Object result) {
       try {
         ByteBuffer payload = null;
-        
+
         if (result != null) {
           // Handle special return types
           debug(LOGGER, "Handling result of type: " + result.getClass().getName());
@@ -900,7 +900,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
               @SuppressWarnings("unchecked")
               FlowPromise<Object> promise = (FlowPromise<Object>) flowPromise;
               FlowFuture<Object> future = promise.getFuture();
-              
+
               if (future.isDone()) {
                 // If already completed, send the value directly
                 debug(LOGGER, "FlowPromise is already done");
@@ -920,7 +920,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                 UUID promiseId = promiseTracker.registerOutgoingPromise(
                     promise, connection.getRemoteEndpoint(), promiseType);
                 payload = FlowSerialization.serialize(promiseId);
-                
+
                 // Set up completion handler for when the promise completes
                 future.whenComplete((res, err) -> {
                   if (err != null) {
@@ -940,7 +940,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
               TypeDescription streamType = extractStreamTypeFromInstance(stream);
               UUID streamId = UUID.randomUUID();
               payload = FlowSerialization.serialize(streamId);
-              
+
               // Register the stream immediately to capture its current state (values, close status)
               // but the actual message sending will be deferred by the RemotePromiseTracker
               // to ensure proper message ordering (RESPONSE before STREAM_DATA)
@@ -952,7 +952,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
               debug(LOGGER, "Handling FlowFuture result");
               @SuppressWarnings("unchecked")
               FlowFuture<Object> future = (FlowFuture<Object>) flowFuture;
-              
+
               if (future.isDone()) {
                 // If already completed, send the value directly
                 debug(LOGGER, "FlowFuture is already done");
@@ -973,7 +973,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                 UUID promiseId = promiseTracker.registerOutgoingPromise(
                     promise, connection.getRemoteEndpoint(), promiseType);
                 payload = FlowSerialization.serialize(promiseId);
-                
+
                 // Set up completion handler for when the future completes
                 future.whenComplete((res, err) -> {
                   if (err != null) {
@@ -993,7 +993,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             }
           }
         }
-        
+
         // Create and send response message
         RpcMessage responseMessage = new RpcMessage(
             RpcMessageHeader.MessageType.RESPONSE,
@@ -1001,29 +1001,29 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             null, // No method ID in response
             null, // No promise IDs in response
             payload);
-        
+
         connection.send(responseMessage.serialize());
-        
+
       } catch (Exception e) {
         warn(LOGGER, "Failed to send response", e);
         sendErrorResponse(messageId, e);
       }
     }
-    
+
     private void sendErrorResponse(UUID messageId, Throwable error) {
       try {
         ByteBuffer errorPayload = FlowSerialization.serialize(
             error instanceof Exception ? error : new RuntimeException(error));
-        
+
         RpcMessage errorMessage = new RpcMessage(
             RpcMessageHeader.MessageType.ERROR,
             messageId,
             null, // No method ID in error response
             null, // No promise IDs in error response
             errorPayload);
-        
+
         connection.send(errorMessage.serialize());
-        
+
       } catch (Exception e) {
         warn(LOGGER, "Failed to send error response", e);
       }
@@ -1060,9 +1060,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
         // For FlowPromise, we expect either:
         // 1. A direct value if the promise was already completed
         // 2. A UUID if the promise is still pending (treated as a promise)
-        
+
         debug(LOGGER, "mapResponse: Handling FlowPromise return type");
-        
+
         // Try to deserialize as UUID first
         try {
           UUID promiseId = FlowSerialization.deserialize(
@@ -1096,8 +1096,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           }
           Object value = FlowSerialization.deserialize(
               responseMessage.getPayload(), valueClass);
-          debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " + 
-              (value != null ? value.getClass().getName() : "null") + ")");
+          debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " +
+                        (value != null ? value.getClass().getName() : "null") + ")");
           FlowFuture<Object> resultFuture = new FlowFuture<>();
           resultFuture.getPromise().complete(value);
           return resultFuture.getPromise();
@@ -1109,9 +1109,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
         // For FlowFuture, we expect either:
         // 1. A direct value if the future was already completed
         // 2. A UUID if the future is still pending (treated as a promise)
-        
+
         debug(LOGGER, "mapResponse: Handling FlowFuture return type");
-        
+
         // Try to deserialize as UUID first
         try {
           UUID promiseId = FlowSerialization.deserialize(
@@ -1146,8 +1146,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           }
           Object value = FlowSerialization.deserialize(
               responseMessage.getPayload(), valueClass);
-          debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " + 
-              (value != null ? value.getClass().getName() : "null") + ")");
+          debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " +
+                        (value != null ? value.getClass().getName() : "null") + ")");
           FlowFuture<Object> resultFuture = new FlowFuture<>();
           resultFuture.getPromise().complete(value);
           return resultFuture;
@@ -1325,11 +1325,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
         case "hashCode" -> System.identityHashCode(proxy);
         case "toString" -> {
           if (physicalEndpoint != null) {
-            if (endpointId != null) {
-              yield "RemoteStub[" + endpointId + " -> " + physicalEndpoint + "]";
-            } else {
-              yield "RemoteStub[direct -> " + physicalEndpoint + "]";
-            }
+            yield "RemoteStub[" + endpointId + " -> " + physicalEndpoint + "]";
           } else {
             yield "RemoteStub[" + endpointId + " (round-robin)]";
           }
@@ -1409,7 +1405,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       if (value == null) {
         return null;
       }
-      
+
       // Handle numeric conversions since Tuple stores all integers as Long
       if (value instanceof Long longValue) {
         if (returnType == Integer.class || returnType == int.class) {
@@ -1417,7 +1413,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           if (longValue >= Integer.MIN_VALUE && longValue <= Integer.MAX_VALUE) {
             return longValue.intValue();
           } else {
-            throw new IllegalArgumentException(
+            throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
                 "Long value " + longValue + " cannot be converted to Integer");
           }
         } else if (returnType == Short.class || returnType == short.class) {
@@ -1425,7 +1421,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           if (longValue >= Short.MIN_VALUE && longValue <= Short.MAX_VALUE) {
             return longValue.shortValue();
           } else {
-            throw new IllegalArgumentException(
+            throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
                 "Long value " + longValue + " cannot be converted to Short");
           }
         } else if (returnType == Byte.class || returnType == byte.class) {
@@ -1433,12 +1429,12 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           if (longValue >= Byte.MIN_VALUE && longValue <= Byte.MAX_VALUE) {
             return longValue.byteValue();
           } else {
-            throw new IllegalArgumentException(
+            throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
                 "Long value " + longValue + " cannot be converted to Byte");
           }
         }
       }
-      
+
       // No conversion needed
       return value;
     }
@@ -1470,14 +1466,14 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     ServiceRegistration(Object implementation, Class<?> interfaceClass) {
       this.implementation = implementation;
       this.interfaceClass = interfaceClass;
-      
+
       // Cache all methods by their method ID
       for (Method method : interfaceClass.getMethods()) {
         String methodId = buildMethodId(method);
         methods.put(methodId, method);
       }
     }
-    
+
     private static String buildMethodId(Method method) {
       // Build a unique method identifier from class and method signature
       StringBuilder sb = new StringBuilder();
