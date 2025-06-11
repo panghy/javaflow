@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Comprehensive tests for {@link DefaultSerializer}.
  */
+@SuppressWarnings("unchecked")
 public class DefaultSerializerTest {
 
   @Test

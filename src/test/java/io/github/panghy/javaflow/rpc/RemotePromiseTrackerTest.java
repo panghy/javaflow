@@ -483,7 +483,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStream(stream, destination, new TypeDescription(String.class));
+    UUID streamId = tracker.registerOutgoingStream(stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Verify stream ID was generated
     assertNotNull(streamId);
@@ -506,7 +507,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStream(stream, destination, new TypeDescription(String.class));
+    UUID streamId = tracker.registerOutgoingStream(stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Pump once to start the forEach actor
     pump();
@@ -537,7 +539,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStream(stream, destination, new TypeDescription(String.class));
+    UUID streamId = tracker.registerOutgoingStream(stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Send some values first
     stream.send("test");
@@ -662,7 +665,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create outgoing stream
     PromiseStream<String> outgoingStream = new PromiseStream<>();
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID outgoingId = tracker.registerOutgoingStream(outgoingStream, destination,
+    UUID outgoingId = tracker.registerOutgoingStream(outgoingStream.getFutureStream(), destination,
         new TypeDescription(String.class));
 
     // Create incoming stream
@@ -860,7 +863,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStream(stream, destination,
+    UUID streamId = tracker.registerOutgoingStream(stream.getFutureStream(), destination,
         new TypeDescription(String.class));
 
     // Pump to start forEach actor
@@ -971,7 +974,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStream(stream, destination,
+    UUID streamId = tracker.registerOutgoingStream(stream.getFutureStream(), destination,
         new TypeDescription(String.class));
 
     // Verify stream is tracked
@@ -1075,9 +1078,9 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create outgoing streams for both endpoints
     PromiseStream<String> stream1 = new PromiseStream<>();
     PromiseStream<String> stream2 = new PromiseStream<>();
-    UUID streamId1 = tracker.registerOutgoingStream(stream1, endpoint1,
+    UUID streamId1 = tracker.registerOutgoingStream(stream1.getFutureStream(), endpoint1,
         new TypeDescription(String.class));
-    UUID streamId2 = tracker.registerOutgoingStream(stream2, endpoint2,
+    UUID streamId2 = tracker.registerOutgoingStream(stream2.getFutureStream(), endpoint2,
         new TypeDescription(String.class));
 
     // Create incoming streams from both endpoints
@@ -1292,7 +1295,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Register the already-closed stream
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID streamId = tracker.registerOutgoingStreamWithId(UUID.randomUUID(), stream, destination,
+    UUID streamId = tracker.registerOutgoingStreamWithId(UUID.randomUUID(), stream.getFutureStream(), destination,
         new TypeDescription(String.class));
 
     // Pump to process deferred registration logic
@@ -1601,7 +1604,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     PromiseStream<String> stream = new PromiseStream<>();
 
     // Register the stream
-    tracker.registerOutgoingStreamWithId(streamId, stream, destination, new TypeDescription(String.class));
+    tracker.registerOutgoingStreamWithId(streamId, stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Send a value through the stream
     stream.send("value1");
@@ -1651,7 +1655,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     UUID streamId = UUID.randomUUID();
 
     // Register the stream with explicit ID
-    tracker.registerOutgoingStreamWithId(streamId, stream, destination, new TypeDescription(String.class));
+    tracker.registerOutgoingStreamWithId(streamId, stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Pump to start the forEach actor
     pump();
@@ -1693,7 +1698,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     UUID streamId = UUID.randomUUID();
 
     // Register the stream with explicit ID
-    tracker.registerOutgoingStreamWithId(streamId, stream, destination, new TypeDescription(String.class));
+    tracker.registerOutgoingStreamWithId(streamId, stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Pump to start the forEach actor
     pump();
@@ -1724,7 +1730,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     UUID streamId = UUID.randomUUID();
 
     // Register the stream with explicit ID
-    tracker.registerOutgoingStreamWithId(streamId, stream, destination, new TypeDescription(String.class));
+    tracker.registerOutgoingStreamWithId(streamId, stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Pump to start the forEach actor
     pump();
@@ -1756,7 +1763,8 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     UUID streamId = UUID.randomUUID();
 
     // Register the stream with explicit ID
-    tracker.registerOutgoingStreamWithId(streamId, stream, destination, new TypeDescription(String.class));
+    tracker.registerOutgoingStreamWithId(streamId, stream.getFutureStream(), destination,
+        new TypeDescription(String.class));
 
     // Pump to start the forEach actor
     pump();
@@ -1782,7 +1790,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint sourceEndpoint = new Endpoint("source", 1234);
 
     // Create a stream expecting String
-    PromiseStream<String> remoteStream = tracker.createLocalStreamForRemote(
+    tracker.createLocalStreamForRemote(
         streamId, sourceEndpoint, new TypeDescription(String.class));
 
     // First, successfully send a value
@@ -1795,10 +1803,10 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Close the stream using the tracker method (which removes it)
     boolean closed = tracker.closeLocalStream(streamId);
     assertTrue(closed);
-    
+
     // After closing via tracker, the stream is removed from tracking
     assertFalse(tracker.hasIncomingStream(streamId));
-    
+
     // Try to send to a non-existent stream
     boolean result2 = tracker.sendToLocalStream(streamId, "after close");
     assertFalse(result2);
