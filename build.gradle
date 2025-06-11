@@ -44,6 +44,27 @@ test {
             '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED',
             '--add-opens', 'jdk.unsupported/sun.misc=ALL-UNNAMED'
     ]
+    
+    // Enable debug logging for tests
+    systemProperty 'java.util.logging.level', 'ALL'
+    systemProperty 'java.util.logging.ConsoleHandler.level', 'ALL'
+    
+    // Configure JUL logging via system properties
+    doFirst {
+        // Create a simple logging.properties content
+        def loggingConfig = """
+handlers=java.util.logging.ConsoleHandler
+.level=ALL
+java.util.logging.ConsoleHandler.level=ALL
+java.util.logging.ConsoleHandler.formatter=java.util.logging.SimpleFormatter
+java.util.logging.SimpleFormatter.format=%1\$tF %1\$tT %4\$s %2\$s %5\$s%6\$s%n
+io.github.panghy.javaflow.level=ALL
+"""
+        def tempFile = File.createTempFile("test-logging", ".properties")
+        tempFile.deleteOnExit()
+        tempFile.text = loggingConfig
+        systemProperty 'java.util.logging.config.file', tempFile.absolutePath
+    }
 }
 
 check.dependsOn jacocoTestCoverageVerification
