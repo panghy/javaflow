@@ -436,7 +436,7 @@ public class RemotePromiseTracker {
    * @param elementType The expected type of stream elements
    * @return A unique ID for the stream that can be sent to the remote endpoint
    */
-  public <T> UUID registerOutgoingStream(PromiseStream<T> stream, Endpoint destination, TypeDescription elementType) {
+  public <T> UUID registerOutgoingStream(FutureStream<T> stream, Endpoint destination, TypeDescription elementType) {
     UUID streamId = UUID.randomUUID();
     return registerOutgoingStreamWithId(streamId, stream, destination, elementType);
   }
@@ -445,21 +445,20 @@ public class RemotePromiseTracker {
    * Registers a stream that was sent to a remote endpoint with a specific ID.
    * When values are sent to this stream, they should be forwarded to the destination.
    *
-   * @param <T>         The type of elements in the stream
-   * @param streamId    The ID to use for the stream
-   * @param stream      The stream to register
-   * @param destination The endpoint that will receive stream values
-   * @param elementType The expected type of stream elements
+   * @param <T>          The type of elements in the stream
+   * @param streamId     The ID to use for the stream
+   * @param futureStream The stream to register
+   * @param destination  The endpoint that will receive stream values
+   * @param elementType  The expected type of stream elements
    * @return The stream ID that was passed in
    */
   public <T> UUID registerOutgoingStreamWithId(UUID streamId,
-                                               PromiseStream<T> stream,
+                                               FutureStream<T> futureStream,
                                                Endpoint destination,
                                                TypeDescription elementType) {
     outgoingStreams.put(streamId, new RemoteStreamInfo(destination, elementType));
 
     // Check if stream is already closed
-    FutureStream<T> futureStream = stream.getFutureStream();
     boolean isAlreadyClosed = futureStream.onClose().isDone();
     debug(LOGGER, "registerOutgoingStreamWithId: streamId=" + streamId + ", isAlreadyClosed=" + isAlreadyClosed);
 
@@ -511,7 +510,7 @@ public class RemotePromiseTracker {
 
     // When the stream closes, notify the destination (only if not already closed)
     if (!isAlreadyClosed) {
-      stream.getFutureStream().onClose().whenComplete((result, error) -> {
+      futureStream.onClose().whenComplete((result, error) -> {
         // Defer the close notification to ensure buffered values are processed first
         startActor(() -> {
           RemoteStreamInfo info = outgoingStreams.remove(streamId);
@@ -546,8 +545,6 @@ public class RemotePromiseTracker {
 
     // Store the stream info (stream, source, and type) in the map
     incomingStreams.put(remoteStreamId, new LocalStreamInfo(localStream, source, elementType));
-
-    // Note: Stream cleanup happens when the stream is closed via completeLocalStream
 
     return localStream;
   }

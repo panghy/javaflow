@@ -3,6 +3,7 @@ package io.github.panghy.javaflow.rpc;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
+import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.FlowConnection;
@@ -112,6 +113,10 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
   public <T> T getRpcStub(EndpointId id, Class<T> interfaceClass) {
     if (closed.get()) {
       throw new IllegalStateException("RPC transport is closed");
+    }
+
+    if (id == null) {
+      throw new IllegalArgumentException("Endpoint cannot be null");
     }
 
     // Check if this is a local endpoint
@@ -352,48 +357,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
   private ConnectionMessageHandler getConnectionHandler(FlowConnection connection) {
     return connectionHandlers.computeIfAbsent(connection,
         conn -> new ConnectionMessageHandler(conn, promiseTracker));
-  }
-
-  /**
-   * Extracts the generic type information from a FlowPromise instance.
-   * This method attempts to capture the actual type parameter when possible.
-   */
-  private TypeDescription extractPromiseTypeFromInstance(FlowPromise<?> promise) {
-    // Try to extract type information from the promise's class
-    Class<?> promiseClass = promise.getClass();
-
-    // Check if the promise class has generic superclass information
-    Type genericSuperclass = promiseClass.getGenericSuperclass();
-    if (genericSuperclass instanceof ParameterizedType paramType) {
-      Type[] typeArgs = paramType.getActualTypeArguments();
-      if (typeArgs.length > 0) {
-        return TypeDescription.fromType(typeArgs[0]);
-      }
-    }
-
-    // Fall back to Object if we can't determine the type
-    return new TypeDescription(Object.class);
-  }
-
-  /**
-   * Extracts the generic type information from a PromiseStream instance.
-   * This method attempts to capture the actual type parameter when possible.
-   */
-  private TypeDescription extractStreamTypeFromInstance(PromiseStream<?> stream) {
-    // Try to extract type information from the stream's class
-    Class<?> streamClass = stream.getClass();
-
-    // Check if the stream class has generic superclass information
-    Type genericSuperclass = streamClass.getGenericSuperclass();
-    if (genericSuperclass instanceof ParameterizedType paramType) {
-      Type[] typeArgs = paramType.getActualTypeArguments();
-      if (typeArgs.length > 0) {
-        return TypeDescription.fromType(typeArgs[0]);
-      }
-    }
-
-    // Fall back to Object if we can't determine the type
-    return new TypeDescription(Object.class);
   }
 
   /**
@@ -749,6 +712,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             return null;
           }
 
+          // extract the result type
+          Type resultType = method.getGenericReturnType();
+
           // Deserialize arguments
           Object[] args;
           if (requestMessage.getPayload() == null || requestMessage.getPayload().remaining() == 0) {
@@ -767,7 +733,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           // Log processed arguments
           for (int i = 0; i < processedArgs.length; i++) {
             debug(LOGGER, "Processed arg[" + i + "]: " +
-                          (processedArgs[i] == null ? "null" : processedArgs[i].getClass().getName() + " = " + processedArgs[i]));
+                          (processedArgs[i] == null ? "null" :
+                              processedArgs[i].getClass().getName() + " = " + processedArgs[i]));
           }
 
           // Invoke the method
@@ -778,10 +745,10 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
           // Handle the result based on return type
           if (method.getReturnType() == void.class) {
             debug(LOGGER, "Sending void response for messageId=" + messageId);
-            sendResponse(messageId, null);
+            sendResponse(messageId, null, resultType);
           } else {
             debug(LOGGER, "Sending response with result for messageId=" + messageId);
-            sendResponse(messageId, result);
+            sendResponse(messageId, result, resultType);
           }
 
         } catch (Exception e) {
@@ -816,6 +783,13 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             debug(LOGGER, "Creating local stream for remote UUID: " + id);
             TypeDescription streamType = new TypeDescription(paramType);
             processed[i] = promiseTracker.createLocalStreamForRemote(id, sourceEndpoint, streamType);
+          } else if (FlowFuture.class.isAssignableFrom(paramType)) {
+            // Create a local future that tracks the remote promise
+            debug(LOGGER, "Creating local future for remote UUID: " + id);
+            TypeDescription futureType = new TypeDescription(paramType);
+            FlowPromise<?> promise = promiseTracker.createLocalPromiseForRemote(id, sourceEndpoint, futureType);
+            // Get the future from the promise
+            processed[i] = promise.getFuture();
           } else {
             // Regular UUID argument
             processed[i] = arg;
@@ -828,7 +802,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
 
       return processed;
     }
-
 
     private Object convertArgumentType(Object value, Class<?> targetType) {
       if (value == null) {
@@ -887,13 +860,14 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       return value;
     }
 
-    private void sendResponse(UUID messageId, Object result) {
+    private void sendResponse(UUID messageId, Object result, Type resultType) {
       try {
         ByteBuffer payload = null;
+        TypeDescription returnTypeDesc = TypeDescription.fromType(resultType);
 
         if (result != null) {
           // Handle special return types
-          debug(LOGGER, "Handling result of type: " + result.getClass().getName());
+          debug(LOGGER, "Handling result of type: " + resultType.getTypeName());
           switch (result) {
             case FlowPromise<?> flowPromise -> {
               // For FlowPromise, check if it's already completed
@@ -915,10 +889,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                   return;
                 }
               } else {
-                // If not completed, register as a promise
-                TypeDescription promiseType = extractPromiseTypeFromInstance(promise);
                 UUID promiseId = promiseTracker.registerOutgoingPromise(
-                    promise, connection.getRemoteEndpoint(), promiseType);
+                    promise, connection.getRemoteEndpoint(), returnTypeDesc.getTypeArguments()[0]);
                 payload = FlowSerialization.serialize(promiseId);
 
                 // Set up completion handler for when the promise completes
@@ -935,9 +907,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
             }
             case PromiseStream<?> promiseStream -> {
               // Generate stream UUID and send it in response, but defer registration
-              @SuppressWarnings("unchecked")
-              PromiseStream<Object> stream = (PromiseStream<Object>) promiseStream;
-              TypeDescription streamType = extractStreamTypeFromInstance(stream);
               UUID streamId = UUID.randomUUID();
               payload = FlowSerialization.serialize(streamId);
 
@@ -945,7 +914,24 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
               // but the actual message sending will be deferred by the RemotePromiseTracker
               // to ensure proper message ordering (RESPONSE before STREAM_DATA)
               promiseTracker.registerOutgoingStreamWithId(
-                  streamId, stream, connection.getRemoteEndpoint(), streamType);
+                  streamId,
+                  promiseStream.getFutureStream(),
+                  connection.getRemoteEndpoint(),
+                  returnTypeDesc.getTypeArguments()[0]);
+            }
+            case FutureStream<?> futureStream -> {
+              // For FutureStream, we need to handle it specially
+              // Generate stream UUID and send it in response, but defer registration
+              UUID streamId = UUID.randomUUID();
+              payload = FlowSerialization.serialize(streamId);
+
+              // Register the stream immediately to capture its current state (values, close status)
+              // but the actual message sending will be deferred by the RemotePromiseTracker
+              promiseTracker.registerOutgoingStreamWithId(
+                  streamId,
+                  futureStream,
+                  connection.getRemoteEndpoint(),
+                  returnTypeDesc.getTypeArguments()[0]);
             }
             case FlowFuture<?> flowFuture -> {
               // For FlowFuture, we need to handle it specially
@@ -968,10 +954,10 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
                 }
               } else {
                 // If not completed, treat it as a promise
-                FlowPromise<Object> promise = future.getPromise();
-                TypeDescription promiseType = extractPromiseTypeFromInstance(promise);
                 UUID promiseId = promiseTracker.registerOutgoingPromise(
-                    promise, connection.getRemoteEndpoint(), promiseType);
+                    future.getPromise(),
+                    connection.getRemoteEndpoint(),
+                    returnTypeDesc.getTypeArguments()[0]);
                 payload = FlowSerialization.serialize(promiseId);
 
                 // Set up completion handler for when the future completes
@@ -1181,7 +1167,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
   /**
    * Invocation handler for remote service calls.
    */
-  private class RemoteInvocationHandler implements InvocationHandler {
+  class RemoteInvocationHandler implements InvocationHandler {
     private final EndpointId endpointId;
     /**
      * The physical endpoint to connect to. If null, the endpoint resolver
@@ -1355,11 +1341,11 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     }
 
     private Object[] processArguments(Object[] args, List<UUID> promiseIds, Endpoint targetEndpoint, Method method) {
-      if (args == null || args.length == 0) {
-        return args;
+      if (args == null) {
+        return null;
       }
 
-      // Handle system types (FlowPromise and PromiseStream) by converting them
+      // Handle system types by converting them
       // to serializable representations. Promises are registered with the
       // RemotePromiseTracker and replaced with UUIDs. Streams are replaced
       // with remote stream proxies. This preprocessing is necessary because
@@ -1371,24 +1357,32 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       for (int i = 0; i < args.length; i++) {
         Object arg = args[i];
 
-        if (arg instanceof FlowPromise<?>) {
-          // Replace promise with a UUID that will be tracked
-          @SuppressWarnings("unchecked")
-          FlowPromise<Object> promise = (FlowPromise<Object>) arg;
+        if (arg instanceof FlowPromise<?> promise) {
           // Extract the generic type from the method parameter
           TypeDescription promiseType = extractTypeFromMethodParameter(genericParameterTypes[i]);
           UUID promiseId = promiseTracker.registerOutgoingPromise(
               promise, targetEndpoint, promiseType);
           promiseIds.add(promiseId);
           processed[i] = promiseId;
-        } else if (arg instanceof PromiseStream<?>) {
-          // Replace stream with a UUID that will be tracked
-          @SuppressWarnings("unchecked")
-          PromiseStream<Object> stream = (PromiseStream<Object>) arg;
+        } else if (arg instanceof FlowFuture<?> future) {
+          // Extract the generic type from the method parameter
+          TypeDescription promiseType = extractTypeFromMethodParameter(genericParameterTypes[i]);
+          UUID promiseId = promiseTracker.registerOutgoingPromise(
+              future.getPromise(), targetEndpoint, promiseType);
+          promiseIds.add(promiseId);
+          processed[i] = promiseId;
+        } else if (arg instanceof FutureStream<?> futureStream) {
           // Extract the generic type from the method parameter
           TypeDescription streamType = extractTypeFromMethodParameter(genericParameterTypes[i]);
           UUID streamId = promiseTracker.registerOutgoingStream(
-              stream, targetEndpoint, streamType);
+              futureStream, targetEndpoint, streamType);
+          promiseIds.add(streamId);
+          processed[i] = streamId;
+        } else if (arg instanceof PromiseStream<?> stream) {
+          // Extract the generic type from the method parameter
+          TypeDescription streamType = extractTypeFromMethodParameter(genericParameterTypes[i]);
+          UUID streamId = promiseTracker.registerOutgoingStream(
+              stream.getFutureStream(), targetEndpoint, streamType);
           // Add to promise IDs list (streams are tracked similarly to promises)
           promiseIds.add(streamId);
           processed[i] = streamId;
@@ -1401,7 +1395,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       return processed;
     }
 
-    private Object convertReturnValue(Object value, Class<?> returnType) {
+    static Object convertReturnValue(Object value, Class<?> returnType) {
       if (value == null) {
         return null;
       }
@@ -1442,7 +1436,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     private TypeDescription extractTypeFromMethodParameter(Type parameterType) {
       if (parameterType instanceof ParameterizedType paramType) {
         Type rawType = paramType.getRawType();
-        if (rawType == FlowPromise.class || rawType == PromiseStream.class) {
+        if (rawType == FlowPromise.class || rawType == PromiseStream.class ||
+            rawType == FutureStream.class || rawType == FlowFuture.class) {
           Type[] typeArgs = paramType.getActualTypeArguments();
           if (typeArgs.length > 0) {
             return TypeDescription.fromType(typeArgs[0]);
