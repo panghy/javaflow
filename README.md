@@ -123,6 +123,7 @@ Key completed functionality includes:
 - Advanced serialization infrastructure with generic type preservation
 - Connection management with automatic reconnection and endpoint resolution
 - Loopback optimization for local communication
+- Configurable buffer sizes and other transport parameters via FlowRpcConfiguration
 - Comprehensive test coverage for all RPC components
 
 The RPC framework provides location transparency where the same code can work for both local and remote communication. The architecture supports loopback endpoints for maximum efficiency in local communication, dynamic endpoint resolution for service discovery, and a robust serialization framework that preserves generic type information across network boundaries. All I/O operations are designed to be non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
@@ -224,6 +225,7 @@ JavaFlow provides:
 - **EndpointId & EndpointResolver**: Service discovery and addressing for RPC services with load balancing
 - **FlowRpcTransportImpl**: Full RPC transport implementation with message handling and connection management
 - **Serialization Framework**: Advanced serialization with generic type preservation and system type handling
+- **FlowRpcConfiguration**: Configurable transport parameters with builder pattern for customization
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -363,19 +365,26 @@ void testFileOperations() {
     }
 }
 
-// Using RPC framework (interface designed, implementation in progress in Phase 4)
+// Using RPC framework
+// Configure RPC transport with custom buffer size
+FlowRpcConfiguration config = FlowRpcConfiguration.builder()
+    .receiveBufferSize(128 * 1024)  // 128KB buffer
+    .build();
+FlowRpcTransportImpl transport = new FlowRpcTransportImpl(
+    FlowTransport.getDefault(), config);
+
+// Register a service endpoint
+transport.getEndpointResolver().registerEndpoint(
+    new EndpointId("user-service"), 
+    new LocalEndpoint("localhost", 8080));
+
+// Get reference to remote service
+UserServiceInterface userService = transport.getRpcStub(
+    new EndpointId("user-service"), UserServiceInterface.class);
+
+// Call remote service using promise-based API in an actor
 FlowFuture<UserInfo> userLookup = startActor(() -> {
-    // This code demonstrates the intended API for the RPC framework
-    // The actual implementation is still in progress
-    
-    // Get reference to remote service
-    UserServiceInterface userService = FlowRpcTransport.getInstance()
-        .getRoundRobinEndpoint(new EndpointId("user-service"), UserServiceInterface.class);
-    
-    // Call remote service using promise-based API
     UserInfo user = await(userService.getUserAsync(new GetUserRequest("user123")));
-    
-    // Process result
     return processUserInfo(user);
 });
 ```

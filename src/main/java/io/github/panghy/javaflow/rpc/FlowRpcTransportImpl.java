@@ -84,6 +84,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
   // Map of method IDs to service registrations for handling incoming RPC calls
   private final Map<String, ServiceRegistration> registeredServices = new ConcurrentHashMap<>();
 
+  // Configuration for the RPC transport
+  private final FlowRpcConfiguration configuration;
+
   /**
    * Creates a new FlowRpcTransportImpl with default components.
    */
@@ -97,8 +100,19 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
    * @param networkTransport The underlying network transport to use
    */
   public FlowRpcTransportImpl(FlowTransport networkTransport) {
+    this(networkTransport, FlowRpcConfiguration.defaultConfig());
+  }
+
+  /**
+   * Creates a new FlowRpcTransportImpl with the specified network transport and configuration.
+   *
+   * @param networkTransport The underlying network transport to use
+   * @param configuration The configuration for the RPC transport
+   */
+  public FlowRpcTransportImpl(FlowTransport networkTransport, FlowRpcConfiguration configuration) {
     // The underlying network transport
     this.networkTransport = networkTransport;
+    this.configuration = configuration;
     this.endpointResolver = new DefaultEndpointResolver();
     this.connectionManager = new ConnectionManager(networkTransport, endpointResolver);
     this.promiseTracker = new RemotePromiseTracker(this);
@@ -107,6 +121,15 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
   @Override
   public EndpointResolver getEndpointResolver() {
     return endpointResolver;
+  }
+
+  /**
+   * Gets the configuration for this RPC transport.
+   *
+   * @return The configuration
+   */
+  public FlowRpcConfiguration getConfiguration() {
+    return configuration;
   }
 
   @Override
@@ -194,13 +217,12 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
    * This method should be called when a service is registered with a local endpoint.
    *
    * @param localEndpoint The local endpoint to listen on
-   * @return The FlowStream for managing incoming connections
    */
-  private FlowStream<FlowConnection> startListening(LocalEndpoint localEndpoint) {
+  private void startListening(LocalEndpoint localEndpoint) {
     // Check if we're already listening on this endpoint
     FlowStream<FlowConnection> existingStream = listeningEndpoints.get(localEndpoint);
     if (existingStream != null) {
-      return existingStream;
+      return;
     }
 
     // Start listening for incoming connections
@@ -217,7 +239,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       return null;
     });
 
-    return connectionStream;
   }
 
   /**
@@ -238,7 +259,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       try {
         while (connection.isOpen()) {
           // Read incoming messages from the client
-          ByteBuffer buffer = await(connection.receive(65536));
+          ByteBuffer buffer = await(connection.receive(configuration.getReceiveBufferSize()));
           debug(LOGGER, "Received " + buffer.remaining() + " bytes from client");
           handler.handleIncomingMessage(buffer);
         }
@@ -261,16 +282,15 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
    * @param implementation The service implementation
    * @param interfaceClass The interface class
    * @param localEndpoint  The local endpoint to listen on
-   * @return The FlowStream for managing incoming connections
    */
-  public FlowStream<FlowConnection> registerServiceAndListen(Object implementation,
-                                                             Class<?> interfaceClass,
-                                                             LocalEndpoint localEndpoint) {
+  public void registerServiceAndListen(Object implementation,
+                                       Class<?> interfaceClass,
+                                       LocalEndpoint localEndpoint) {
     // First register the service
     registerService(implementation, interfaceClass);
 
     // Then start listening on the endpoint (only if not already listening)
-    return startListening(localEndpoint);
+    startListening(localEndpoint);
   }
 
   @Override
@@ -356,7 +376,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
    */
   private ConnectionMessageHandler getConnectionHandler(FlowConnection connection) {
     return connectionHandlers.computeIfAbsent(connection,
-        conn -> new ConnectionMessageHandler(conn, promiseTracker));
+        conn -> new ConnectionMessageHandler(conn, promiseTracker, configuration));
   }
 
   /**
@@ -367,12 +387,15 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     private final FlowConnection connection;
     private final Map<UUID, PendingCall> pendingCalls = new ConcurrentHashMap<>();
     private final RemotePromiseTracker promiseTracker;
+    private final FlowRpcConfiguration configuration;
     private final AtomicBoolean readerStarted = new AtomicBoolean(false);
 
     ConnectionMessageHandler(FlowConnection connection,
-                             RemotePromiseTracker promiseTracker) {
+                             RemotePromiseTracker promiseTracker,
+                             FlowRpcConfiguration configuration) {
       this.connection = connection;
       this.promiseTracker = promiseTracker;
+      this.configuration = configuration;
     }
 
     /**
@@ -394,8 +417,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       startActor(() -> {
         try {
           while (connection.isOpen()) {
-            // TODO: Make this configurable
-            ByteBuffer buffer = await(connection.receive(65536));
+            ByteBuffer buffer = await(connection.receive(configuration.getReceiveBufferSize()));
             handleIncomingMessage(buffer);
           }
         } catch (Exception e) {
