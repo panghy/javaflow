@@ -1,6 +1,10 @@
 # Release Notes
 
-## Version 1.2.0 (Upcoming)
+## Version 1.3.0 (Upcoming)
+
+_To be determined_
+
+## Version 1.2.0
 
 ### Major Improvements
 - **Enhanced RPC Framework**: Complete implementation with FlowRpcConfiguration for customizable transport settings
