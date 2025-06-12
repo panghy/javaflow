@@ -57,26 +57,41 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   // Test interfaces
   public interface TestService {
     String echo(String message);
+
     int addNumbers(int a, int b);
+
     void voidMethod();
+
     FlowFuture<String> futureMethod();
+
     FlowPromise<String> promiseMethod();
+
     PromiseStream<String> streamMethod();
   }
 
   public interface NumericService {
     byte getByte();
+
     short getShort();
+
     int getInt();
+
     long getLong();
+
     float getFloat();
+
     double getDouble();
-    
+
     String processByte(byte value);
+
     String processShort(short value);
+
     String processInt(int value);
+
     String processLong(long value);
+
     String processFloat(float value);
+
     String processDouble(double value);
   }
 
@@ -222,6 +237,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test numeric overflow handling in arguments
     interface OverflowService {
       String processByte(byte value);
+
       String processShort(short value);
     }
 
@@ -242,6 +258,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Create a service that sends values that overflow when converted
     interface WideNumericService {
       String processByte(long value);
+
       String processShort(long value);
     }
 
@@ -345,6 +362,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Create a service interface that expects narrower types
     interface NarrowNumericService {
       int getByte(); // Expects int but server returns byte
+
       int getShort(); // Expects int but server returns short
     }
 
@@ -553,6 +571,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         await(Flow.delay(0.1));
         future.complete(new Object() {
           private final Thread thread = Thread.currentThread();
+
           @Override
           public String toString() {
             return "Unserializable";
@@ -568,7 +587,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     EndpointId serviceId = new EndpointId("unserializable-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
 
-    UnserializablePromiseService client = transport.getRpcStub(serviceId, 
+    UnserializablePromiseService client = transport.getRpcStub(serviceId,
         UnserializablePromiseService.class);
 
     FlowFuture<Void> testFuture = startActor(() -> {
@@ -611,7 +630,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     EndpointId serviceId = new EndpointId("unserializable-stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
 
-    UnserializableStreamService client = transport.getRpcStub(serviceId, 
+    UnserializableStreamService client = transport.getRpcStub(serviceId,
         UnserializableStreamService.class);
 
     FlowFuture<Void> testFuture = startActor(() -> {
@@ -655,7 +674,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
           UUID messageId = UUID.randomUUID();
           messageIds.add(messageId);
           String methodId = "io.github.panghy.javaflow.rpc." +
-              "FlowRpcTransportImplInternalCoverageTest$TestService.echo(java.lang.String)";
+                            "FlowRpcTransportImplInternalCoverageTest$TestService.echo(java.lang.String)";
           RpcMessage request = new RpcMessage(
               RpcMessageHeader.MessageType.REQUEST,
               messageId,
@@ -778,6 +797,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test when method invocation throws exception
     interface ExceptionService {
       void throwException() throws Exception;
+
       String throwRuntimeException();
     }
 
@@ -828,6 +848,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test returning already completed futures
     interface CompletedFutureService {
       FlowFuture<String> getCompletedFuture();
+
       FlowFuture<String> getExceptionalFuture();
     }
 
@@ -878,7 +899,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test numeric conversions that widen types
     interface WideningService {
       long getInt();
+
       double getFloat();
+
       double getInt2();
     }
 
@@ -904,7 +927,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Client expects narrower types
     interface NarrowingClient {
       int getInt();
+
       float getFloat();
+
       int getInt2();
     }
 
@@ -985,7 +1010,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     FlowFuture<Void> testFuture = startActor(() -> {
       // Connect and immediately close to test reader error handling
       var connection = await(networkTransport.connect(serverEndpoint));
-      
+
       // Send a valid request to trigger reader start
       UUID messageId = UUID.randomUUID();
       RpcMessage request = new RpcMessage(
@@ -994,15 +1019,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
           "io.github.panghy.javaflow.rpc.FlowRpcTransportImplInternalCoverageTest$TestService.echo(java.lang.String)",
           null,
           FlowSerialization.serialize(new Object[]{"test"}));
-      
+
       connection.send(request.serialize());
-      
+
       // Close connection to trigger error handling
       await(connection.close());
-      
+
       // Give time for error handling
       await(Flow.delay(0.1));
-      
+
       return null;
     });
 
@@ -1041,14 +1066,14 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FlowFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getStream();
-      
+
       try {
         await(stream.getFutureStream().onClose());
         // Stream should close (even if error couldn't be serialized)
       } catch (Exception e) {
         // Expected - stream closed with error
       }
-      
+
       return null;
     });
 
@@ -1059,30 +1084,30 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testHandleResponseWithInvalidPayload() {
     // Test handling response with payload that can't be deserialized
     LocalEndpoint customEndpoint = LocalEndpoint.localhost(8889);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Start a custom server that sends invalid response
       var serverStream = networkTransport.listen(customEndpoint);
-      
+
       startActor(() -> {
         var conn = await(serverStream.nextAsync());
-        
+
         // Receive request
         ByteBuffer request = await(conn.receive(65536));
         RpcMessage requestMsg = RpcMessage.deserialize(request);
-        
+
         // Send response with corrupted payload
         ByteBuffer corruptedPayload = ByteBuffer.allocate(100);
         corruptedPayload.put(new byte[100]); // Random bytes
         corruptedPayload.flip();
-        
+
         RpcMessage response = new RpcMessage(
             RpcMessageHeader.MessageType.RESPONSE,
             requestMsg.getHeader().getMessageId(),
             null,
             null,
             corruptedPayload);
-        
+
         conn.send(response.serialize());
         return null;
       });
@@ -1090,13 +1115,13 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       // Create client and make a call
       EndpointId serviceId = new EndpointId("test-service");
       transport.getEndpointResolver().registerRemoteEndpoint(serviceId, customEndpoint);
-      
+
       interface SimpleService {
         String getValue();
       }
-      
+
       SimpleService client = transport.getRpcStub(serviceId, SimpleService.class);
-      
+
       try {
         client.getValue();
         fail("Should have thrown exception");
@@ -1104,7 +1129,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - deserialization should fail
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -1121,13 +1146,13 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       // Connect then close
       var connection = await(networkTransport.connect(serverEndpoint));
       await(connection.close());
-      
+
       // Now try to send a request through the transport
       EndpointId serviceId = new EndpointId("test-service");
       transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-      
+
       TestService client = transport.getRpcStub(serviceId, TestService.class);
-      
+
       try {
         client.echo("test");
         fail("Should have thrown exception");
@@ -1135,7 +1160,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - connection is closed
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -1235,7 +1260,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
-    
+
     CancellableService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       promiseRef.set(future.getPromise());
@@ -1252,11 +1277,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FlowFuture<Void> testFuture = startActor(() -> {
       FlowPromise<String> promise = client.getCancellablePromise();
-      
+
       // Wait a bit then close transport to trigger cancellation
       await(Flow.delay(0.1));
       await(transport.close());
-      
+
       // Promise should be cancelled
       try {
         await(promise.getFuture());
@@ -1265,7 +1290,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - promise was cancelled
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -1280,7 +1305,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
-    
+
     ErrorService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       promiseRef.set(future.getPromise());
@@ -1296,7 +1321,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FlowFuture<Void> testFuture = startActor(() -> {
       FlowPromise<String> promise = client.getPromise();
-      
+
       // Complete with an error that can't be serialized
       startActor(() -> {
         await(Flow.delay(0.1));
@@ -1308,7 +1333,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         });
         return null;
       });
-      
+
       // Client should still get an error (even if not the exact one)
       try {
         await(promise.getFuture());
@@ -1316,7 +1341,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       } catch (Exception e) {
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -1327,12 +1352,12 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testConnectionFailureInSendMessageToEndpoint() {
     // Test when connectionManager.getConnectionToEndpoint fails
     LocalEndpoint badEndpoint = LocalEndpoint.localhost(19999);
-    
+
     // Create a service that returns a promise
     interface RemotePromiseService {
       FlowPromise<String> getRemotePromise();
     }
-    
+
     RemotePromiseService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       // Complete after delay
@@ -1343,13 +1368,13 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       });
       return future.getPromise();
     };
-    
+
     // Register service on bad endpoint (won't actually listen)
     EndpointId serviceId = new EndpointId("remote-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, badEndpoint);
-    
+
     RemotePromiseService client = transport.getRpcStub(serviceId, RemotePromiseService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // This should fail to connect
       try {
@@ -1357,10 +1382,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         fail("Should have thrown exception");
       } catch (Exception e) {
         // Expected - connection should fail
-        assertTrue(e.getMessage().contains("Connection refused") || 
+        assertTrue(e.getMessage().contains("Connection refused") ||
                    e.getMessage().contains("Failed to connect"));
       }
-      
+
       return null;
     });
 
@@ -1376,7 +1401,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     FlowFuture<Void> testFuture = startActor(() -> {
       // Connect and start a request
       var connection = await(networkTransport.connect(serverEndpoint));
-      
+
       // Send a valid request to start the reader
       UUID messageId = UUID.randomUUID();
       RpcMessage request = new RpcMessage(
@@ -1385,27 +1410,27 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
           "io.github.panghy.javaflow.rpc.FlowRpcTransportImplInternalCoverageTest$TestService.echo(java.lang.String)",
           null,
           FlowSerialization.serialize(new Object[]{"test"}));
-      
+
       connection.send(request.serialize());
-      
+
       // Wait for response
       ByteBuffer response = await(connection.receive(65536));
       RpcMessage responseMsg = RpcMessage.deserialize(response);
       assertEquals(RpcMessageHeader.MessageType.RESPONSE, responseMsg.getHeader().getType());
-      
+
       // Now send corrupted data to trigger exception in reader
       ByteBuffer corruptedData = ByteBuffer.allocate(10);
       corruptedData.put(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
       corruptedData.flip();
-      
+
       connection.send(corruptedData);
-      
+
       // Close connection to trigger cleanup
       await(connection.close());
-      
+
       // Give time for error handling
       await(Flow.delay(0.1));
-      
+
       return null;
     });
 
@@ -1418,7 +1443,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     interface PromiseReturningService {
       FlowPromise<String> getDelayedValue();
     }
-    
+
     PromiseReturningService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       // Complete promise after connection is closed
@@ -1429,21 +1454,21 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       });
       return future.getPromise();
     };
-    
+
     transport.registerServiceAndListen(impl, PromiseReturningService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       EndpointId serviceId = new EndpointId("promise-service");
       transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
       PromiseReturningService client = transport.getRpcStub(serviceId, PromiseReturningService.class);
-      
+
       // Get the promise
       FlowPromise<String> promise = client.getDelayedValue();
-      
+
       // Force close all connections
       await(Flow.delay(0.1));
       await(networkTransport.close());
-      
+
       // Promise completion should still try to send result
       try {
         await(promise.getFuture());
@@ -1452,7 +1477,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - connection was closed
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -1467,7 +1492,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     AtomicReference<PromiseStream<String>> streamRef = new AtomicReference<>();
-    
+
     StreamErrorService impl = () -> {
       PromiseStream<String> stream = new PromiseStream<>();
       streamRef.set(stream);
@@ -1483,7 +1508,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FlowFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getStream();
-      
+
       // Close stream with unserializable error
       startActor(() -> {
         await(Flow.delay(0.1));
@@ -1494,14 +1519,14 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         });
         return null;
       });
-      
+
       // Stream should still close (even without error details)
       try {
         await(stream.getFutureStream().onClose());
       } catch (Exception e) {
         // May or may not get an exception
       }
-      
+
       return null;
     });
 
@@ -1514,21 +1539,21 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     interface FailingConnectionService {
       String getValue();
     }
-    
+
     FailingConnectionService impl = () -> "value";
-    
+
     // Create a bad endpoint that we can't actually connect to
     LocalEndpoint badEndpoint = LocalEndpoint.localhost(29999);
-    
+
     // Register on a real endpoint first
     transport.registerServiceAndListen(impl, FailingConnectionService.class, serverEndpoint);
-    
+
     // But tell the client it's on the bad endpoint
     EndpointId serviceId = new EndpointId("failing-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, badEndpoint);
-    
+
     FailingConnectionService client = transport.getRpcStub(serviceId, FailingConnectionService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // This should fail to connect
       try {
@@ -1536,11 +1561,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         fail("Should have thrown exception");
       } catch (Exception e) {
         // Expected - connection should fail
-        assertTrue(e.getMessage().contains("Connection refused") || 
+        assertTrue(e.getMessage().contains("Connection refused") ||
                    e.getMessage().contains("Failed to connect") ||
                    e.getMessage().contains("No connection available"));
       }
-      
+
       return null;
     });
 
@@ -1560,11 +1585,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       ByteBuffer buffer = ByteBuffer.allocate(100);
       buffer.putInt(25); // Message length
       buffer.put((byte) 127); // Invalid message type (not in enum)
-      
+
       // Add UUID (16 bytes)
       buffer.putLong(UUID.randomUUID().getMostSignificantBits());
       buffer.putLong(UUID.randomUUID().getLeastSignificantBits());
-      
+
       // Method ID length and promise count
       buffer.putInt(0); // No method ID
       buffer.putInt(0); // No promise IDs
@@ -1589,7 +1614,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test that all pending calls are completed with error when connection fails
     interface SlowService {
       FlowFuture<String> slowMethod1();
+
       FlowFuture<String> slowMethod2();
+
       FlowFuture<String> slowMethod3();
     }
 
@@ -1722,58 +1749,58 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     interface BidirectionalService {
       void startBidirectionalCommunication(EndpointId callbackEndpointId);
     }
-    
+
     interface CallbackService {
       FlowPromise<String> getCallback();
     }
-    
+
     AtomicReference<FlowPromise<String>> callbackPromiseRef = new AtomicReference<>();
-    
+
     CallbackService callbackImpl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       callbackPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
-    
+
     // Register callback service
     transport.registerServiceAndListen(callbackImpl, CallbackService.class, serverEndpoint);
     EndpointId callbackEndpointId = new EndpointId("callback-service");
     transport.getEndpointResolver().registerLocalEndpoint(callbackEndpointId, callbackImpl, serverEndpoint);
-    
+
     BidirectionalService bidirectionalImpl = (EndpointId callbackId) -> {
       // Get callback client using the existing connection
       CallbackService callbackClient = transport.getRpcStub(callbackId, CallbackService.class);
-      
+
       startActor(() -> {
         // Get promise from callback
         FlowPromise<String> promise = callbackClient.getCallback();
-        
+
         // This will complete later
         return null;
       });
     };
-    
+
     transport.registerServiceAndListen(bidirectionalImpl, BidirectionalService.class, serverEndpoint);
     EndpointId bidirectionalId = new EndpointId("bidirectional-service");
     transport.getEndpointResolver().registerRemoteEndpoint(bidirectionalId, serverEndpoint);
-    
+
     BidirectionalService client = transport.getRpcStub(bidirectionalId, BidirectionalService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Start bidirectional communication
       client.startBidirectionalCommunication(callbackEndpointId);
-      
+
       // Wait for callback promise to be created
       await(Flow.delay(0.1));
-      
+
       // Complete the callback promise - this should use existing connection
       if (callbackPromiseRef.get() != null) {
         callbackPromiseRef.get().complete("callback result");
       }
-      
+
       // Give time for message to be sent
       await(Flow.delay(0.1));
-      
+
       return null;
     });
 
@@ -1785,34 +1812,36 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test handleRequest when method invocation throws different exceptions
     interface ExceptionThrowingService {
       void throwChecked() throws Exception;
+
       void throwUnchecked();
+
       void throwError();
     }
-    
+
     ExceptionThrowingService impl = new ExceptionThrowingService() {
       @Override
       public void throwChecked() throws Exception {
         throw new Exception("Checked exception");
       }
-      
+
       @Override
       public void throwUnchecked() {
         throw new IllegalArgumentException("Unchecked exception");
       }
-      
+
       @Override
       public void throwError() {
         throw new Error("Error thrown");
       }
     };
-    
+
     transport.registerServiceAndListen(impl, ExceptionThrowingService.class, serverEndpoint);
-    
+
     EndpointId serviceId = new EndpointId("exception-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-    
+
     ExceptionThrowingService client = transport.getRpcStub(serviceId, ExceptionThrowingService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Test checked exception
       try {
@@ -1821,7 +1850,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       } catch (Exception e) {
         assertEquals("Checked exception", e.getMessage());
       }
-      
+
       // Test unchecked exception
       try {
         client.throwUnchecked();
@@ -1829,7 +1858,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       } catch (IllegalArgumentException e) {
         assertEquals("Unchecked exception", e.getMessage());
       }
-      
+
       // Test error
       try {
         client.throwError();
@@ -1837,7 +1866,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       } catch (Error e) {
         assertEquals("Error thrown", e.getMessage());
       }
-      
+
       return null;
     });
 
@@ -1849,44 +1878,46 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test sending response with null result value
     interface NullReturningService {
       String getNullString();
+
       Integer getNullInteger();
+
       List<String> getNullList();
     }
-    
+
     NullReturningService impl = new NullReturningService() {
       @Override
       public String getNullString() {
         return null;
       }
-      
+
       @Override
       public Integer getNullInteger() {
         return null;
       }
-      
+
       @Override
       public List<String> getNullList() {
         return null;
       }
     };
-    
+
     transport.registerServiceAndListen(impl, NullReturningService.class, serverEndpoint);
-    
+
     EndpointId serviceId = new EndpointId("null-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-    
+
     NullReturningService client = transport.getRpcStub(serviceId, NullReturningService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Test null string
       assertNull(client.getNullString());
-      
+
       // Test null integer
       assertNull(client.getNullInteger());
-      
+
       // Test null list
       assertNull(client.getNullList());
-      
+
       return null;
     });
 
@@ -1898,57 +1929,60 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test processIncomingArguments with edge cases
     interface EdgeCaseService {
       String processNull(String arg);
+
       String processPrimitive(int value);
+
       String processArray(String[] array);
+
       String processVarArgs(String... args);
     }
-    
+
     EdgeCaseService impl = new EdgeCaseService() {
       @Override
       public String processNull(String arg) {
         return "Got: " + arg;
       }
-      
+
       @Override
       public String processPrimitive(int value) {
         return "Value: " + value;
       }
-      
+
       @Override
       public String processArray(String[] array) {
         return array == null ? "null" : "Length: " + array.length;
       }
-      
+
       @Override
       public String processVarArgs(String... args) {
         return "Args: " + args.length;
       }
     };
-    
+
     transport.registerServiceAndListen(impl, EdgeCaseService.class, serverEndpoint);
-    
+
     EndpointId serviceId = new EndpointId("edge-case-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-    
+
     EdgeCaseService client = transport.getRpcStub(serviceId, EdgeCaseService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Test null argument
       assertEquals("Got: null", client.processNull(null));
-      
+
       // Test primitive
       assertEquals("Value: 42", client.processPrimitive(42));
-      
+
       // Test null array
       assertEquals("null", client.processArray(null));
-      
+
       // Test empty array
       assertEquals("Length: 0", client.processArray(new String[0]));
-      
+
       // Test varargs
       assertEquals("Args: 0", client.processVarArgs());
       assertEquals("Args: 3", client.processVarArgs("a", "b", "c"));
-      
+
       return null;
     });
 
@@ -1961,12 +1995,12 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     interface RemoteService {
       String getValue();
     }
-    
+
     RemoteService impl = () -> "value";
-    
+
     // Create an endpoint that will cause connection to fail
     LocalEndpoint unreachableEndpoint = LocalEndpoint.localhost(19876);
-    
+
     // Try to connect to an endpoint that's not listening
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -1975,10 +2009,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         fail("Should have failed to connect");
       } catch (Exception e) {
         // Expected - connection refused
-        assertTrue(e.getMessage().contains("Connection refused") || 
+        assertTrue(e.getMessage().contains("Connection refused") ||
                    e.getMessage().contains("Failed to connect"));
       }
-      
+
       return null;
     });
 
@@ -1991,44 +2025,44 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     interface DelayedPromiseService {
       FlowPromise<String> getDelayedPromise();
     }
-    
+
     AtomicReference<FlowPromise<String>> serverPromiseRef = new AtomicReference<>();
-    
+
     DelayedPromiseService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       serverPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
-    
+
     transport.registerServiceAndListen(impl, DelayedPromiseService.class, serverEndpoint);
-    
+
     EndpointId serviceId = new EndpointId("delayed-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-    
+
     DelayedPromiseService client = transport.getRpcStub(serviceId, DelayedPromiseService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Get the promise - this establishes a connection
       FlowPromise<String> clientPromise = client.getDelayedPromise();
-      
+
       // Wait a bit for connection to be established
       await(Flow.delay(0.1));
-      
+
       // Force close the transport to simulate connection issues
       await(networkTransport.close());
-      
+
       // Wait a bit
       await(Flow.delay(0.1));
-      
+
       // Now complete the promise on server side
       // This will try to send result but connection is gone
       if (serverPromiseRef.get() != null) {
         serverPromiseRef.get().complete("delayed result");
       }
-      
+
       // Give time for completion attempt
       await(Flow.delay(0.2));
-      
+
       // Client should get an error due to closed connection
       try {
         await(clientPromise.getFuture());
@@ -2037,7 +2071,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - connection was closed
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
@@ -2056,7 +2090,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       // Send STREAM_DATA for a completely unknown stream ID
       UUID randomStreamId = UUID.randomUUID();
       ByteBuffer payload = FlowSerialization.serialize("stream data");
-      
+
       RpcMessage streamDataMsg = new RpcMessage(
           RpcMessageHeader.MessageType.STREAM_DATA,
           randomStreamId,
@@ -2090,7 +2124,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       // Send PROMISE_COMPLETE for unknown promise
       UUID randomPromiseId = UUID.randomUUID();
       ByteBuffer payload = FlowSerialization.serialize("promise result");
-      
+
       RpcMessage promiseMsg = new RpcMessage(
           RpcMessageHeader.MessageType.PROMISE_COMPLETE,
           randomPromiseId,
@@ -2113,44 +2147,127 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   }
 
   @Test
+  public void testPromiseCancellationWithSendCancellationMethod() {
+    // Test the sendCancellation method by using RemotePromiseTracker with reflection
+    // This test directly triggers the sendCancellation code path
+
+    // Set up a service that creates a connection
+    interface SimpleService {
+      String echo(String msg);
+    }
+
+    SimpleService impl = msg -> msg;
+    transport.registerServiceAndListen(impl, SimpleService.class, serverEndpoint);
+
+    // Track messages sent
+    AtomicReference<ByteBuffer> lastSentMessage = new AtomicReference<>();
+    AtomicBoolean cancellationLogged = new AtomicBoolean(false);
+
+    // Use a custom logger handler to verify the cancellation log message
+    Logger logger = Logger.getLogger(FlowRpcTransportImpl.class.getName());
+    java.util.logging.Handler testHandler = new java.util.logging.Handler() {
+      @Override
+      public void publish(java.util.logging.LogRecord record) {
+        if (record.getMessage() != null &&
+            record.getMessage().contains("Sending cancellation to") &&
+            record.getMessage().contains("for promise")) {
+          cancellationLogged.set(true);
+        }
+      }
+
+      @Override
+      public void flush() {
+      }
+
+      @Override
+      public void close() throws SecurityException {
+      }
+    };
+
+    logger.addHandler(testHandler);
+    logger.setLevel(java.util.logging.Level.INFO);
+
+    try {
+      FlowFuture<Void> testFuture = startActor(() -> {
+        // Create a connection to the server
+        var conn = await(networkTransport.connect(serverEndpoint));
+
+        // Use reflection to access RemotePromiseTracker and MessageSender
+        try {
+          // Get the RemotePromiseTracker field from FlowRpcTransportImpl
+          java.lang.reflect.Field trackerField = FlowRpcTransportImpl.class.getDeclaredField("promiseTracker");
+          trackerField.setAccessible(true);
+          RemotePromiseTracker tracker = (RemotePromiseTracker) trackerField.get(transport);
+
+          // Create a local promise with sendResultBack=true using the 3-argument version
+          UUID promiseId = UUID.randomUUID();
+          FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(
+              promiseId, serverEndpoint, new io.github.panghy.javaflow.rpc.serialization.TypeDescription(String.class));
+
+          // Cancel the promise - this should trigger sendCancellation
+          boolean cancelled = localPromise.getFuture().cancel();
+          assertTrue(cancelled, "Should be able to cancel the promise");
+
+          // Wait for the cancellation to be processed
+          await(Flow.delay(0.2));
+
+          // Verify that the cancellation was logged
+          assertTrue(cancellationLogged.get(), "Cancellation should have been logged");
+
+        } catch (Exception e) {
+          fail("Failed to access internal fields: " + e);
+        }
+
+        conn.close();
+        return null;
+      });
+
+      pumpUntilDone(testFuture);
+
+    } finally {
+      logger.removeHandler(testHandler);
+    }
+  }
+
+  @Test
   public void testRemotePromiseCompletionWithConnectionFailure() {
     // Test promise completion when new connection fails
     interface AsyncPromiseService {
       FlowPromise<String> getAsyncPromise();
     }
-    
+
     AtomicReference<FlowPromise<String>> serverPromiseRef = new AtomicReference<>();
     AtomicReference<EndpointId> clientEndpointRef = new AtomicReference<>();
-    
+
     AsyncPromiseService impl = () -> {
       FlowFuture<String> future = new FlowFuture<>();
       serverPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
-    
+
     // Register service on a special endpoint
     LocalEndpoint specialEndpoint = LocalEndpoint.localhost(19877);
     transport.registerServiceAndListen(impl, AsyncPromiseService.class, specialEndpoint);
-    
+
     // Create a second transport that will act as client
     SimulatedFlowTransport clientNetworkTransport = new SimulatedFlowTransport();
     FlowRpcTransportImpl clientTransport = new FlowRpcTransportImpl(clientNetworkTransport);
-    
+
     EndpointId serviceId = new EndpointId("async-promise-service");
     clientTransport.getEndpointResolver().registerRemoteEndpoint(serviceId, specialEndpoint);
-    
+
     AsyncPromiseService client = clientTransport.getRpcStub(serviceId, AsyncPromiseService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // Get promise from server
       FlowPromise<String> clientPromise = client.getAsyncPromise();
-      
+
       // Wait for promise to be created on server
       await(Flow.delay(0.1));
-      
+
       // Close the client transport to simulate network failure
       await(clientTransport.close());
-      
+
       // Now complete the promise on server side
       // This will try to send result back but connection is gone
       if (serverPromiseRef.get() != null) {
@@ -2160,10 +2277,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
           return null;
         });
       }
-      
+
       // Give time for completion attempt
       await(Flow.delay(0.3));
-      
+
       // The promise should fail on client side
       try {
         await(clientPromise.getFuture());
@@ -2172,12 +2289,12 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         // Expected - transport was closed
         assertNotNull(e);
       }
-      
+
       return null;
     });
 
     pumpUntilDone(testFuture);
-    
+
     // Clean up
     FlowFuture<Void> cleanupFuture = transport.close();
     pumpUntilDone(cleanupFuture);
@@ -2200,29 +2317,29 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
           "io.github.panghy.javaflow.rpc.FlowRpcTransportImplInternalCoverageTest$TestService.echo(java.lang.String)",
           null,
           FlowSerialization.serialize(new Object[]{"test"}));
-      
+
       connection.send(request.serialize());
-      
+
       // Wait a bit
       await(Flow.delay(0.05));
-      
+
       // Now send ERROR response with corrupted payload
       ByteBuffer corruptedPayload = ByteBuffer.allocate(50);
       corruptedPayload.put(new byte[50]); // Random bytes that won't deserialize
       corruptedPayload.flip();
-      
+
       RpcMessage errorMsg = new RpcMessage(
           RpcMessageHeader.MessageType.ERROR,
           messageId,
           null,
           null,
           corruptedPayload);
-      
+
       connection.send(errorMsg.serialize());
-      
+
       // Give time to process
       await(Flow.delay(0.1));
-      
+
       return null;
     });
 
@@ -2234,40 +2351,42 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test handling RESPONSE with numeric overflow scenarios
     interface NumericOverflowService {
       byte getByteValue();
+
       short getShortValue();
     }
-    
+
     // We'll send back values that are too large for the expected types
     NumericOverflowService impl = new NumericOverflowService() {
       @Override
       public byte getByteValue() {
         return 42;
       }
-      
-      @Override 
+
+      @Override
       public short getShortValue() {
         return 1234;
       }
     };
-    
+
     transport.registerServiceAndListen(impl, NumericOverflowService.class, serverEndpoint);
-    
+
     // Create interface that expects wider types
     interface WideNumericService {
       long getByteValue(); // Expects long but server returns byte
+
       long getShortValue(); // Expects long but server returns short
     }
-    
+
     EndpointId serviceId = new EndpointId("numeric-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
-    
+
     WideNumericService client = transport.getRpcStub(serviceId, WideNumericService.class);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       // These should work with numeric conversion
       assertEquals(42L, client.getByteValue());
       assertEquals(1234L, client.getShortValue());
-      
+
       return null;
     });
 
@@ -2278,14 +2397,18 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public interface NumericTestService {
     // For testing Long to smaller types
     String processByte(byte value);
+
     String processShort(short value);
+
     String processInt(int value);
+
     String processDouble(double value);
-    
+
     // For testing Integer conversions
     String processLongFromInt(long value);
+
     String processDoubleFromInt(double value);
-    
+
     // For testing Float to Double
     String processDoubleFromFloat(double value);
   }
@@ -2298,141 +2421,141 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       public String processByte(byte value) {
         return "Byte: " + value;
       }
-      
+
       @Override
       public String processShort(short value) {
         return "Short: " + value;
       }
-      
+
       @Override
       public String processInt(int value) {
         return "Int: " + value;
       }
-      
+
       @Override
       public String processDouble(double value) {
         return "Double: " + value;
       }
-      
+
       @Override
       public String processLongFromInt(long value) {
         return "Long: " + value;
       }
-      
+
       @Override
       public String processDoubleFromInt(double value) {
         return "DoubleFromInt: " + value;
       }
-      
+
       @Override
       public String processDoubleFromFloat(double value) {
         return "DoubleFromFloat: " + value;
       }
     };
-    
+
     transport.registerServiceAndListen(impl, NumericTestService.class, serverEndpoint);
-    
+
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
-      
+
       // Test Long -> Byte conversions (lines 813-837)
       testLongToByteConversions(connection);
-      
+
       // Test Long -> Short conversions (lines 822-829)
       testLongToShortConversions(connection);
-      
+
       // Test Long -> Integer conversions (lines 814-821)
       testLongToIntegerConversions(connection);
-      
+
       // Test Long -> Double conversion (lines 838-841)
       testLongToDoubleConversion(connection);
-      
+
       // Test Integer -> Long conversion (lines 844-846)
       testIntegerToLongConversion(connection);
-      
+
       // Test Integer -> Double conversion (lines 847-850)
       testIntegerToDoubleConversion(connection);
-      
+
       // Test Float -> Double conversion (lines 852-856)
       testFloatToDoubleConversion(connection);
-      
+
       return null;
     });
-    
+
     pumpUntilDone(testFuture);
   }
-  
-  private void testLongToByteConversions(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testLongToByteConversions(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processByte(byte)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processByte(byte)";
+
     // Valid conversions
     testNumericConversion(connection, methodId, 0L, "Byte: 0");
     testNumericConversion(connection, methodId, 42L, "Byte: 42");
     testNumericConversion(connection, methodId, -42L, "Byte: -42");
     testNumericConversion(connection, methodId, (long) Byte.MAX_VALUE, "Byte: 127");
     testNumericConversion(connection, methodId, (long) Byte.MIN_VALUE, "Byte: -128");
-    
+
     // Overflow cases
     testNumericOverflow(connection, methodId, (long) Byte.MAX_VALUE + 1, "cannot be converted to Byte");
     testNumericOverflow(connection, methodId, (long) Byte.MIN_VALUE - 1, "cannot be converted to Byte");
     testNumericOverflow(connection, methodId, 1000L, "cannot be converted to Byte");
     testNumericOverflow(connection, methodId, -1000L, "cannot be converted to Byte");
   }
-  
-  private void testLongToShortConversions(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testLongToShortConversions(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processShort(short)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processShort(short)";
+
     // Valid conversions
     testNumericConversion(connection, methodId, 0L, "Short: 0");
     testNumericConversion(connection, methodId, 1000L, "Short: 1000");
     testNumericConversion(connection, methodId, -1000L, "Short: -1000");
     testNumericConversion(connection, methodId, (long) Short.MAX_VALUE, "Short: 32767");
     testNumericConversion(connection, methodId, (long) Short.MIN_VALUE, "Short: -32768");
-    
+
     // Overflow cases
     testNumericOverflow(connection, methodId, (long) Short.MAX_VALUE + 1, "cannot be converted to Short");
     testNumericOverflow(connection, methodId, (long) Short.MIN_VALUE - 1, "cannot be converted to Short");
     testNumericOverflow(connection, methodId, 100000L, "cannot be converted to Short");
   }
-  
-  private void testLongToIntegerConversions(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testLongToIntegerConversions(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processInt(int)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processInt(int)";
+
     // Valid conversions
     testNumericConversion(connection, methodId, 0L, "Int: 0");
     testNumericConversion(connection, methodId, 123456L, "Int: 123456");
     testNumericConversion(connection, methodId, -123456L, "Int: -123456");
     testNumericConversion(connection, methodId, (long) Integer.MAX_VALUE, "Int: 2147483647");
     testNumericConversion(connection, methodId, (long) Integer.MIN_VALUE, "Int: -2147483648");
-    
+
     // Overflow cases
     testNumericOverflow(connection, methodId, (long) Integer.MAX_VALUE + 1, "cannot be converted to Integer");
     testNumericOverflow(connection, methodId, (long) Integer.MIN_VALUE - 1, "cannot be converted to Integer");
   }
-  
-  private void testLongToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testLongToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDouble(double)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDouble(double)";
+
     // All Long to Double conversions should work
     testNumericConversion(connection, methodId, 0L, "Double: 0.0");
     testNumericConversion(connection, methodId, 123456789L, "Double: 1.23456789E8");
     testNumericConversion(connection, methodId, -123456789L, "Double: -1.23456789E8");
     testNumericConversion(connection, methodId, Long.MAX_VALUE, "Double: 9.223372036854776E18");
   }
-  
-  private void testIntegerToLongConversion(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testIntegerToLongConversion(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processLongFromInt(long)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processLongFromInt(long)";
+
     // All Integer to Long conversions should work (widening)
     testNumericConversion(connection, methodId, 0, "Long: 0");
     testNumericConversion(connection, methodId, 42, "Long: 42");
@@ -2440,33 +2563,33 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     testNumericConversion(connection, methodId, Integer.MAX_VALUE, "Long: 2147483647");
     testNumericConversion(connection, methodId, Integer.MIN_VALUE, "Long: -2147483648");
   }
-  
-  private void testIntegerToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testIntegerToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDoubleFromInt(double)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDoubleFromInt(double)";
+
     // All Integer to Double conversions should work
     testNumericConversion(connection, methodId, 0, "DoubleFromInt: 0.0");
     testNumericConversion(connection, methodId, 42, "DoubleFromInt: 42.0");
     testNumericConversion(connection, methodId, -42, "DoubleFromInt: -42.0");
     testNumericConversion(connection, methodId, Integer.MAX_VALUE, "DoubleFromInt: 2.147483647E9");
   }
-  
-  private void testFloatToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection) 
+
+  private void testFloatToDoubleConversion(io.github.panghy.javaflow.io.network.FlowConnection connection)
       throws Exception {
     String methodId = "io.github.panghy.javaflow.rpc." +
-        "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDoubleFromFloat(double)";
-    
+                      "FlowRpcTransportImplInternalCoverageTest$NumericTestService.processDoubleFromFloat(double)";
+
     // All Float to Double conversions should work (widening)
     testNumericConversion(connection, methodId, 0.0f, "DoubleFromFloat: 0.0");
     testNumericConversion(connection, methodId, 3.14f, "DoubleFromFloat: 3.140000104904175");
     testNumericConversion(connection, methodId, -3.14f, "DoubleFromFloat: -3.140000104904175");
     testNumericConversion(connection, methodId, Float.MAX_VALUE, "DoubleFromFloat: 3.4028234663852886E38");
   }
-  
-  private void testNumericConversion(io.github.panghy.javaflow.io.network.FlowConnection connection, 
-      String methodId, Object value, String expectedResult) throws Exception {
+
+  private void testNumericConversion(io.github.panghy.javaflow.io.network.FlowConnection connection,
+                                     String methodId, Object value, String expectedResult) throws Exception {
     UUID messageId = UUID.randomUUID();
     Object[] args = new Object[]{value};
     RpcMessage request = new RpcMessage(
@@ -2475,18 +2598,18 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         methodId,
         null,
         FlowSerialization.serialize(args));
-    
+
     connection.send(request.serialize());
-    
+
     ByteBuffer response = Flow.await(connection.receive(65536));
     RpcMessage responseMsg = RpcMessage.deserialize(response);
     assertEquals(RpcMessageHeader.MessageType.RESPONSE, responseMsg.getHeader().getType());
     String result = (String) FlowSerialization.deserialize(responseMsg.getPayload());
     assertEquals(expectedResult, result);
   }
-  
-  private void testNumericOverflow(io.github.panghy.javaflow.io.network.FlowConnection connection, 
-      String methodId, Object value, String expectedError) throws Exception {
+
+  private void testNumericOverflow(io.github.panghy.javaflow.io.network.FlowConnection connection,
+                                   String methodId, Object value, String expectedError) throws Exception {
     UUID messageId = UUID.randomUUID();
     Object[] args = new Object[]{value};
     RpcMessage request = new RpcMessage(
@@ -2495,9 +2618,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         methodId,
         null,
         FlowSerialization.serialize(args));
-    
+
     connection.send(request.serialize());
-    
+
     ByteBuffer response = Flow.await(connection.receive(65536));
     RpcMessage responseMsg = RpcMessage.deserialize(response);
     assertEquals(RpcMessageHeader.MessageType.ERROR, responseMsg.getHeader().getType());

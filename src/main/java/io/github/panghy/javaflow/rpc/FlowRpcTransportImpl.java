@@ -56,7 +56,7 @@ import static io.github.panghy.javaflow.util.LoggingUtil.warn;
  * <p>The transport automatically switches between local and remote invocation
  * based on the endpoint configuration, providing location transparency.</p>
  */
-public class FlowRpcTransportImpl implements FlowRpcTransport {
+public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTracker.MessageSender {
 
   private static final Logger LOGGER = Logger.getLogger(FlowRpcTransportImpl.class.getName());
 
@@ -101,7 +101,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
     this.networkTransport = networkTransport;
     this.endpointResolver = new DefaultEndpointResolver();
     this.connectionManager = new ConnectionManager(networkTransport, endpointResolver);
-    this.promiseTracker = new RemotePromiseTracker(createMessageSender());
+    this.promiseTracker = new RemotePromiseTracker(this);
   }
 
   @Override
@@ -357,140 +357,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
   private ConnectionMessageHandler getConnectionHandler(FlowConnection connection) {
     return connectionHandlers.computeIfAbsent(connection,
         conn -> new ConnectionMessageHandler(conn, promiseTracker));
-  }
-
-  /**
-   * Creates a MessageSender implementation that handles the actual sending of messages.
-   */
-  private RemotePromiseTracker.MessageSender createMessageSender() {
-    return new RemotePromiseTracker.MessageSender() {
-      @Override
-      public <T> void sendResult(Endpoint destination, UUID promiseId, T result) {
-        debug(LOGGER, "MessageSender.sendResult called: destination=" + destination
-                      + ", promiseId=" + promiseId + ", result=" + result);
-        // Create a result message
-        try {
-          ByteBuffer payload = FlowSerialization.serialize(result);
-          RpcMessage resultMessage = new RpcMessage(
-              RpcMessageHeader.MessageType.PROMISE_COMPLETE,
-              promiseId,
-              null, // No method ID for promise completion
-              null, // No promise IDs in completion messages
-              payload);
-          sendMessageToEndpoint(destination, resultMessage);
-        } catch (Exception e) {
-          warn(LOGGER, "Failed to serialize promise result", e);
-          // If serialization fails, send an error instead
-          sendError(destination, promiseId, new RpcSerializationException(
-              result.getClass(), "Failed to serialize promise result", e));
-        }
-      }
-
-      @Override
-      public void sendError(Endpoint destination, UUID promiseId, Throwable error) {
-        try {
-          ByteBuffer payload = FlowSerialization.serialize(error);
-          RpcMessage errorMessage = new RpcMessage(
-              RpcMessageHeader.MessageType.ERROR,
-              promiseId,
-              null, // No method ID for promise completion
-              null, // No promise IDs in completion messages
-              payload);
-          sendMessageToEndpoint(destination, errorMessage);
-        } catch (Exception e) {
-          // If we can't even serialize the error, there's not much we can do
-          warn(LOGGER, "Failed to serialize error message", e);
-        }
-      }
-
-      @Override
-      public void sendCancellation(Endpoint source, UUID promiseId) {
-        // For cancellation, we can send an error message with a special exception
-        info(LOGGER, "Sending cancellation to " + source + " for promise " + promiseId);
-        sendError(source, promiseId, new IllegalStateException("Promise was cancelled"));
-      }
-
-      @Override
-      public <T> void sendStreamValue(Endpoint destination, UUID streamId, T value) {
-        // Create a stream data message
-        try {
-          ByteBuffer payload = FlowSerialization.serialize(value);
-          RpcMessage streamMessage = new RpcMessage(
-              RpcMessageHeader.MessageType.STREAM_DATA,
-              streamId,
-              null, // No method ID for stream data
-              null, // No promise IDs in stream messages
-              payload);
-          sendMessageToEndpoint(destination, streamMessage);
-        } catch (Exception e) {
-          // If serialization fails, close the stream with an error
-          warn(LOGGER, "Failed to serialize stream value", e);
-          sendStreamError(destination, streamId, new RpcSerializationException(
-              value.getClass(), "Failed to serialize stream value", e));
-        }
-      }
-
-      @Override
-      public void sendStreamClose(Endpoint destination, UUID streamId) {
-        // Create a stream close message with no payload
-        RpcMessage closeMessage = new RpcMessage(
-            RpcMessageHeader.MessageType.STREAM_CLOSE,
-            streamId,
-            null, // No method ID for stream close
-            null, // No promise IDs in stream messages
-            null); // No payload for normal close
-        sendMessageToEndpoint(destination, closeMessage);
-      }
-
-      @Override
-      public void sendStreamError(Endpoint destination, UUID streamId, Throwable error) {
-        // Create a stream close message with error payload
-        try {
-          ByteBuffer payload = FlowSerialization.serialize(error);
-          RpcMessage errorMessage = new RpcMessage(
-              RpcMessageHeader.MessageType.STREAM_CLOSE,
-              streamId,
-              null, // No method ID for stream close
-              null, // No promise IDs in stream messages
-              payload); // Error payload
-          sendMessageToEndpoint(destination, errorMessage);
-        } catch (Exception e) {
-          // If we can't even serialize the error, send close without payload
-          sendStreamClose(destination, streamId);
-        }
-      }
-
-      private void sendMessageToEndpoint(Endpoint destination, RpcMessage message) {
-        debug(LOGGER, "sendMessageToEndpoint: sending " + message.getHeader().getType() + " to " + destination);
-        ByteBuffer serializedMessage = message.serialize();
-
-        // First, check if we have an existing connection handler for this endpoint
-        // This happens when the endpoint is the remote side of an incoming connection
-        FlowConnection existingConnection = null;
-        for (Map.Entry<FlowConnection, ConnectionMessageHandler> entry : connectionHandlers.entrySet()) {
-          if (entry.getKey().getRemoteEndpoint().equals(destination)) {
-            existingConnection = entry.getKey();
-            break;
-          }
-        }
-
-        if (existingConnection != null && existingConnection.isOpen()) {
-          debug(LOGGER, "Using existing connection to " + destination + ", sending message");
-          existingConnection.send(serializedMessage);
-        } else {
-          // No existing connection, try to establish one
-          FlowFuture<FlowConnection> connectionFuture = connectionManager.getConnectionToEndpoint(destination);
-          connectionFuture.whenComplete((connection, error) -> {
-            if (error == null && connection != null) {
-              debug(LOGGER, "Got new connection to " + destination + ", sending message");
-              connection.send(serializedMessage);
-            } else if (error != null) {
-              warn(LOGGER, "Failed to get connection to " + destination, error);
-            }
-          });
-        }
-      }
-    };
   }
 
   /**
@@ -1487,6 +1353,154 @@ public class FlowRpcTransportImpl implements FlowRpcTransport {
       sb.append(")");
 
       return sb.toString();
+    }
+  }
+
+  /**
+   * Implementation of the MessageSender interface for sending promise and stream messages.
+   */
+  @Override
+  public <T> void sendResult(Endpoint destination, UUID promiseId, T result) {
+    debug(LOGGER, "MessageSender.sendResult called: destination=" + destination
+                  + ", promiseId=" + promiseId + ", result=" + result);
+    // Create a result message
+    try {
+      ByteBuffer payload = FlowSerialization.serialize(result);
+      RpcMessage resultMessage = new RpcMessage(
+          RpcMessageHeader.MessageType.PROMISE_COMPLETE,
+          promiseId,
+          null, // No method ID for promise completion
+          null, // No promise IDs in completion messages
+          payload);
+      sendMessageToEndpoint(destination, resultMessage);
+    } catch (Exception e) {
+      warn(LOGGER, "Failed to serialize promise result", e);
+      // If serialization fails, send an error instead
+      sendError(destination, promiseId, new RpcSerializationException(
+          result.getClass(), "Failed to serialize promise result", e));
+    }
+  }
+
+  /**
+   * Sends an error to an endpoint when a promise fails.
+   */
+  @Override
+  public void sendError(Endpoint destination, UUID promiseId, Throwable error) {
+    try {
+      ByteBuffer payload = FlowSerialization.serialize(error);
+      RpcMessage errorMessage = new RpcMessage(
+          RpcMessageHeader.MessageType.ERROR,
+          promiseId,
+          null, // No method ID for promise completion
+          null, // No promise IDs in completion messages
+          payload);
+      sendMessageToEndpoint(destination, errorMessage);
+    } catch (Exception e) {
+      // If we can't even serialize the error, there's not much we can do
+      warn(LOGGER, "Failed to serialize error message", e);
+    }
+  }
+
+  /**
+   * Sends a cancellation notification to an endpoint.
+   */
+  @Override
+  public void sendCancellation(Endpoint source, UUID promiseId) {
+    // For cancellation, we can send an error message with a special exception
+    info(LOGGER, "Sending cancellation to " + source + " for promise " + promiseId);
+    sendError(source, promiseId, new IllegalStateException("Promise was cancelled"));
+  }
+
+  /**
+   * Sends a stream value to an endpoint.
+   */
+  @Override
+  public <T> void sendStreamValue(Endpoint destination, UUID streamId, T value) {
+    // Create a stream data message
+    try {
+      ByteBuffer payload = FlowSerialization.serialize(value);
+      RpcMessage streamMessage = new RpcMessage(
+          RpcMessageHeader.MessageType.STREAM_DATA,
+          streamId,
+          null, // No method ID for stream data
+          null, // No promise IDs in stream messages
+          payload);
+      sendMessageToEndpoint(destination, streamMessage);
+    } catch (Exception e) {
+      // If serialization fails, close the stream with an error
+      warn(LOGGER, "Failed to serialize stream value", e);
+      sendStreamError(destination, streamId, new RpcSerializationException(
+          value.getClass(), "Failed to serialize stream value", e));
+    }
+  }
+
+  /**
+   * Sends a stream close notification to an endpoint.
+   */
+  @Override
+  public void sendStreamClose(Endpoint destination, UUID streamId) {
+    // Create a stream close message with no payload
+    RpcMessage closeMessage = new RpcMessage(
+        RpcMessageHeader.MessageType.STREAM_CLOSE,
+        streamId,
+        null, // No method ID for stream close
+        null, // No promise IDs in stream messages
+        null); // No payload for normal close
+    sendMessageToEndpoint(destination, closeMessage);
+  }
+
+  /**
+   * Sends a stream error notification to an endpoint.
+   */
+  @Override
+  public void sendStreamError(Endpoint destination, UUID streamId, Throwable error) {
+    // Create a stream close message with error payload
+    try {
+      ByteBuffer payload = FlowSerialization.serialize(error);
+      RpcMessage errorMessage = new RpcMessage(
+          RpcMessageHeader.MessageType.STREAM_CLOSE,
+          streamId,
+          null, // No method ID for stream close
+          null, // No promise IDs in stream messages
+          payload); // Error payload
+      sendMessageToEndpoint(destination, errorMessage);
+    } catch (Exception e) {
+      // If we can't even serialize the error, send close without payload
+      sendStreamClose(destination, streamId);
+    }
+  }
+
+  /**
+   * Sends an RPC message to an endpoint.
+   */
+  private void sendMessageToEndpoint(Endpoint destination, RpcMessage message) {
+    debug(LOGGER, "sendMessageToEndpoint: sending " + message.getHeader().getType() + " to " + destination);
+    ByteBuffer serializedMessage = message.serialize();
+
+    // First, check if we have an existing connection handler for this endpoint
+    // This happens when the endpoint is the remote side of an incoming connection
+    FlowConnection existingConnection = null;
+    for (Map.Entry<FlowConnection, ConnectionMessageHandler> entry : connectionHandlers.entrySet()) {
+      if (entry.getKey().getRemoteEndpoint().equals(destination)) {
+        existingConnection = entry.getKey();
+        break;
+      }
+    }
+
+    if (existingConnection != null && existingConnection.isOpen()) {
+      debug(LOGGER, "Using existing connection to " + destination + ", sending message");
+      existingConnection.send(serializedMessage);
+    } else {
+      // No existing connection, try to establish one
+      FlowFuture<FlowConnection> connectionFuture = connectionManager.getConnectionToEndpoint(destination);
+      connectionFuture.whenComplete((connection, error) -> {
+        if (error == null && connection != null) {
+          debug(LOGGER, "Got new connection to " + destination + ", sending message");
+          connection.send(serializedMessage);
+        } else if (error != null) {
+          warn(LOGGER, "Failed to get connection to " + destination, error);
+        }
+      });
     }
   }
 
