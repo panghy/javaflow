@@ -169,7 +169,7 @@ public class RpcStreamTimeoutUtil {
       } finally {
         // Cancel any pending timeout
         FlowFuture<Void> timeout = currentTimeout.getAndSet(null);
-        if (timeout != null && !timeout.isDone()) {
+        if (timeout != null) {
           timeout.cancel();
         }
       }
@@ -214,20 +214,14 @@ public class RpcStreamTimeoutUtil {
 
     // Forward values from future stream to promise stream
     startActor(() -> {
-      futureStream.forEach(value -> {
-        if (!promiseStream.isClosed()) {
-          promiseStream.send(value);
-        }
-      });
+      futureStream.forEach(promiseStream::send);
 
       // Forward close event
       futureStream.onClose().whenComplete((v, error) -> {
-        if (!promiseStream.isClosed()) {
-          if (error != null) {
-            promiseStream.closeExceptionally(error);
-          } else {
-            promiseStream.close();
-          }
+        if (error != null) {
+          promiseStream.closeExceptionally(error);
+        } else {
+          promiseStream.close();
         }
       });
 
