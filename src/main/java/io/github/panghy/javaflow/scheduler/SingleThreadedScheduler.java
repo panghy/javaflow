@@ -463,6 +463,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
 
       // Store in timer map for execution at the appropriate time
+      debug(LOGGER, "Scheduling timer task " + timerId + " at time: " + executionTimeMs + " current time: "
+                    + clock.currentTimeMillis());
       timerTasks.computeIfAbsent(executionTimeMs, $ -> new ArrayList<>()).add(timerTask);
 
       // Store in ID map for cancellation
@@ -1024,6 +1026,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // Advance the clock without processing tasks (the clock no longer handles tasks)
     simulatedClock.advanceTime(millis);
+    long l = simulatedClock.currentTimeMillis();
+    debug(LOGGER, "Advanced time to " + l + "ms after advancing by " + millis + "ms");
 
     // Process any new timer tasks that are now due based on the new time
     int additionalTimerTasks = processTimerTasks();

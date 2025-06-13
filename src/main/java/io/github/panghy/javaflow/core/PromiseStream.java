@@ -142,6 +142,15 @@ public class PromiseStream<T> {
   }
 
   /**
+   * Gets the exception that caused this stream to close, if any.
+   *
+   * @return the exception that closed this stream, or null if closed normally
+   */
+  public Throwable getCloseException() {
+    return closeException.get();
+  }
+
+  /**
    * Checks if there are any pending next promises waiting for data.
    * This is used internally to determine if more data should be read.
    *
@@ -207,7 +216,13 @@ public class PromiseStream<T> {
         }
 
         if (parent.closed.get()) {
-          // Stream is closed and empty
+          // Stream is closed and empty - check if it was closed exceptionally
+          Throwable closeException = parent.getCloseException();
+          if (closeException != null && !(closeException instanceof StreamClosedException)) {
+            // Stream was closed exceptionally, return a failed future
+            return FlowFuture.failed(closeException);
+          }
+          // Stream was closed normally
           return FlowFuture.completed(false);
         }
 

@@ -188,13 +188,13 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     // Test echo method
     FlowFuture<String> echoF = startActor(() -> remoteService.echo("Hello"));
-    pumpUntilDone(echoF);
+    pumpAndAdvanceTimeUntilDone(echoF);
     String echoResult = echoF.getNow();
     assertEquals("Echo: Hello", echoResult);
 
     // Test add method
     FlowFuture<Integer> addResultF = startActor(() -> remoteService.add(10, 20));
-    pumpUntilDone(addResultF);
+    pumpAndAdvanceTimeUntilDone(addResultF);
     int addResult = addResultF.getNow();
     assertEquals(30, addResult);
   }
@@ -211,7 +211,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
       remoteService.voidMethod();
       return null;
     });
-    pumpUntilDone(voidF);
+    pumpAndAdvanceTimeUntilDone(voidF);
 
     assertDoesNotThrow(voidF::getNow);
   }
@@ -232,7 +232,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
       return await(future);
     });
-    pumpUntilDone(resultF);
+    pumpAndAdvanceTimeUntilDone(resultF);
 
     String result = resultF.getNow();
     assertEquals("Processed: test input", result);
@@ -256,7 +256,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
       Integer result2 = await(future2);
       return Arrays.asList(result1, result2);
     });
-    pumpUntilDone(resultF);
+    pumpAndAdvanceTimeUntilDone(resultF);
 
     List<Object> results = resultF.getNow();
     assertEquals("First promise", results.get(0));
@@ -272,7 +272,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
     FlowFuture<String> echoF = startActor(() -> remoteService.echo(null));
-    pumpUntilDone(echoF);
+    pumpAndAdvanceTimeUntilDone(echoF);
     String result = echoF.getNow();
     assertEquals("Echo: null", result);
   }
@@ -286,7 +286,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     ServiceWithMultipleArgs remoteService = clientTransport.getRpcStub(serviceId, ServiceWithMultipleArgs.class);
 
     FlowFuture<String> concatF = startActor(() -> remoteService.concat("Hello", " ", "World"));
-    pumpUntilDone(concatF);
+    pumpAndAdvanceTimeUntilDone(concatF);
     String result = concatF.getNow();
     assertEquals("Hello World", result);
   }
@@ -376,7 +376,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
         return e;
       }
     });
-    pumpUntilDone(errorF);
+    pumpAndAdvanceTimeUntilDone(errorF);
 
     Exception error = errorF.getNow();
     assertThat(error).isInstanceOf(RpcException.class)
@@ -416,7 +416,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
       Integer promiseValue = await(future);
       return Arrays.asList(returnValue, promiseValue);
     });
-    pumpUntilDone(resultF);
+    pumpAndAdvanceTimeUntilDone(resultF);
 
     List<Object> results = resultF.getNow();
     assertEquals("Promise registered", results.get(0));
@@ -430,7 +430,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     TestService remoteService = clientTransport.getRpcStub(serverEndpoint, TestService.class);
 
     FlowFuture<String> echoF = startActor(() -> remoteService.echo("Direct"));
-    pumpUntilDone(echoF);
+    pumpAndAdvanceTimeUntilDone(echoF);
     String result = echoF.getNow();
     assertEquals("Echo: Direct", result);
   }
@@ -445,7 +445,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     // This will test the buildMethodId method with multiple parameter types
     FlowFuture<String> futureF = startActor(() -> service.concat("a", "b", "c"));
-    pumpUntilDone(futureF);
+    pumpAndAdvanceTimeUntilDone(futureF);
     assertEquals("abc", futureF.getNow());
   }
 
@@ -502,7 +502,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
       return result;
     });
     
-    pumpUntilDone(resultF);
+    pumpAndAdvanceTimeUntilDone(resultF);
     assertEquals("test-stream-received", resultF.getNow());
     
     // Verify that the processArguments method was used by checking

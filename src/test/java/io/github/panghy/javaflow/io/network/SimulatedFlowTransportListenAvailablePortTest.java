@@ -46,7 +46,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
       
       // Wait for both to complete
-      pumpUntilDone(clientConnectionFuture, acceptFuture);
+      pumpAndAdvanceTimeUntilDone(clientConnectionFuture, acceptFuture);
       
       // Get the connections
       FlowConnection clientConnection = Flow.await(clientConnectionFuture);
@@ -63,7 +63,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Receive on server
       FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
-      pumpUntilDone(receiveFuture);
+      pumpAndAdvanceTimeUntilDone(receiveFuture);
       
       // Verify the message
       ByteBuffer received = Flow.await(receiveFuture);
@@ -74,7 +74,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       // Close the connections
       clientConnection.close();
       serverConnection.close();
-      pumpUntilDone();
+      pumpAndAdvanceTimeUntilDone();
     } finally {
       transport.close();
     }
@@ -100,7 +100,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Connect to the listener
       FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
-      pumpUntilDone(clientConnectionFuture);
+      pumpAndAdvanceTimeUntilDone(clientConnectionFuture);
       
       // Verify connection was established
       FlowConnection clientConnection = Flow.await(clientConnectionFuture);
@@ -108,7 +108,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Close the connection
       clientConnection.close();
-      pumpUntilDone();
+      pumpAndAdvanceTimeUntilDone();
     } finally {
       transport.close();
     }
@@ -121,7 +121,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
     
     // Close the transport
     transport.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Now try to listen - this should handle the closed state
     LocalEndpoint endpoint = LocalEndpoint.localhost(8080);
@@ -132,7 +132,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
     
     // Try to get a connection from the stream - should fail with a stream closed exception
     FlowFuture<FlowConnection> acceptFuture = listener.getStream().nextAsync();
-    pumpUntilDone(acceptFuture);
+    pumpAndAdvanceTimeUntilDone(acceptFuture);
     
     // The future should be completed exceptionally
     assertTrue(acceptFuture.isCompletedExceptionally());
@@ -164,7 +164,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Connect to the listener
       FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
-      pumpUntilDone(clientConnectionFuture);
+      pumpAndAdvanceTimeUntilDone(clientConnectionFuture);
       
       // Verify connection was established
       FlowConnection clientConnection = Flow.await(clientConnectionFuture);
@@ -172,7 +172,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Close the connection
       clientConnection.close();
-      pumpUntilDone();
+      pumpAndAdvanceTimeUntilDone();
     } finally {
       transport.close();
     }

@@ -241,7 +241,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -285,7 +285,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   // Test removed - required access to private fields
@@ -332,7 +332,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -370,7 +370,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -417,7 +417,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -453,7 +453,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   // Test removed - required access to private fields
@@ -496,6 +496,6 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 }

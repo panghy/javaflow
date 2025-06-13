@@ -64,7 +64,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the file exists
     assertTrue(testFuture.getNow());
@@ -102,7 +102,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the file contents
     assertEquals(testData, testFuture.getNow());
@@ -159,7 +159,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file contents
     assertEquals(testData, testFuture.getNow());
@@ -189,7 +189,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify directory contents
     List<Path> files = testFuture.getNow();
@@ -232,7 +232,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file was deleted
     assertTrue(testFuture.getNow(), "File should no longer exist after deletion");
@@ -276,7 +276,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify truncate size
     assertEquals(truncateSize, testFuture.getNow().intValue());
@@ -326,7 +326,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file contents
     assertEquals(testData, testFuture.getNow());
@@ -358,7 +358,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception type
     assertEquals(NoSuchFileException.class, testFuture.getNow());
@@ -397,7 +397,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception type
     assertEquals(FileAlreadyExistsException.class, testFuture.getNow());
@@ -443,7 +443,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception was thrown with correct message
     assertTrue(testFuture.getNow(), "Should have received 'File is closed' error");
@@ -494,7 +494,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify data was updated
     assertEquals(updatedData, testFuture.getNow(), 
@@ -553,7 +553,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify operations worked as expected
     assertTrue(testFuture.getNow(), "File operations should work correctly with proper closing");

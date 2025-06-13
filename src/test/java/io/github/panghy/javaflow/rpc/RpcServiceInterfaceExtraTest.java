@@ -93,12 +93,12 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     
     // Test basic string method
     FlowFuture<String> echoResult = startActor(() -> stub.echo("test"));
-    pumpUntilDone(echoResult);
+    pumpAndAdvanceTimeUntilDone(echoResult);
     assertEquals("Echo: test", echoResult.getNow());
     
     // Test async future method
     FlowFuture<String> asyncResult = stub.asyncEcho("async");
-    pumpUntilDone(asyncResult);
+    pumpAndAdvanceTimeUntilDone(asyncResult);
     assertEquals("Async: async", asyncResult.getNow());
     
     // Test void method
@@ -106,16 +106,16 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
       stub.voidMethod();
       return null;
     });
-    pumpUntilDone(voidResult);
+    pumpAndAdvanceTimeUntilDone(voidResult);
     
     // Test promise method
     FlowFuture<FlowPromise<String>> promiseResultF = startActor(() -> stub.promiseEcho("promise"));
-    pumpUntilDone(promiseResultF);
+    pumpAndAdvanceTimeUntilDone(promiseResultF);
     FlowPromise<String> promise = promiseResultF.getNow();
     assertNotNull(promise);
     
     FlowFuture<String> promiseValue = promise.getFuture();
-    pumpUntilDone(promiseValue);
+    pumpAndAdvanceTimeUntilDone(promiseValue);
     assertEquals("Promise: promise", promiseValue.getNow());
   }
 
@@ -127,7 +127,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     // Test ready() method
     FlowFuture<Void> readyFuture = service.ready();
     assertNotNull(readyFuture);
-    pumpUntilDone(readyFuture);
+    pumpAndAdvanceTimeUntilDone(readyFuture);
     
     // Test onClose() method  
     FlowFuture<Void> closeFuture = service.onClose();
@@ -153,7 +153,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     
     // Test that it works
     FlowFuture<String> result = startActor(() -> stub.echo("loopback"));
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     assertEquals("Echo: loopback", result.getNow());
   }
 
@@ -175,7 +175,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     
     // Test that it works
     FlowFuture<String> result = startActor(() -> stub.echo("local"));
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     assertEquals("Echo: local", result.getNow());
   }
 }

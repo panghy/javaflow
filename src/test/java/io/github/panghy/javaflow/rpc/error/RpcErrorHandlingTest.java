@@ -63,7 +63,7 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
     });
     
     // Run the actor to completion
-    pumpUntilDone(taskFuture);
+    pumpAndAdvanceTimeUntilDone(taskFuture);
   }
   
   /**
@@ -203,6 +203,6 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
     });
     
     // Run the actor to completion
-    pumpUntilDone(taskFuture);
+    pumpAndAdvanceTimeUntilDone(taskFuture);
   }
 }

@@ -42,7 +42,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> client2Future = transport.connect(serverEndpoint);
     
     // Wait for connections
-    pumpUntilDone(client1Future, client2Future);
+    pumpAndAdvanceTimeUntilDone(client1Future, client2Future);
     
     FlowConnection client1 = client1Future.getNow();
     FlowConnection client2 = client2Future.getNow();
@@ -50,7 +50,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     // Get server connections
     FlowFuture<FlowConnection> server1Future = serverStream.nextAsync();
     FlowFuture<FlowConnection> server2Future = serverStream.nextAsync();
-    pumpUntilDone(server1Future, server2Future);
+    pumpAndAdvanceTimeUntilDone(server1Future, server2Future);
     
     FlowConnection server1 = server1Future.getNow();
     FlowConnection server2 = server2Future.getNow();
@@ -63,11 +63,11 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Now disconnect server from specific clients
     transport.createPartition(serverEndpoint, client1.getLocalEndpoint());
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Try to send data from client1 to server - should fail or get disconnected
     FlowFuture<Void> sendFuture = client1.send(ByteBuffer.wrap("test".getBytes()));
-    pumpUntilDone(sendFuture);
+    pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Client1 connection should be closed or sending should fail
     boolean connectionFailed = !client1.isOpen() || sendFuture.isCompletedExceptionally();
@@ -75,7 +75,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Client2 should still be able to send
     FlowFuture<Void> send2Future = client2.send(ByteBuffer.wrap("test2".getBytes()));
-    pumpUntilDone(send2Future);
+    pumpAndAdvanceTimeUntilDone(send2Future);
     
     assertFalse(send2Future.isCompletedExceptionally(), "Unpartitioned connection should work");
     
@@ -84,7 +84,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Create a new connection from client1 endpoint
     FlowFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
-    pumpUntilDone(newClientFuture);
+    pumpAndAdvanceTimeUntilDone(newClientFuture);
     
     FlowConnection newClient = newClientFuture.getNow();
     assertTrue(newClient.isOpen(), "New connection should work after healing partition");
@@ -97,7 +97,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     server1.close();
     server2.close();
     newClient.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
   }
   
   @Test
@@ -114,7 +114,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> client3Future = transport.connect(serverEndpoint);
     
     // Wait for client connections
-    pumpUntilDone(client1Future, client2Future, client3Future);
+    pumpAndAdvanceTimeUntilDone(client1Future, client2Future, client3Future);
     
     FlowConnection client1 = client1Future.getNow();
     FlowConnection client2 = client2Future.getNow();
@@ -125,7 +125,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> server2Future = serverStream.nextAsync();
     FlowFuture<FlowConnection> server3Future = serverStream.nextAsync();
     
-    pumpUntilDone(server1Future, server2Future, server3Future);
+    pumpAndAdvanceTimeUntilDone(server1Future, server2Future, server3Future);
     
     FlowConnection server1 = server1Future.getNow();
     FlowConnection server2 = server2Future.getNow();
@@ -141,7 +141,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Close the transport - should close all connections
     FlowFuture<Void> closeFuture = transport.close();
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Verify all connections are closed
     assertFalse(client1.isOpen());
@@ -166,13 +166,13 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Connect client
     FlowFuture<FlowConnection> clientFuture = transport.connect(serverEndpoint);
-    pumpUntilDone(clientFuture);
+    pumpAndAdvanceTimeUntilDone(clientFuture);
     
     FlowConnection client = clientFuture.getNow();
     
     // Accept server connection
     FlowFuture<FlowConnection> serverFuture = serverStream.nextAsync();
-    pumpUntilDone(serverFuture);
+    pumpAndAdvanceTimeUntilDone(serverFuture);
     
     FlowConnection server = serverFuture.getNow();
     
@@ -189,7 +189,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Close one connection
     client.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Verify close futures are completed
     assertTrue(clientCloseFuture.isDone());
@@ -201,13 +201,13 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     
     // Verify we can create new connections
     FlowFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
-    pumpUntilDone(newClientFuture);
+    pumpAndAdvanceTimeUntilDone(newClientFuture);
     
     FlowConnection newClient = newClientFuture.getNow();
     assertTrue(newClient.isOpen());
     
     // Clean up
     newClient.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
   }
 }

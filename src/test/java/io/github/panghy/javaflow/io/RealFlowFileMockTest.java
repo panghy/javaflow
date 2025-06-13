@@ -83,7 +83,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<Void> result = file.write(0, testBuffer);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify write was called at least twice (one for partial, one for completion)
     verify(mockChannel, times(2)).write(any(ByteBuffer.class), anyLong(), any(), any());
@@ -114,7 +114,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<Void> result = file.write(0, testData);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify write was called once
     verify(mockChannel, times(1)).write(any(ByteBuffer.class), anyLong(), any(), any());
@@ -146,7 +146,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify read was called once
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
@@ -187,7 +187,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify read was called once
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
@@ -228,7 +228,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<ByteBuffer> result = file.read(0, requestSize);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify read was called once
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
@@ -256,7 +256,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     FlowFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
-    pumpUntilDone(result);
+    pumpAndAdvanceTimeUntilDone(result);
     
     // Verify read was called once
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());

@@ -53,7 +53,7 @@ public abstract class AbstractNetworkTest extends AbstractFlowTest {
   protected <T> T awaitFuture(FlowFuture<T> future, boolean simulated, long timeout, TimeUnit unit) 
       throws Exception {
     if (simulated) {
-      pumpUntilDone(future);
+      pumpAndAdvanceTimeUntilDone(future);
       if (!future.isDone()) {
         throw new AssertionError("Future did not complete after simulation");
       }

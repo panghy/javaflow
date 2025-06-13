@@ -46,7 +46,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return Flow.await(fileSystem.exists(dir));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify it exists
     assertTrue(future.getNow());
@@ -62,7 +62,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(createFuture);
+    pumpAndAdvanceTimeUntilDone(createFuture);
     
     // Try to create the same directory again
     FlowFuture<Class<?>> future = Flow.startActor(() -> {
@@ -80,7 +80,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
     assertEquals(FileAlreadyExistsException.class, future.getNow());
@@ -103,7 +103,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return aExists && bExists && cExists && dExists;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all directories exist
     assertTrue(future.getNow());
@@ -132,7 +132,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return Flow.await(fileSystem.list(parent));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify results
     List<Path> children = future.getNow();
@@ -162,7 +162,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
     assertEquals(NoSuchFileException.class, future.getNow());
@@ -190,7 +190,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return !Flow.await(fileSystem.exists(dir));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the directory was deleted
     assertTrue(future.getNow());
@@ -222,7 +222,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the exception class is IOException
     assertEquals(IOException.class, future.getNow());
@@ -254,7 +254,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return !sourceExists && targetExists && fileExists;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all checks pass
     assertTrue(future.getNow());
@@ -286,7 +286,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
     assertEquals(FileAlreadyExistsException.class, future.getNow());
@@ -354,7 +354,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
              level5Exists && file5Exists && sourceGone;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -403,7 +403,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return results;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     Class<?>[] results = future.getNow();
     assertEquals(NoSuchFileException.class, results[0]);
@@ -429,7 +429,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       return path1Exists && path2Exists && path2WithSlashExists;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }

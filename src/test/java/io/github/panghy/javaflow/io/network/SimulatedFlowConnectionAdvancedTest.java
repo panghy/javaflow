@@ -53,22 +53,22 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     // Send some data
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
     FlowFuture<Void> sendFuture = connection2.send(data);
-    pumpUntilDone(sendFuture);
+    pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Receive the data
     FlowFuture<ByteBuffer> receiveFuture = stream.nextAsync();
-    pumpUntilDone(receiveFuture);
+    pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertFalse(receiveFuture.isCompletedExceptionally());
     assertNotNull(receiveFuture.getNow());
     
     // Now close the connection
     connection1.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Try to get next item from stream - should fail
     FlowFuture<ByteBuffer> failFuture = stream.nextAsync();
-    pumpUntilDone(failFuture);
+    pumpAndAdvanceTimeUntilDone(failFuture);
     
     assertTrue(failFuture.isCompletedExceptionally());
     
@@ -83,12 +83,12 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
   void testSendAfterClose() throws Exception {
     // First close the connection
     connection1.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Try to send - should fail
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
     FlowFuture<Void> sendFuture = connection1.send(data);
-    pumpUntilDone(sendFuture);
+    pumpAndAdvanceTimeUntilDone(sendFuture);
     
     assertTrue(sendFuture.isCompletedExceptionally());
     
@@ -103,11 +103,11 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
   void testReceiveAfterClose() throws Exception {
     // First close the connection
     connection1.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Try to receive - should fail
     FlowFuture<ByteBuffer> receiveFuture = connection1.receive(1024);
-    pumpUntilDone(receiveFuture);
+    pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertTrue(receiveFuture.isCompletedExceptionally());
     
@@ -144,7 +144,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Send small data
     FlowFuture<Void> smallSendFuture = delayConn1.send(smallData);
-    pumpUntilDone(smallSendFuture);
+    pumpAndAdvanceTimeUntilDone(smallSendFuture);
     
     // Check elapsed time
     double smallElapsed = currentTimeSeconds() - startTime;
@@ -158,7 +158,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Send large data
     FlowFuture<Void> largeSendFuture = delayConn1.send(largeData);
-    pumpUntilDone(largeSendFuture);
+    pumpAndAdvanceTimeUntilDone(largeSendFuture);
     
     // Check elapsed time
     double largeElapsed = currentTimeSeconds() - startTime;
@@ -170,7 +170,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     // Clean up
     delayConn1.close();
     delayConn2.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
   }
   
   @Test
@@ -192,7 +192,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     // Send data - should cause disconnect
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
     FlowFuture<Void> sendFuture = disconnectConn1.send(data);
-    pumpUntilDone(sendFuture);
+    pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Should fail with IOException
     assertTrue(sendFuture.isCompletedExceptionally());
@@ -208,14 +208,14 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Trying to receive should also fail
     FlowFuture<ByteBuffer> receiveFuture = disconnectConn2.receive(1024);
-    pumpUntilDone(receiveFuture);
+    pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertTrue(receiveFuture.isCompletedExceptionally());
     
     // Clean up
     disconnectConn1.close();
     disconnectConn2.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
   }
   
   @Test
@@ -228,14 +228,14 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Close connection
     connection1.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Now the future should be done
     assertTrue(closeFuture.isDone());
     
     // And close should be idempotent (second close shouldn't affect anything)
     connection1.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     assertTrue(closeFuture.isDone());
   }
@@ -251,13 +251,13 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     // Try to send data - should not fail, data is just lost
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
     FlowFuture<Void> sendFuture = noPeerConn.send(data);
-    pumpUntilDone(sendFuture);
+    pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Should succeed (data is just lost)
     assertFalse(sendFuture.isCompletedExceptionally());
     
     // Clean up
     noPeerConn.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
   }
 }

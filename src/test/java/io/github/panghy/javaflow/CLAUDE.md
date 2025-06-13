@@ -10,18 +10,18 @@
 
 ## Important Methods
 
-### `pumpUntilDone(FlowFuture<?>... futures)`
+### `pumpAndAdvanceTimeUntilDone(FlowFuture<?>... futures)`
 This is the primary method for waiting for asynchronous operations to complete in tests.
 
 **Usage:**
 ```java
 // Wait for specific futures
 FlowFuture<String> future = startActor(() -> someAsyncOperation());
-pumpUntilDone(future);
+pumpAndAdvanceTimeUntilDone(future);
 String result = future.getNow();
 
 // Pump all tasks until no work remains
-pumpUntilDone();  // No arguments - pumps until no tasks are outstanding
+pumpAndAdvanceTimeUntilDone();  // No arguments - pumps until no tasks are outstanding
 ```
 
 **How it works:**
@@ -32,11 +32,11 @@ pumpUntilDone();  // No arguments - pumps until no tasks are outstanding
 5. Handles delayed futures by advancing simulation time as needed
 
 **Important Notes:**
-- ⚠️ **DO NOT** use `pumpUntilDone()` for tests involving real I/O operations (file system, network, etc.)
-- ⚠️ **DO NOT** implement your own version of `pumpUntilDone()` - always use the one from `AbstractFlowTest`
+- ⚠️ **DO NOT** use `pumpAndAdvanceTimeUntilDone()` for tests involving real I/O operations (file system, network, etc.)
+- ⚠️ **DO NOT** implement your own version of `pumpAndAdvanceTimeUntilDone()` - always use the one from `AbstractFlowTest`
 - ⚠️ **DO NOT** use `Thread.sleep()` or real time waiting in tests extending `AbstractFlowTest`
 - For real I/O operations, use `FlowFuture.getNow()` instead
-- When called without arguments, `pumpUntilDone()` is useful for processing all pending work in a test scenario
+- When called without arguments, `pumpAndAdvanceTimeUntilDone()` is useful for processing all pending work in a test scenario
 
 ### `pump()`
 Executes all currently ready tasks once.
@@ -71,14 +71,14 @@ long timeInMillis = currentTimeMillis();
 2. **Use simulated time for delays**: Instead of `Thread.sleep()`, use Flow's delay mechanisms
    ```java
    FlowFuture<Void> delayed = Flow.delay(1.0); // 1 second delay
-   pumpUntilDone(delayed); // Will advance simulated time
+   pumpAndAdvanceTimeUntilDone(delayed); // Will advance simulated time
    ```
 
 3. **Avoid mixing real and simulated I/O**: Tests should either use all simulated components or all real components, not a mix
 
-4. **Check future completion**: After `pumpUntilDone()`, always verify futures completed as expected
+4. **Check future completion**: After `pumpAndAdvanceTimeUntilDone()`, always verify futures completed as expected
    ```java
-   pumpUntilDone(future);
+   pumpAndAdvanceTimeUntilDone(future);
    assertTrue(future.isDone());
    assertFalse(future.isCompletedExceptionally());
    ```
@@ -99,7 +99,7 @@ public class MyServiceTest extends AbstractFlowTest {
         );
         
         // Wait for completion using simulated time
-        pumpUntilDone(resultFuture);
+        pumpAndAdvanceTimeUntilDone(resultFuture);
         
         // Verify results
         assertTrue(resultFuture.isDone());
@@ -110,7 +110,7 @@ public class MyServiceTest extends AbstractFlowTest {
 
 ## Common Pitfalls to Avoid
 
-1. **Creating custom pump methods**: Always use the provided `pumpUntilDone()`
+1. **Creating custom pump methods**: Always use the provided `pumpAndAdvanceTimeUntilDone()`
 2. **Using real time**: Never use `System.currentTimeMillis()` or `Thread.sleep()`
-3. **Infinite loops**: The built-in `pumpUntilDone()` has safety limits to prevent infinite loops
+3. **Infinite loops**: The built-in `pumpAndAdvanceTimeUntilDone()` has safety limits to prevent infinite loops
 4. **Missing timeouts**: Always add `@Timeout` annotations to prevent hanging tests

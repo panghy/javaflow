@@ -52,7 +52,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return Flow.await(fileSystem.exists(dir));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -107,7 +107,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     System.out.println("Test result: " + future.getNow());
     assertEquals("EXPECTED_EXCEPTION_FILE_EXISTS_true", future.getNow());
@@ -132,7 +132,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return level1Exists && level2Exists && level3Exists;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -153,7 +153,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return Flow.await(fileSystem.exists(pathWithoutTrailingSlash));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -173,7 +173,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return Flow.await(fileSystem.exists(Paths.get("/relative")));
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -208,7 +208,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return parentGone && targetExists && childFileExists && childDirExists;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -228,7 +228,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return rootEntries != null;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -252,7 +252,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return rootEntries.contains(childFile);
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -275,7 +275,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -301,7 +301,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -323,7 +323,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -406,7 +406,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return allPassedNullTests;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -434,7 +434,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -463,7 +463,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -489,7 +489,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -631,7 +631,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return allTestsPassed;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -653,7 +653,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -677,7 +677,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -705,7 +705,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -729,7 +729,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -762,7 +762,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       return size1 > 0 && size2 == 0;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }

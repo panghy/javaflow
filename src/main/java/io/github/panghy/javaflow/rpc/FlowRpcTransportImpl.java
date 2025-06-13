@@ -16,6 +16,8 @@ import io.github.panghy.javaflow.rpc.message.RpcMessage;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
 import io.github.panghy.javaflow.rpc.serialization.FlowSerialization;
 import io.github.panghy.javaflow.rpc.serialization.TypeDescription;
+import io.github.panghy.javaflow.rpc.util.RpcStreamTimeoutUtil;
+import io.github.panghy.javaflow.rpc.util.RpcTimeoutUtil;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -107,14 +109,14 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
    * Creates a new FlowRpcTransportImpl with the specified network transport and configuration.
    *
    * @param networkTransport The underlying network transport to use
-   * @param configuration The configuration for the RPC transport
+   * @param configuration    The configuration for the RPC transport
    */
   public FlowRpcTransportImpl(FlowTransport networkTransport, FlowRpcConfiguration configuration) {
     // The underlying network transport
     this.networkTransport = networkTransport;
     this.configuration = configuration;
     this.endpointResolver = new DefaultEndpointResolver();
-    this.connectionManager = new ConnectionManager(networkTransport, endpointResolver);
+    this.connectionManager = new ConnectionManager(networkTransport, endpointResolver, configuration);
     this.promiseTracker = new RemotePromiseTracker(this);
   }
 
@@ -320,7 +322,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     // Create the invocation handler with round-robin support
     // Pass null as physicalEndpoint to enable dynamic resolution per call
     InvocationHandler handler = new RemoteInvocationHandler(
-        id, null, connectionManager, promiseTracker);
+        id, null, connectionManager, promiseTracker, configuration);
 
     // Create and return the proxy
     return interfaceClass.cast(Proxy.newProxyInstance(
@@ -343,7 +345,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
   private <T> T createDirectRemoteStub(Endpoint endpoint, EndpointId endpointId, Class<T> interfaceClass) {
     // Create the invocation handler with both EndpointId and the specific endpoint
     InvocationHandler handler = new RemoteInvocationHandler(
-        endpointId, endpoint, connectionManager, promiseTracker);
+        endpointId, endpoint, connectionManager, promiseTracker, configuration);
 
     // Create and return the proxy
     return interfaceClass.cast(Proxy.newProxyInstance(
@@ -1039,8 +1041,12 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
         }
         // Get the source endpoint from the connection
         Endpoint sourceEndpoint = connection.getRemoteEndpoint();
-        return promiseTracker.createLocalStreamForRemote(
+        PromiseStream<?> stream = promiseTracker.createLocalStreamForRemote(
             streamId, sourceEndpoint, elementType);
+        
+        // Don't apply timeout here - it will be applied in RemoteInvocationHandler.invoke()
+        // to avoid double wrapping
+        return stream;
       }
 
       // Regular return type - deserialize directly
@@ -1053,9 +1059,28 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
   }
 
   /**
+   * Extracts the root RPC exception from a potentially wrapped exception.
+   * This is useful when exceptions are wrapped in ExecutionException or other wrappers.
+   *
+   * @param e The exception to unwrap
+   * @return The root RPC exception if found, or null if not found
+   */
+  private static RpcException extractRpcException(Throwable e) {
+    Throwable cause = e;
+    while (cause != null) {
+      if (cause instanceof RpcException) {
+        return (RpcException) cause;
+      }
+      cause = cause.getCause();
+    }
+    return null;
+  }
+
+  /**
    * Invocation handler for remote service calls.
    */
   class RemoteInvocationHandler implements InvocationHandler {
+    private static final Logger logger = Logger.getLogger(RemoteInvocationHandler.class.getName());
     private final EndpointId endpointId;
     /**
      * The physical endpoint to connect to. If null, the endpoint resolver
@@ -1064,15 +1089,18 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     private final Endpoint physicalEndpoint;
     private final ConnectionManager connectionManager;
     private final RemotePromiseTracker promiseTracker;
+    private final FlowRpcConfiguration configuration;
 
     RemoteInvocationHandler(EndpointId endpointId,
                             Endpoint physicalEndpoint,
                             ConnectionManager connectionManager,
-                            RemotePromiseTracker promiseTracker) {
+                            RemotePromiseTracker promiseTracker,
+                            FlowRpcConfiguration configuration) {
       this.endpointId = endpointId;
       this.physicalEndpoint = physicalEndpoint;
       this.connectionManager = connectionManager;
       this.promiseTracker = promiseTracker;
+      this.configuration = configuration;
     }
 
     @Override
@@ -1100,6 +1128,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
 
       // Handle different return types appropriately
       Class<?> returnType = method.getReturnType();
+      boolean isVoidMethod = returnType == void.class || returnType == Void.class;
 
       FlowFuture<Object> responseFuture = connectionFuture.flatMap(connection -> {
         // Get the actual target endpoint from the connection
@@ -1149,6 +1178,16 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
         return sendF.flatMap(v -> callFuture);
       });
 
+      // Apply timeout for non-void unary RPC calls (not for streams or void methods)
+      if (!isVoidMethod && !PromiseStream.class.isAssignableFrom(returnType)
+          && !FutureStream.class.isAssignableFrom(returnType)
+          && configuration.getUnaryRpcTimeoutMs() > 0) {
+        logger.fine(() -> "Applying timeout of " + configuration.getUnaryRpcTimeoutMs() + "ms to " + method.getName());
+        responseFuture = RpcTimeoutUtil.withTimeout(
+            responseFuture, endpointId, method.getName(),
+            configuration.getUnaryRpcTimeoutMs());
+      }
+
       // If the method returns a FlowFuture, return the future directly
       if (FlowFuture.class.isAssignableFrom(returnType)) {
         // Handle potential nested FlowFuture from mapResponse
@@ -1170,10 +1209,23 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
         // The waitForResponse method will have created a PromiseStream
         // that will receive values asynchronously
         try {
-          return await(responseFuture);
-        } catch (RpcException e) {
-          throw e;
+          PromiseStream<?> stream = (PromiseStream<?>) await(responseFuture);
+          
+          // Apply inactivity timeout to the stream
+          long timeoutMs = configuration.getStreamInactivityTimeoutMs();
+          if (timeoutMs > 0) {
+            logger.fine(() -> "Applying stream inactivity timeout of " + timeoutMs + "ms to " + method.getName());
+            return RpcStreamTimeoutUtil.withInactivityTimeout(
+                stream, endpointId, method.getName(), timeoutMs);
+          }
+          
+          return stream;
         } catch (Exception e) {
+          // Check if this is a wrapped RPC exception (e.g., timeout)
+          RpcException rpcEx = extractRpcException(e);
+          if (rpcEx != null) {
+            throw rpcEx;
+          }
           throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
               "RPC invocation failed for method: " + method.getName(), e);
         }
@@ -1181,12 +1233,16 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
 
       // For regular return types, block and wait for the result
       try {
+        logger.fine(() -> "Awaiting responseFuture for " + method.getName());
         Object result = await(responseFuture);
         // Convert the result to match the method's return type if needed
         return convertReturnValue(result, method.getReturnType());
-      } catch (RpcException e) {
-        throw e;
       } catch (Exception e) {
+        // Check if this is a wrapped RPC exception (e.g., timeout)
+        RpcException rpcEx = extractRpcException(e);
+        if (rpcEx != null) {
+          throw rpcEx;
+        }
         throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
             "RPC invocation failed for method: " + method.getName(), e);
       }

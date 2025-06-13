@@ -152,7 +152,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -189,7 +189,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -220,7 +220,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -251,7 +251,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -285,7 +285,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -309,7 +309,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -387,7 +387,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test

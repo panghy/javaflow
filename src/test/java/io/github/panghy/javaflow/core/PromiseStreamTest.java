@@ -374,7 +374,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
           result.add(await(errorStream.nextAsync()));
         } catch (Exception e) {
           // Expected exception from the map operation
-          assertInstanceOf(ArithmeticException.class, e.getCause());
+          assertInstanceOf(ArithmeticException.class, e);
           break;
         }
       }
@@ -862,9 +862,11 @@ public class PromiseStreamTest extends AbstractFlowTest {
     Exception e = assertThrows(ExecutionException.class, secondRead::getNow);
     assertEquals(customException, e.getCause());
 
-    // Verify hasNext also reflects closed state
+    // Verify hasNext also throws.
     FlowFuture<Boolean> hasNext = futureStream.hasNextAsync();
-    assertFalse(hasNext.getNow());
+    assertTrue(hasNext.isCompletedExceptionally());
+    e = assertThrows(ExecutionException.class, hasNext::getNow);
+    assertEquals(customException, e.getCause());
   }
 
   @Test
@@ -970,7 +972,9 @@ public class PromiseStreamTest extends AbstractFlowTest {
     FlowFuture<String> nextAfterClose = futureStream.nextAsync();
 
     assertTrue(hasNextAfterClose.isDone());
-    assertFalse(hasNextAfterClose.getNow());
+    assertTrue(hasNextAfterClose.isCompletedExceptionally());
+
+    assertTrue(nextAfterClose.isDone());
     assertTrue(nextAfterClose.isCompletedExceptionally());
   }
 
@@ -1098,8 +1102,10 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // Verify stream is now closed due to the exception
     assertTrue(filteredStream.isClosed());
 
-    // hasNext should return false for a closed stream
+    // hasNext should throw false for a stream that failed
     FlowFuture<Boolean> hasNextAfterException = filteredStream.hasNextAsync();
-    assertFalse(hasNextAfterException.getNow());
+    e = assertThrows(ExecutionException.class, hasNextAfterException::getNow);
+    assertInstanceOf(RuntimeException.class, e.getCause());
+    assertEquals("Test filter exception", e.getCause().getMessage());
   }
 }

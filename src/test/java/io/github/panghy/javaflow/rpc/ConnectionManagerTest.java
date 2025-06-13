@@ -169,7 +169,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     FlowFuture<FlowConnection> clientConnectionFuture = manager.getConnection(endpointId);
 
     // Wait for both to complete
-    pumpUntilDone(serverConnectionFuture, clientConnectionFuture);
+    pumpAndAdvanceTimeUntilDone(serverConnectionFuture, clientConnectionFuture);
 
     FlowConnection connection = clientConnectionFuture.getNow();
     assertNotNull(connection);
@@ -181,7 +181,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     EndpointId unknownId = new EndpointId("unknown");
 
     FlowFuture<FlowConnection> future = manager.getConnection(unknownId);
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
 
     Throwable error = future.getException();
     assertNotNull(error);
@@ -199,12 +199,12 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     // Get first connection
     FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
     // Get second connection - should return the same one
     FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
-    pumpUntilDone(future2);
+    pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
 
     // Should be the same connection
@@ -249,7 +249,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     ConnectionManager retryManager = new ConnectionManager(mockTransport, testResolver);
 
     FlowFuture<FlowConnection> future = retryManager.getConnection(endpointId);
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
 
     FlowConnection connection = future.getNow();
     assertNotNull(connection);
@@ -281,10 +281,14 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       }
     };
 
-    ConnectionManager failingManager = new ConnectionManager(failingTransport, testResolver);
+    // Create configuration with no connection timeout to allow all retry attempts
+    FlowRpcConfiguration config = FlowRpcConfiguration.builder()
+        .connectionTimeoutMs(0)  // Disable connection timeout
+        .build();
+    ConnectionManager failingManager = new ConnectionManager(failingTransport, testResolver, config);
 
     FlowFuture<FlowConnection> future = failingManager.getConnection(endpointId);
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
 
     assertThat(future.getException()).isInstanceOf(RpcConnectionException.class)
         .hasMessageContaining("Failed to connect to endpoint");
@@ -302,7 +306,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     // Get connection
     FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
     // Release the connection
@@ -311,7 +315,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get connection again - should get pooled connection
     FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
 
-    pumpUntilDone(future2);
+    pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
 
     // Should be the same connection from the pool
@@ -328,13 +332,13 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
 
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     FlowConnection connection = future.getNow();
     assertTrue(connection.isOpen());
 
     // Close the manager
     FlowFuture<Void> closeFuture = manager.close();
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
 
     // Connection should be closed
     assertFalse(connection.isOpen());
@@ -342,7 +346,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Try to get a connection after close
     future = manager.getConnection(endpointId);
 
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     Throwable error = future.getException();
 
     assertNotNull(error);
@@ -361,19 +365,19 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get initial connection
     FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
 
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
     // Close the connection to simulate failure
     FlowFuture<Void> closeF = conn1.close();
-    pumpUntilDone(closeF);
+    pumpAndAdvanceTimeUntilDone(closeF);
 
     // Allow time for monitoring to detect failure and reconnect
     pump();
 
     // Get connection again - should trigger new connection since old one failed
     FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
-    pumpUntilDone(future2);
+    pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
 
     // Should be a different connection
@@ -520,13 +524,13 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get a connection
     FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
 
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     FlowConnection connection = future.getNow();
     assertTrue(connection.isOpen());
 
     // Close the manager
     manager.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
 
     // Try to release connection after close
     manager.releaseConnection(endpoint, connection);
@@ -539,7 +543,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
   public void testMultipleCloseOperations() {
     // First close
     FlowFuture<Void> close1 = manager.close();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     assertTrue(close1.isDone());
 
     // Second close - should complete immediately
