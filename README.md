@@ -375,9 +375,12 @@ FlowRpcConfiguration config = FlowRpcConfiguration.builder()
 FlowRpcTransportImpl transport = new FlowRpcTransportImpl(
     FlowTransport.getDefault(), config);
 
-// Register a service endpoint
-transport.getEndpointResolver().registerEndpoint(
-    new EndpointId("user-service"), 
+// Register a service endpoint with implementation
+UserServiceImpl userServiceImpl = new UserServiceImpl();
+transport.registerServiceAndListen(
+    new EndpointId("user-service"),
+    userServiceImpl,
+    UserService.class,
     new LocalEndpoint("localhost", 8080));
 
 // Get reference to remote service

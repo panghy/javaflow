@@ -124,7 +124,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testSerializationErrorInRequest() {
     // Test serialization error when sending request
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -159,7 +161,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testConnectionCloseDuringRequest() {
     // Test connection closing while waiting for response
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -196,7 +200,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testInvalidArgumentCount() {
     // Test sending wrong number of arguments
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -227,7 +233,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testMapResponseEdgeCases() {
     // Test edge cases in mapResponse method
     EdgeCaseServiceImpl impl = new EdgeCaseServiceImpl();
-    transport.registerServiceAndListen(impl, EdgeCaseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, EdgeCaseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("edge-case-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -265,7 +273,10 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       }
     };
     
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -292,7 +303,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testExceptionInMethodInvocation() {
     // Test when the service method throws an exception
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -316,7 +329,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testVoidMethodWithSendException() {
     // Test void method when send fails
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -374,7 +389,9 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public void testNullPayloadHandling() {
     // Test handling of null payload in request
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);

@@ -144,9 +144,21 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       throw new IllegalArgumentException("Endpoint cannot be null");
     }
 
-    // Check if this is a local endpoint
+    // Check if this is a local endpoint first (bias towards local)
     if (endpointResolver.isLocalEndpoint(id)) {
-      return getLocalStub(id, interfaceClass);
+      // Get the local implementation
+      Object implementation = endpointResolver.getLocalImplementation(id)
+          .orElseThrow(() -> new IllegalArgumentException(
+              "No local implementation found for endpoint: " + id));
+
+      // Verify the implementation implements the requested interface
+      if (!interfaceClass.isInstance(implementation)) {
+        throw new ClassCastException(
+            "Local implementation does not implement " + interfaceClass.getName());
+      }
+
+      // Create a local stub that performs serialization
+      return createLocalStub(implementation, interfaceClass);
     }
 
     // Create a remote stub with round-robin load balancing
@@ -163,39 +175,26 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       throw new IllegalArgumentException("Endpoint cannot be null");
     }
 
-    // Check if the endpoint is registered
+    // Check if the endpoint is registered locally
     Set<EndpointId> endpointIds = endpointResolver.findEndpointIds(endpoint);
-    if (endpointIds.isEmpty()) {
-      throw new IllegalArgumentException("Endpoint not registered: " + endpoint);
+    if (!endpointIds.isEmpty()) {
+      // If we find a local endpoint, prefer it
+      for (EndpointId id : endpointIds) {
+        if (endpointResolver.isLocalEndpoint(id)) {
+          return getRpcStub(id, interfaceClass);
+        }
+      }
+      // Otherwise use the first one found for remote stub
+      EndpointId endpointId = endpointIds.iterator().next();
+      return createDirectRemoteStub(endpoint, endpointId, interfaceClass);
     }
 
-    // Create a direct remote stub to the specified endpoint
-    // If multiple services are hosted on the same endpoint, we'll use the first one found
-    // In practice, the caller should use getRpcStub(EndpointId, Class) for disambiguation
-    EndpointId endpointId = endpointIds.iterator().next();
-    return createDirectRemoteStub(endpoint, endpointId, interfaceClass);
+    // If not registered, create a direct remote stub without an EndpointId
+    // This allows connecting to endpoints that haven't been registered
+    return createDirectRemoteStub(endpoint, null, interfaceClass);
   }
 
-  @Override
-  public <T> T getLocalStub(EndpointId id, Class<T> interfaceClass) {
-    if (closed.get()) {
-      throw new IllegalStateException("RPC transport is closed");
-    }
 
-    // Get the local implementation
-    Object implementation = endpointResolver.getLocalImplementation(id)
-        .orElseThrow(() -> new IllegalArgumentException(
-            "No local implementation found for endpoint: " + id));
-
-    // Verify the implementation implements the requested interface
-    if (!interfaceClass.isInstance(implementation)) {
-      throw new ClassCastException(
-          "Local implementation does not implement " + interfaceClass.getName());
-    }
-
-    // Create a local stub that performs serialization
-    return createLocalStub(implementation, interfaceClass);
-  }
 
   /**
    * Registers a service implementation for handling incoming RPC calls.
@@ -276,22 +275,30 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     });
   }
 
-  /**
-   * Registers a service implementation and starts listening on the specified local endpoint.
-   * Multiple services can be registered on the same LocalEndpoint, and calls will be
-   * routed to the appropriate service implementation based on the method signature.
-   *
-   * @param implementation The service implementation
-   * @param interfaceClass The interface class
-   * @param localEndpoint  The local endpoint to listen on
-   */
-  public void registerServiceAndListen(Object implementation,
+  @Override
+  public void registerServiceAndListen(EndpointId endpointId,
+                                       Object implementation,
                                        Class<?> interfaceClass,
                                        LocalEndpoint localEndpoint) {
-    // First register the service
+    if (closed.get()) {
+      throw new IllegalStateException("RPC transport is closed");
+    }
+    
+    if (endpointId == null || implementation == null || interfaceClass == null || localEndpoint == null) {
+      throw new IllegalArgumentException("All parameters must be non-null");
+    }
+    
+    // Convert LocalEndpoint to Endpoint for registration
+    Endpoint physicalEndpoint = new Endpoint(localEndpoint.getHost(), localEndpoint.getPort());
+    
+    // Register in the EndpointResolver for local invocation
+    // This will throw IllegalStateException if already registered with a different implementation
+    endpointResolver.registerLocalEndpoint(endpointId, implementation, physicalEndpoint);
+    
+    // Register the service for handling incoming RPC calls
     registerService(implementation, interfaceClass);
 
-    // Then start listening on the endpoint (only if not already listening)
+    // Start listening on the endpoint (only if not already listening)
     startListening(localEndpoint);
   }
 

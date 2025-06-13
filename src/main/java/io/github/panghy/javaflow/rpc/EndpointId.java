@@ -23,19 +23,20 @@ import java.util.Objects;
  * // Create an endpoint ID for a service
  * EndpointId userServiceId = new EndpointId("user-service");
  *
- * // Register a service interface as a loopback endpoint
- * userService.registerAsLoopback(userServiceId);
+ * // Register a service implementation with network exposure
+ * FlowRpcTransport transport = FlowRpcTransport.getInstance();
+ * transport.registerServiceAndListen(
+ *     userServiceId,
+ *     new UserServiceImpl(),
+ *     UserService.class,
+ *     new LocalEndpoint("localhost", 8080)
+ * );
  *
- * // Register a service interface as a local endpoint
- * otherService.registerAsLocal(otherId, new Endpoint("localhost", 8080));
- *
- * // Get access to a local service
- * UserServiceInterface localService = FlowTransport.getInstance()
- *     .getLocalEndpoint(userServiceId, UserServiceInterface.class);
- *
- * // Get access to a remote service with load balancing
- * OtherServiceInterface remoteService = FlowTransport.getInstance()
- *     .getRoundRobinEndpoint(otherId, OtherServiceInterface.class);
+ * // Get an RPC stub for the service (works for both local and remote)
+ * UserService userService = transport.getRpcStub(
+ *     userServiceId,
+ *     UserService.class
+ * );
  * }</pre>
  *
  * <p>The toString() method returns a string representation of the endpoint ID,

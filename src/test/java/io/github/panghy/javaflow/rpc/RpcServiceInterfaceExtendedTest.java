@@ -5,6 +5,7 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
+import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,27 +27,6 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     public final PromiseStream<String> eventStream = new PromiseStream<>();
   }
 
-  /**
-   * A service implementation that overrides the registerAsLoopback method.
-   */
-  private static class CustomRegistrationService implements RpcServiceInterface {
-    private EndpointId lastRegisteredId;
-    private boolean registerCalled = false;
-
-    @Override
-    public void registerAsLoopback(EndpointId endpointId) {
-      lastRegisteredId = endpointId;
-      registerCalled = true;
-    }
-
-    public EndpointId getLastRegisteredId() {
-      return lastRegisteredId;
-    }
-
-    public boolean wasRegisterCalled() {
-      return registerCalled;
-    }
-  }
 
   /**
    * A service implementation that overrides the ready method.
@@ -68,21 +48,6 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     }
   }
 
-  /**
-   * Tests a custom implementation of registerAsLoopback.
-   */
-  @Test
-  void testCustomRegisterAsLoopback() {
-    CustomRegistrationService service = new CustomRegistrationService();
-
-    // Call registerAsLoopback
-    EndpointId testId = new EndpointId("custom-service");
-    service.registerAsLoopback(testId);
-
-    // Verify our implementation was called
-    assertTrue(service.wasRegisterCalled());
-    assertEquals(testId, service.getLastRegisteredId());
-  }
 
 
   /**
@@ -153,54 +118,4 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     assertFalse(closeFuture == closeFuture2);
   }
 
-  /**
-   * A simple mock implementation of FlowRpcTransport for testing.
-   */
-  private static class MockFlowRpcTransport implements FlowRpcTransport {
-    private EndpointId lastRegisteredId;
-    private Object lastRegisteredService;
-    private boolean registerEndpointCalled = false;
-
-    @Override
-    public EndpointResolver getEndpointResolver() {
-      // Not used in these tests
-      return null;
-    }
-
-    @Override
-    public <T> T getRpcStub(EndpointId id, Class<T> interfaceClass) {
-      // Not used in these tests
-      return null;
-    }
-
-    @Override
-    public <T> T getRpcStub(Endpoint endpoint, Class<T> interfaceClass) {
-      // Not used in these tests
-      return null;
-    }
-
-    @Override
-    public <T> T getLocalStub(EndpointId id, Class<T> interfaceClass) {
-      // Not used in these tests
-      return null;
-    }
-
-    @Override
-    public FlowFuture<Void> close() {
-      // Not used in these tests
-      return new FlowFuture<>();
-    }
-
-    public EndpointId getLastRegisteredId() {
-      return lastRegisteredId;
-    }
-
-    public Object getLastRegisteredService() {
-      return lastRegisteredService;
-    }
-
-    public boolean wasRegisterEndpointCalled() {
-      return registerEndpointCalled;
-    }
-  }
 }

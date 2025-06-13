@@ -7,6 +7,7 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
 import io.github.panghy.javaflow.rpc.serialization.DefaultSerializer;
 import io.github.panghy.javaflow.rpc.serialization.FlowSerialization;
+import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -63,10 +64,10 @@ public class FlowRpcTransportImplSimpleTest {
     // Register a loopback service
     EndpointId serviceId = new EndpointId("simple-service");
     SimpleService implementation = new SimpleServiceImpl();
-    endpointResolver.registerLoopbackEndpoint(serviceId, implementation);
+    endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
     // Get local stub
-    SimpleService service = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    SimpleService service = rpcTransport.getRpcStub(serviceId, SimpleService.class);
     assertNotNull(service);
 
     // Test echo method
@@ -82,8 +83,14 @@ public class FlowRpcTransportImplSimpleTest {
   public void testLocalStubNotFound() {
     EndpointId unknownId = new EndpointId("unknown");
 
-    assertThrows(IllegalArgumentException.class, () -> {
-      rpcTransport.getLocalStub(unknownId, SimpleService.class);
+    // getRpcStub no longer throws for unknown endpoints - it creates a remote stub
+    // The stub will only fail when trying to invoke methods
+    SimpleService stub = rpcTransport.getRpcStub(unknownId, SimpleService.class);
+    assertNotNull(stub);
+    
+    // But it should fail when trying to use it
+    assertThrows(Exception.class, () -> {
+      stub.echo("test");
     });
   }
 
@@ -136,9 +143,9 @@ public class FlowRpcTransportImplSimpleTest {
     // Try to create stub for unregistered endpoint
     Endpoint unregisteredEndpoint = new Endpoint("unregistered-host", 9999);
 
-    assertThrows(IllegalArgumentException.class, () -> {
-      rpcTransport.getRpcStub(unregisteredEndpoint, SimpleService.class);
-    });
+    // getRpcStub with direct endpoint no longer throws for unregistered endpoints
+    SimpleService stub = rpcTransport.getRpcStub(unregisteredEndpoint, SimpleService.class);
+    assertNotNull(stub);
   }
 
   @Test
@@ -170,9 +177,9 @@ public class FlowRpcTransportImplSimpleTest {
     };
 
     EndpointId serviceId = new EndpointId("error-service");
-    endpointResolver.registerLoopbackEndpoint(serviceId, errorService);
+    endpointResolver.registerLocalEndpoint(serviceId, errorService, LocalEndpoint.localhost(0));
 
-    SimpleService localStub = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    SimpleService localStub = rpcTransport.getRpcStub(serviceId, SimpleService.class);
 
     // Method invocation should throw wrapped exception
     RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
@@ -186,9 +193,9 @@ public class FlowRpcTransportImplSimpleTest {
   public void testObjectMethods() {
     EndpointId serviceId = new EndpointId("test-service");
     SimpleService implementation = new SimpleServiceImpl();
-    endpointResolver.registerLoopbackEndpoint(serviceId, implementation);
+    endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
-    SimpleService localStub = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    SimpleService localStub = rpcTransport.getRpcStub(serviceId, SimpleService.class);
 
     // Test toString
     String toStringResult = localStub.toString();
@@ -206,9 +213,9 @@ public class FlowRpcTransportImplSimpleTest {
   public void testNullArguments() {
     EndpointId serviceId = new EndpointId("test-service");
     SimpleService implementation = new SimpleServiceImpl();
-    endpointResolver.registerLoopbackEndpoint(serviceId, implementation);
+    endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
-    SimpleService localStub = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    SimpleService localStub = rpcTransport.getRpcStub(serviceId, SimpleService.class);
 
     // Test with null argument
     String result = localStub.echo(null);
@@ -229,7 +236,7 @@ public class FlowRpcTransportImplSimpleTest {
     assertNotNull(stub);
 
     // Local stub should also work
-    SimpleService localStub = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    SimpleService localStub = rpcTransport.getRpcStub(serviceId, SimpleService.class);
     assertNotNull(localStub);
   }
 
@@ -245,9 +252,9 @@ public class FlowRpcTransportImplSimpleTest {
     };
 
     EndpointId serviceId = new EndpointId("promise-service");
-    endpointResolver.registerLoopbackEndpoint(serviceId, implementation);
+    endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
-    PromiseService service = rpcTransport.getLocalStub(serviceId, PromiseService.class);
+    PromiseService service = rpcTransport.getRpcStub(serviceId, PromiseService.class);
 
     FlowFuture<String> future = new FlowFuture<>();
     FlowPromise<String> promise = future.getPromise();
@@ -285,7 +292,7 @@ public class FlowRpcTransportImplSimpleTest {
   public void testLocalStubWithWrongInterface() {
     EndpointId serviceId = new EndpointId("wrong-interface-service");
     SimpleService implementation = new SimpleServiceImpl();
-    endpointResolver.registerLoopbackEndpoint(serviceId, implementation);
+    endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
     // Try to get stub with incompatible interface
     interface WrongInterface {
@@ -293,7 +300,7 @@ public class FlowRpcTransportImplSimpleTest {
     }
 
     assertThrows(ClassCastException.class, () -> {
-      rpcTransport.getLocalStub(serviceId, WrongInterface.class);
+      rpcTransport.getRpcStub(serviceId, WrongInterface.class);
     });
   }
 
@@ -320,7 +327,7 @@ public class FlowRpcTransportImplSimpleTest {
     });
 
     assertThrows(IllegalStateException.class, () -> {
-      rpcTransport.getLocalStub(serviceId, SimpleService.class);
+      rpcTransport.getRpcStub(serviceId, SimpleService.class);
     });
   }
 
@@ -343,8 +350,8 @@ public class FlowRpcTransportImplSimpleTest {
       }
     };
 
-    endpointResolver.registerLoopbackEndpoint(serviceId, faultyImplementation);
-    SimpleService localStub = rpcTransport.getLocalStub(serviceId, SimpleService.class);
+    endpointResolver.registerLocalEndpoint(serviceId, faultyImplementation, LocalEndpoint.localhost(0));
+    SimpleService localStub = rpcTransport.getRpcStub(serviceId, SimpleService.class);
 
     // The invocation should throw RuntimeException wrapping the original error
     RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
