@@ -103,11 +103,7 @@ public class RpcStreamTimeoutUtil {
               if (timeoutException != null && !(timeoutException instanceof StreamClosedException)) {
                 logger.fine(() -> "hasNext failed but timeout occurred, propagating timeout exception: " +
                                   timeoutException);
-                if (timeoutException instanceof RuntimeException) {
-                  throw (RuntimeException) timeoutException;
-                } else {
-                  throw new RuntimeException(timeoutException);
-                }
+                rethrow(timeoutException);
               }
             }
             // Otherwise, propagate the original exception
@@ -121,11 +117,7 @@ public class RpcStreamTimeoutUtil {
               if (timeoutException != null && !(timeoutException instanceof StreamClosedException)) {
                 logger.fine(() -> "Original stream ended but timeout occurred, propagating timeout exception: " +
                                   timeoutException);
-                if (timeoutException instanceof RuntimeException) {
-                  throw (RuntimeException) timeoutException;
-                } else {
-                  throw new RuntimeException(timeoutException);
-                }
+                rethrow(timeoutException);
               }
             }
 
@@ -142,11 +134,7 @@ public class RpcStreamTimeoutUtil {
             Throwable timeoutException = timeoutStream.getCloseException();
             if (timeoutException != null && !(timeoutException instanceof StreamClosedException)) {
               logger.fine(() -> "Timeout occurred during hasNext, propagating timeout exception: " + timeoutException);
-              if (timeoutException instanceof RuntimeException) {
-                throw (RuntimeException) timeoutException;
-              } else {
-                throw new RuntimeException(timeoutException);
-              }
+              rethrow(timeoutException);
             }
             logger.fine(() -> "Timeout stream closed during hasNext, stopping");
             break;
@@ -175,17 +163,13 @@ public class RpcStreamTimeoutUtil {
           if (timeoutException != null && !(timeoutException instanceof StreamClosedException)) {
             // Re-throw the timeout exception instead of the connection exception
             logger.fine(() -> "Rethrowing timeout exception instead of: " + e);
-            if (timeoutException instanceof RuntimeException) {
-              throw (RuntimeException) timeoutException;
-            } else {
-              throw new RuntimeException(timeoutException);
-            }
+            rethrow(timeoutException);
           }
         }
       } finally {
         // Cancel any pending timeout
         FlowFuture<Void> timeout = currentTimeout.getAndSet(null);
-        if (timeout != null && !timeout.isDone()) {
+        if (timeout != null) {
           timeout.cancel();
         }
       }
@@ -194,6 +178,19 @@ public class RpcStreamTimeoutUtil {
     });
 
     return timeoutStream;
+  }
+
+  /**
+   * Rethrows the given exception, wrapping it in a RuntimeException if necessary.
+   *
+   * @param timeoutException The exception to rethrow.
+   */
+  private static void rethrow(Throwable timeoutException) {
+    if (timeoutException instanceof RuntimeException) {
+      throw (RuntimeException) timeoutException;
+    } else {
+      throw new RuntimeException(timeoutException);
+    }
   }
 
   /**
@@ -217,20 +214,14 @@ public class RpcStreamTimeoutUtil {
 
     // Forward values from future stream to promise stream
     startActor(() -> {
-      futureStream.forEach(value -> {
-        if (!promiseStream.isClosed()) {
-          promiseStream.send(value);
-        }
-      });
+      futureStream.forEach(promiseStream::send);
 
       // Forward close event
       futureStream.onClose().whenComplete((v, error) -> {
-        if (!promiseStream.isClosed()) {
-          if (error != null) {
-            promiseStream.closeExceptionally(error);
-          } else {
-            promiseStream.close();
-          }
+        if (error != null) {
+          promiseStream.closeExceptionally(error);
+        } else {
+          promiseStream.close();
         }
       });
 

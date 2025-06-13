@@ -59,16 +59,12 @@ public interface FlowStream<T> {
    *
    * @return A future that completes when the stream is closed
    */
-  default FlowFuture<Void> onClose() {
-    // Default implementation creates a new future and returns it
-    // Implementations should override this to provide proper behavior
-    return new FlowFuture<>();
-  }
+  FlowFuture<Void> onClose();
 
   /**
    * Maps the values in this stream to another type.
    *
-   * @param <R> The result type
+   * @param <R>    The result type
    * @param mapper A function to transform the values
    * @return A new stream of the mapped values
    */

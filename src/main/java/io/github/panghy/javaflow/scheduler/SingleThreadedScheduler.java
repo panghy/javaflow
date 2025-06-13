@@ -343,9 +343,13 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Task flowTask = new Task(taskId, priority, wrappedTask, currentTask);
     // Initialize effective priority to original priority
     flowTask.setEffectivePriority(priority);
+    // Set up cancellation callback to propagate cancellation to associated timer tasks
     flowTask.setCancellationCallback((timerIds) -> {
       cancelTask(taskId);
-      timerIds.forEach(this::cancelTimer);
+      List<Long> timerIdsCopy = new ArrayList<>(timerIds);
+      debug(LOGGER, "Cancelling " + timerIdsCopy.size() + " timers for task " + taskId);
+      // Cancel all associated timer tasks
+      timerIdsCopy.forEach(this::cancelTimer);
     });
     if (currentTask != null) {
       currentTask.addChild(flowTask);

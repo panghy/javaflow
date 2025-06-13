@@ -57,6 +57,11 @@ public class FlowStreamTest extends AbstractFlowTest {
     }
 
     @Override
+    public FlowFuture<Void> onClose() {
+      return new FlowFuture<>();
+    }
+
+    @Override
     public <R> FlowStream<R> map(Function<? super T, ? extends R> mapper) {
       return new TestFlowStream<>();
     }
