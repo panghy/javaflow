@@ -14,7 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests for the loopback endpoint functionality in {@link EndpointResolver}.
+ * Tests for the local endpoint functionality in {@link EndpointResolver}.
+ * <p>
+ * Note: This test file has been updated to reflect the simplified two-tier endpoint model.
+ * The previous three-tier model (loopback, local, remote) has been replaced with a 
+ * two-tier model (local with network exposure, remote).
  */
 public class EndpointResolverLoopbackTest {
 
@@ -26,16 +30,16 @@ public class EndpointResolverLoopbackTest {
   }
   
   @Test
-  public void testRegisterLoopbackEndpoint() {
+  public void testRegisterLocalEndpoint() {
     // Create a test endpoint
-    EndpointId id = new EndpointId("loopback-service");
+    EndpointId id = new EndpointId("local-service");
     Object implementation = new TestService();
+    Endpoint physicalEndpoint = new Endpoint("localhost", 8080);
     
-    // Register as loopback
-    resolver.registerLoopbackEndpoint(id, implementation);
+    // Register as local with network exposure
+    resolver.registerLocalEndpoint(id, implementation, physicalEndpoint);
     
-    // Verify it's registered as loopback
-    assertTrue(resolver.isLoopbackEndpoint(id));
+    // Verify it's registered as local
     assertTrue(resolver.isLocalEndpoint(id));
     
     // Verify we can retrieve the implementation
@@ -43,78 +47,66 @@ public class EndpointResolverLoopbackTest {
     assertTrue(retrievedImpl.isPresent());
     assertSame(implementation, retrievedImpl.get());
     
-    // Verify that resolveEndpoint returns empty (no physical endpoint)
+    // Verify that resolveEndpoint returns the physical endpoint
     Optional<Endpoint> resolvedEndpoint = resolver.resolveEndpoint(id);
-    assertFalse(resolvedEndpoint.isPresent());
+    assertTrue(resolvedEndpoint.isPresent());
+    assertEquals(physicalEndpoint, resolvedEndpoint.get());
     
-    // Verify that resolveEndpoint with index returns empty
+    // Verify that resolveEndpoint with index returns the endpoint
     Optional<Endpoint> resolvedEndpointWithIndex = resolver.resolveEndpoint(id, 0);
-    assertFalse(resolvedEndpointWithIndex.isPresent());
+    assertTrue(resolvedEndpointWithIndex.isPresent());
+    assertEquals(physicalEndpoint, resolvedEndpointWithIndex.get());
     
-    // Verify getAllEndpoints returns an empty list
+    // Verify getAllEndpoints returns the physical endpoint
     List<Endpoint> allEndpoints = resolver.getAllEndpoints(id);
-    assertTrue(allEndpoints.isEmpty());
+    assertEquals(1, allEndpoints.size());
+    assertEquals(physicalEndpoint, allEndpoints.getFirst());
   }
   
   @Test
-  public void testLoopbackOverridesExistingEndpoints() {
+  public void testLocalEndpointOverridesRemote() {
     // Create test endpoints
     EndpointId id = new EndpointId("overridden-service");
     Object implementation = new TestService();
-    Endpoint physicalEndpoint = new Endpoint("localhost", 8000);
+    Endpoint localPhysicalEndpoint = new Endpoint("localhost", 8000);
+    Endpoint remoteEndpoint = new Endpoint("remote-host", 9000);
     
-    // First register as a local endpoint
+    // First register as remote
+    resolver.registerRemoteEndpoint(id, remoteEndpoint);
+    
+    // Verify it's registered as remote
+    assertFalse(resolver.isLocalEndpoint(id));
+    assertEquals(remoteEndpoint, resolver.resolveEndpoint(id).get());
+    
+    // Now register as local
+    resolver.registerLocalEndpoint(id, implementation, localPhysicalEndpoint);
+    
+    // Verify it's now registered as local
+    assertTrue(resolver.isLocalEndpoint(id));
+    
+    // Verify physical endpoint is now the local one
+    Optional<Endpoint> resolvedEndpoint = resolver.resolveEndpoint(id);
+    assertTrue(resolvedEndpoint.isPresent());
+    assertEquals(localPhysicalEndpoint, resolvedEndpoint.get());
+    
+    // Verify remote endpoint is no longer available
+    List<Endpoint> allEndpoints = resolver.getAllEndpoints(id);
+    assertEquals(1, allEndpoints.size());
+    assertEquals(localPhysicalEndpoint, allEndpoints.getFirst());
+  }
+  
+  @Test
+  public void testLocalEndpointUnregister() {
+    // Create a test endpoint
+    EndpointId id = new EndpointId("unregister-service");
+    Object implementation = new TestService();
+    Endpoint physicalEndpoint = new Endpoint("localhost", 8080);
+    
+    // Register as local
     resolver.registerLocalEndpoint(id, implementation, physicalEndpoint);
     
     // Verify it's registered as local
     assertTrue(resolver.isLocalEndpoint(id));
-    assertFalse(resolver.isLoopbackEndpoint(id));
-    
-    // Now register as loopback
-    resolver.registerLoopbackEndpoint(id, implementation);
-    
-    // Verify it's now registered as loopback
-    assertTrue(resolver.isLoopbackEndpoint(id));
-    assertTrue(resolver.isLocalEndpoint(id));
-    
-    // Verify physical endpoint is no longer available
-    Optional<Endpoint> resolvedEndpoint = resolver.resolveEndpoint(id);
-    assertFalse(resolvedEndpoint.isPresent());
-    
-    // Try the same with a remote endpoint
-    EndpointId remoteId = new EndpointId("remote-to-loopback");
-    Endpoint remoteEndpoint = new Endpoint("remote-host", 9000);
-    
-    // Register as remote
-    resolver.registerRemoteEndpoint(remoteId, remoteEndpoint);
-    
-    // Verify it's not local or loopback
-    assertFalse(resolver.isLocalEndpoint(remoteId));
-    assertFalse(resolver.isLoopbackEndpoint(remoteId));
-    
-    // Now register as loopback
-    resolver.registerLoopbackEndpoint(remoteId, implementation);
-    
-    // Verify it's now registered as loopback
-    assertTrue(resolver.isLoopbackEndpoint(remoteId));
-    assertTrue(resolver.isLocalEndpoint(remoteId));
-    
-    // Verify remote endpoint is no longer available
-    resolvedEndpoint = resolver.resolveEndpoint(remoteId);
-    assertFalse(resolvedEndpoint.isPresent());
-  }
-  
-  @Test
-  public void testLoopbackUnregister() {
-    // Create a test endpoint
-    EndpointId id = new EndpointId("unregister-service");
-    Object implementation = new TestService();
-    
-    // Register as loopback
-    resolver.registerLoopbackEndpoint(id, implementation);
-    
-    // Verify it's registered as loopback
-    assertTrue(resolver.isLoopbackEndpoint(id));
     
     // Unregister
     boolean unregistered = resolver.unregisterLocalEndpoint(id);
@@ -123,19 +115,20 @@ public class EndpointResolverLoopbackTest {
     assertTrue(unregistered);
     
     // Verify it's no longer registered
-    assertFalse(resolver.isLoopbackEndpoint(id));
     assertFalse(resolver.isLocalEndpoint(id));
     assertFalse(resolver.getLocalImplementation(id).isPresent());
+    assertFalse(resolver.resolveEndpoint(id).isPresent());
   }
   
   @Test
-  public void testUnregisterAllWithLoopback() {
+  public void testUnregisterAllWithLocal() {
     // Create test endpoints
-    EndpointId id = new EndpointId("multi-type-service");
+    EndpointId localId = new EndpointId("local-service");
     Object implementation = new TestService();
+    Endpoint localEndpoint = new Endpoint("localhost", 8080);
     
-    // Register as loopback
-    resolver.registerLoopbackEndpoint(id, implementation);
+    // Register as local
+    resolver.registerLocalEndpoint(localId, implementation, localEndpoint);
     
     // Register other endpoints
     EndpointId remoteId = new EndpointId("remote-service");
@@ -144,25 +137,25 @@ public class EndpointResolverLoopbackTest {
     resolver.registerRemoteEndpoints(remoteId, Arrays.asList(endpoint1, endpoint2));
     
     // Verify registration
-    assertTrue(resolver.isLoopbackEndpoint(id));
+    assertTrue(resolver.isLocalEndpoint(localId));
     assertFalse(resolver.isLocalEndpoint(remoteId));
     
     // Unregister all endpoints for both IDs
-    boolean unregisteredLoopback = resolver.unregisterAllEndpoints(id);
+    boolean unregisteredLocal = resolver.unregisterAllEndpoints(localId);
     boolean unregisteredRemote = resolver.unregisterAllEndpoints(remoteId);
     
     // Verify unregistration was successful
-    assertTrue(unregisteredLoopback);
+    assertTrue(unregisteredLocal);
     assertTrue(unregisteredRemote);
     
     // Verify they're no longer registered
-    assertFalse(resolver.isLoopbackEndpoint(id));
-    assertFalse(resolver.isLocalEndpoint(id));
+    assertFalse(resolver.isLocalEndpoint(localId));
+    assertEquals(0, resolver.getAllEndpoints(localId).size());
     assertEquals(0, resolver.getAllEndpoints(remoteId).size());
   }
   
   /**
-   * Simple test service for testing loopback endpoints.
+   * Simple test service for testing local endpoints.
    */
   private static class TestService {
     public String getMessage() {

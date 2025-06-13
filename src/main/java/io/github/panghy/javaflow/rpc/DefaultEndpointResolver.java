@@ -4,6 +4,7 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ul>
  *   <li>Thread-safe storage of endpoint mappings</li>
  *   <li>Round-robin selection of physical endpoints</li>
- *   <li>Support for loopback, local, and remote endpoints</li>
+ *   <li>Support for local and remote endpoints</li>
  *   <li>Per-endpoint counters for load balancing</li>
  * </ul>
  * 
@@ -31,33 +32,25 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DefaultEndpointResolver implements EndpointResolver {
 
-  // Maps logical endpoint IDs to their loopback implementation (in-process only, no network exposure)
-  private final Map<EndpointId, Object> loopbackEndpoints = new ConcurrentHashMap<>();
-
   // Maps logical endpoint IDs to their local implementation (with network exposure)
   private final Map<EndpointId, LocalEndpointInfo> localEndpoints = new ConcurrentHashMap<>();
 
   // Maps logical endpoint IDs to their remote physical endpoints
   private final Map<EndpointId, RemoteEndpointInfo> remoteEndpoints = new ConcurrentHashMap<>();
 
-  @Override
-  public void registerLoopbackEndpoint(EndpointId id, Object implementation) {
-    if (id == null || implementation == null) {
-      throw new IllegalArgumentException("EndpointId and implementation cannot be null");
-    }
-    loopbackEndpoints.put(id, implementation);
-    // When registering as loopback, remove from local and remote lists if present
-    localEndpoints.remove(id);
-    remoteEndpoints.remove(id);
-  }
+
 
   @Override
   public void registerLocalEndpoint(EndpointId id, Object implementation, Endpoint physicalEndpoint) {
     if (id == null || implementation == null || physicalEndpoint == null) {
       throw new IllegalArgumentException("EndpointId, implementation, and physicalEndpoint cannot be null");
     }
-    // When registering locally, remove from loopback and remote lists if present
-    loopbackEndpoints.remove(id);
+    // Check if already registered
+    LocalEndpointInfo existing = localEndpoints.get(id);
+    if (existing != null && existing.getImplementation() != implementation) {
+      throw new IllegalStateException("EndpointId " + id + " is already registered with a different implementation");
+    }
+    // When registering locally, remove from remote lists if present
     localEndpoints.put(id, new LocalEndpointInfo(implementation, physicalEndpoint));
     remoteEndpoints.remove(id);
   }
@@ -101,34 +94,17 @@ public class DefaultEndpointResolver implements EndpointResolver {
 
   @Override
   public boolean isLocalEndpoint(EndpointId id) {
-    return loopbackEndpoints.containsKey(id) || localEndpoints.containsKey(id);
-  }
-  
-  @Override
-  public boolean isLoopbackEndpoint(EndpointId id) {
-    return loopbackEndpoints.containsKey(id);
+    return localEndpoints.containsKey(id);
   }
 
   @Override
   public Optional<Object> getLocalImplementation(EndpointId id) {
-    // Check loopback endpoints first
-    Object loopbackImpl = loopbackEndpoints.get(id);
-    if (loopbackImpl != null) {
-      return Optional.of(loopbackImpl);
-    }
-    
-    // Then check local endpoints
     LocalEndpointInfo info = localEndpoints.get(id);
     return info != null ? Optional.of(info.getImplementation()) : Optional.empty();
   }
 
   @Override
   public Optional<Endpoint> resolveEndpoint(EndpointId id) {
-    // Loopback endpoints don't have a physical endpoint
-    if (loopbackEndpoints.containsKey(id)) {
-      return Optional.empty();
-    }
-    
     // Check if this is a local endpoint
     LocalEndpointInfo localInfo = localEndpoints.get(id);
     if (localInfo != null) {
@@ -142,11 +118,6 @@ public class DefaultEndpointResolver implements EndpointResolver {
   
   @Override
   public Optional<Endpoint> resolveEndpoint(EndpointId id, int index) {
-    // Loopback endpoints don't have a physical endpoint
-    if (loopbackEndpoints.containsKey(id)) {
-      return Optional.empty();
-    }
-    
     // Check if this is a local endpoint
     LocalEndpointInfo localInfo = localEndpoints.get(id);
     if (localInfo != null) {
@@ -164,11 +135,6 @@ public class DefaultEndpointResolver implements EndpointResolver {
 
   @Override
   public List<Endpoint> getAllEndpoints(EndpointId id) {
-    // Loopback endpoints don't have physical endpoints
-    if (loopbackEndpoints.containsKey(id)) {
-      return Collections.emptyList();
-    }
-    
     // Check if this is a local endpoint
     LocalEndpointInfo localInfo = localEndpoints.get(id);
     if (localInfo != null) {
@@ -182,9 +148,7 @@ public class DefaultEndpointResolver implements EndpointResolver {
 
   @Override
   public boolean unregisterLocalEndpoint(EndpointId id) {
-    boolean removedLoopback = (loopbackEndpoints.remove(id) != null);
-    boolean removedLocal = (localEndpoints.remove(id) != null);
-    return removedLoopback || removedLocal;
+    return localEndpoints.remove(id) != null;
   }
 
   @Override
@@ -202,10 +166,9 @@ public class DefaultEndpointResolver implements EndpointResolver {
 
   @Override
   public boolean unregisterAllEndpoints(EndpointId id) {
-    boolean removedLoopback = (loopbackEndpoints.remove(id) != null);
     boolean removedLocal = (localEndpoints.remove(id) != null);
     boolean removedRemote = (remoteEndpoints.remove(id) != null);
-    return removedLoopback || removedLocal || removedRemote;
+    return removedLocal || removedRemote;
   }
 
   @Override
@@ -230,6 +193,32 @@ public class DefaultEndpointResolver implements EndpointResolver {
       }
     }
 
+    return result;
+  }
+
+  @Override
+  public Map<EndpointId, EndpointInfo> getAllEndpointInfo() {
+    Map<EndpointId, EndpointInfo> result = new HashMap<>();
+    
+    // Add local endpoints
+    for (Map.Entry<EndpointId, LocalEndpointInfo> entry : localEndpoints.entrySet()) {
+      LocalEndpointInfo localInfo = entry.getValue();
+      result.put(entry.getKey(), new EndpointInfo(
+          EndpointInfo.Type.LOCAL,
+          localInfo.getImplementation(),
+          Collections.singletonList(localInfo.getPhysicalEndpoint())
+      ));
+    }
+    
+    // Add remote endpoints
+    for (Map.Entry<EndpointId, RemoteEndpointInfo> entry : remoteEndpoints.entrySet()) {
+      result.put(entry.getKey(), new EndpointInfo(
+          EndpointInfo.Type.REMOTE,
+          null,  // No implementation for remote endpoints
+          entry.getValue().getAllEndpoints()
+      ));
+    }
+    
     return result;
   }
 

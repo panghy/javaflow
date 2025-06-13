@@ -81,7 +81,9 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
   public void testRpcServiceInterface() throws Exception {
     // Setup service
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
     
     EndpointId serviceId = new EndpointId("test-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -136,26 +138,6 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     assertEquals(false, closeFuture.isDone());
   }
 
-  @Test
-  public void testRegisterAsLoopback() throws Exception {
-    // Set the transport as default
-    FlowRpcProvider.setDefaultTransport(transport);
-    
-    TestService service = new TestServiceImpl();
-    EndpointId endpointId = new EndpointId("loopback-service");
-    
-    // Register as loopback
-    service.registerAsLoopback(endpointId);
-    
-    // Verify we can get a stub for the loopback service
-    TestService stub = transport.getRpcStub(endpointId, TestService.class);
-    assertNotNull(stub);
-    
-    // Test that it works
-    FlowFuture<String> result = startActor(() -> stub.echo("loopback"));
-    pumpAndAdvanceTimeUntilDone(result);
-    assertEquals("Echo: loopback", result.getNow());
-  }
 
   @Test
   public void testRegisterAsLocal() throws Exception {

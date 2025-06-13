@@ -202,7 +202,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testNumericTypeConversions() {
     // Test numeric type conversions in arguments and return values
     NumericServiceImpl impl = new NumericServiceImpl();
-    transport.registerServiceAndListen(impl, NumericService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, NumericService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("numeric-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -253,7 +255,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, OverflowService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, OverflowService.class, serverEndpoint);
 
     // Create a service that sends values that overflow when converted
     interface WideNumericService {
@@ -357,7 +362,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(overflowService, NumericService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, overflowService, NumericService.class, serverEndpoint);
 
     // Create a service interface that expects narrower types
     interface NarrowNumericService {
@@ -386,7 +394,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testUnknownMessageType() {
     // Test handling unknown message type by sending raw message
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -427,7 +437,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testCorruptedMessageDeserialization() {
     // Test handling completely corrupted messages
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -462,7 +474,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testStreamDataWithUnknownStreamId() {
     // Test handling stream data for unknown stream ID
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -499,7 +513,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testPromiseCompletionForUnknownPromise() {
     // Test handling promise completion for unknown promise ID
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -541,7 +557,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NoArgsService impl = () -> "no args result";
 
-    transport.registerServiceAndListen(impl, NoArgsService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, NoArgsService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("no-args-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -582,7 +601,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, UnserializablePromiseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, UnserializablePromiseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("unserializable-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -625,7 +647,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return stream;
     };
 
-    transport.registerServiceAndListen(impl, UnserializableStreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, UnserializableStreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("unserializable-stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -662,7 +687,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testConnectionCloseWhileProcessingMessages() {
     // Test connection closing while actively processing messages
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -703,7 +730,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testInvokeMethodWithInvalidArguments() {
     // Test invoking method with wrong argument types
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       try {
@@ -747,7 +776,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, NullPromiseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, NullPromiseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("null-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -775,7 +807,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return String.format("b=%d,s=%d,i=%d,l=%d,f=%.2f,d=%.2f", b, s, i, l, f, d);
     };
 
-    transport.registerServiceAndListen(impl, MultiNumericService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, MultiNumericService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("multi-numeric-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -813,7 +848,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, ExceptionService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, ExceptionService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("exception-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -866,7 +904,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, CompletedFutureService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, CompletedFutureService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("completed-future-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -922,7 +963,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, WideningService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, WideningService.class, serverEndpoint);
 
     // Client expects narrower types
     interface NarrowingClient {
@@ -967,7 +1011,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return stream;
     };
 
-    transport.registerServiceAndListen(impl, ErrorStreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, ErrorStreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("error-stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1005,7 +1052,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testConnectionHandlerStartMessageReader() {
     // Test that message reader starts properly and handles connection close
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       // Connect and immediately close to test reader error handling
@@ -1057,7 +1106,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return stream;
     };
 
-    transport.registerServiceAndListen(impl, StreamErrorService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, StreamErrorService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-error-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1140,7 +1192,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testSendMessageToClosedConnection() {
     // Test sending message when connection is already closed
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       // Connect then close
@@ -1176,7 +1230,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FloatDoubleService impl = value -> "Double: " + value;
 
-    transport.registerServiceAndListen(impl, FloatDoubleService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, FloatDoubleService.class, serverEndpoint);
 
     // Client sends float, server expects double
     interface FloatClient {
@@ -1206,7 +1263,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     IntDoubleService impl = value -> "Double: " + value;
 
-    transport.registerServiceAndListen(impl, IntDoubleService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, IntDoubleService.class, serverEndpoint);
 
     // Client sends int, server expects double
     interface IntClient {
@@ -1236,7 +1296,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     LongDoubleService impl = value -> "Double: " + value;
 
-    transport.registerServiceAndListen(impl, LongDoubleService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, LongDoubleService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("long-double-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1268,7 +1331,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, CancellableService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, CancellableService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("cancellable-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1312,7 +1378,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, ErrorService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, ErrorService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("error-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1396,7 +1465,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testMessageReaderExceptionHandling() {
     // Test exception handling in ConnectionMessageHandler's message reader
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       // Connect and start a request
@@ -1455,7 +1526,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, PromiseReturningService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, PromiseReturningService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       EndpointId serviceId = new EndpointId("promise-service");
@@ -1499,7 +1573,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return stream;
     };
 
-    transport.registerServiceAndListen(impl, StreamErrorService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, StreamErrorService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-error-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1546,7 +1623,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     LocalEndpoint badEndpoint = LocalEndpoint.localhost(29999);
 
     // Register on a real endpoint first
-    transport.registerServiceAndListen(impl, FailingConnectionService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, FailingConnectionService.class, serverEndpoint);
 
     // But tell the client it's on the bad endpoint
     EndpointId serviceId = new EndpointId("failing-service");
@@ -1576,7 +1655,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testHandleIncomingMessageWithInvalidMessageType() {
     // Test handling message with invalid type value
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
@@ -1646,7 +1727,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, SlowService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, SlowService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("slow-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1710,7 +1794,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return stream;
     };
 
-    transport.registerServiceAndListen(impl, ErrorStreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, ErrorStreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("error-stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1763,7 +1850,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     };
 
     // Register callback service
-    transport.registerServiceAndListen(callbackImpl, CallbackService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, callbackImpl, CallbackService.class, serverEndpoint);
     EndpointId callbackEndpointId = new EndpointId("callback-service");
     transport.getEndpointResolver().registerLocalEndpoint(callbackEndpointId, callbackImpl, serverEndpoint);
 
@@ -1780,7 +1869,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       });
     };
 
-    transport.registerServiceAndListen(bidirectionalImpl, BidirectionalService.class, serverEndpoint);
+    EndpointId serviceEndpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(serviceEndpointId, bidirectionalImpl, BidirectionalService.class, serverEndpoint);
     EndpointId bidirectionalId = new EndpointId("bidirectional-service");
     transport.getEndpointResolver().registerRemoteEndpoint(bidirectionalId, serverEndpoint);
 
@@ -1835,7 +1926,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, ExceptionThrowingService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, ExceptionThrowingService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("exception-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1901,7 +1995,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, NullReturningService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, NullReturningService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("null-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -1959,7 +2056,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, EdgeCaseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, EdgeCaseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("edge-case-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -2034,7 +2134,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return future.getPromise();
     };
 
-    transport.registerServiceAndListen(impl, DelayedPromiseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, DelayedPromiseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("delayed-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -2082,7 +2185,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testHandleStreamDataForUnregisteredStream() {
     // Test receiving STREAM_DATA for a stream that was never registered
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
@@ -2116,7 +2221,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testHandlePromiseCompleteForUnregisteredPromise() {
     // Test receiving PROMISE_COMPLETE for a promise that was never registered
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
@@ -2157,7 +2264,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     SimpleService impl = msg -> msg;
-    transport.registerServiceAndListen(impl, SimpleService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, SimpleService.class, serverEndpoint);
 
     // Track messages sent
     AtomicReference<ByteBuffer> lastSentMessage = new AtomicReference<>();
@@ -2247,7 +2356,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     // Register service on a special endpoint
     LocalEndpoint specialEndpoint = LocalEndpoint.localhost(19877);
-    transport.registerServiceAndListen(impl, AsyncPromiseService.class, specialEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncPromiseService.class, specialEndpoint);
 
     // Create a second transport that will act as client
     SimulatedFlowTransport clientNetworkTransport = new SimulatedFlowTransport();
@@ -2304,7 +2415,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testHandleErrorMessageDeserialization() {
     // Test handling ERROR message with deserialization issues
     TestServiceImpl impl = new TestServiceImpl();
-    transport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
@@ -2368,7 +2481,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, NumericOverflowService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, NumericOverflowService.class, serverEndpoint);
 
     // Create interface that expects wider types
     interface WideNumericService {
@@ -2453,7 +2569,10 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     };
 
-    transport.registerServiceAndListen(impl, NumericTestService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+
+    transport.registerServiceAndListen(endpointId, impl, NumericTestService.class, serverEndpoint);
 
     FlowFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));

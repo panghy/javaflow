@@ -12,6 +12,7 @@ import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
 import io.github.panghy.javaflow.rpc.error.RpcConnectionException;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,11 +56,6 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     }
 
     @Override
-    public void registerLoopbackEndpoint(EndpointId id, Object implementation) {
-      // Not used in connection manager tests
-    }
-
-    @Override
     public void registerLocalEndpoint(EndpointId id, Object implementation, Endpoint physicalEndpoint) {
       endpoints.put(id, physicalEndpoint);
     }
@@ -78,11 +74,6 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     @Override
     public boolean isLocalEndpoint(EndpointId id) {
-      return false;
-    }
-
-    @Override
-    public boolean isLoopbackEndpoint(EndpointId id) {
       return false;
     }
 
@@ -134,6 +125,19 @@ public class ConnectionManagerTest extends AbstractFlowTest {
         if (entry.getValue().equals(physicalEndpoint)) {
           result.add(entry.getKey());
         }
+      }
+      return result;
+    }
+
+    @Override
+    public Map<EndpointId, EndpointInfo> getAllEndpointInfo() {
+      Map<EndpointId, EndpointInfo> result = new HashMap<>();
+      for (Map.Entry<EndpointId, Endpoint> entry : endpoints.entrySet()) {
+        result.put(entry.getKey(), new EndpointInfo(
+            EndpointInfo.Type.REMOTE,
+            null,
+            Collections.singletonList(entry.getValue())
+        ));
       }
       return result;
     }

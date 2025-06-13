@@ -72,7 +72,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     LocalEndpoint serverEndpoint = LocalEndpoint.localhost(12345); // Use fixed port
 
     // Register and start listening
-    serverTransport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    serverTransport.registerServiceAndListen(serviceId, impl, TestService.class, serverEndpoint);
 
     // Create client transport with same config
     FlowRpcTransportImpl clientTransport = new FlowRpcTransportImpl(
@@ -214,7 +214,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     LocalEndpoint serverEndpoint = LocalEndpoint.localhost(12346); // Use different fixed port
 
     // Register and start listening
-    serverTransport.registerServiceAndListen(impl, TestService.class, serverEndpoint);
+    serverTransport.registerServiceAndListen(serviceId, impl, TestService.class, serverEndpoint);
 
     // Create client transport
     FlowRpcTransportImpl clientTransport = new FlowRpcTransportImpl(

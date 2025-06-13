@@ -196,7 +196,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testStreamOperations() {
     // Test stream data and close messages
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -248,7 +250,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testStreamWithError() {
     // Test stream that ends with error
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -296,7 +300,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testPromiseStreamAsMethodArgument() {
     // Test passing a PromiseStream as method argument
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -339,7 +345,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testFutureStreamAsMethodArgument() {
     // Test passing a FutureStream as method argument
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -377,7 +385,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testComplexStreamTypes() {
     // Test streams with complex generic types
     ComplexStreamServiceImpl impl = new ComplexStreamServiceImpl();
-    transport.registerServiceAndListen(impl, ComplexStreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, ComplexStreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("complex-stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -424,7 +434,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testDelayedStreamValues() {
     // Test stream with delayed values
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -462,7 +474,9 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
   public void testMultipleStreamsInParallel() {
     // Test multiple streams being transmitted in parallel
     StreamServiceImpl impl = new StreamServiceImpl();
-    transport.registerServiceAndListen(impl, StreamService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, StreamService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("stream-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);

@@ -44,16 +44,6 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 public interface RpcServiceInterface {
 
   /**
-   * Registers this interface as a loopback endpoint with the RPC transport.
-   * This makes the interface's methods available for in-process invocation only.
-   *
-   * @param endpointId The endpoint ID to register with
-   */
-  default void registerAsLoopback(EndpointId endpointId) {
-    FlowRpcTransport.getInstance().getEndpointResolver().registerLoopbackEndpoint(endpointId, this);
-  }
-
-  /**
    * Registers this interface as a local endpoint with the RPC transport.
    * This makes the interface's methods available for both local and remote invocation.
    * The service is mounted with the network layer to accept connections on the specified endpoint.
@@ -84,7 +74,6 @@ public interface RpcServiceInterface {
    */
   default FlowFuture<Void> onClose() {
     // By default, create a new future that will be completed when the service is closed
-    FlowFuture<Void> future = new FlowFuture<>();
-    return future;
+    return new FlowFuture<>();
   }
 }

@@ -232,7 +232,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testPromiseAsReturnValueAlreadyCompleted() throws Exception {
     // Test returning an already completed FlowPromise
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -261,7 +263,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testPromiseAsReturnValueDelayed() throws Exception {
     // Test returning a FlowPromise that completes later
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -290,7 +294,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testExceptionalPromiseReturn() throws Exception {
     // Test returning a promise that completes exceptionally
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -345,7 +351,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -392,7 +400,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -427,7 +437,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testPromiseAsMethodArgument() {
     // Test passing a promise as a method argument
     PromiseArgumentServiceImpl impl = new PromiseArgumentServiceImpl();
-    transport.registerServiceAndListen(impl, PromiseArgumentService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, PromiseArgumentService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("promise-arg-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -476,7 +488,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     // Test an interface that accepts FlowFuture
     FutureProcessingServiceImpl impl = new FutureProcessingServiceImpl();
-    transport.registerServiceAndListen(impl, FutureProcessingService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, FutureProcessingService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("future-processing-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -515,7 +529,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testFutureAsMethodArgument() {
     // Test passing a future as a method argument
     PromiseArgumentServiceImpl impl = new PromiseArgumentServiceImpl();
-    transport.registerServiceAndListen(impl, PromiseArgumentService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, PromiseArgumentService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("promise-arg-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -552,7 +568,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     ComplexPromiseServiceImpl impl = new ComplexPromiseServiceImpl();
-    transport.registerServiceAndListen(impl, ComplexPromiseService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, ComplexPromiseService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("complex-promise-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
@@ -685,7 +703,9 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public void testNestedFutureHandling() {
     // Test handling of nested FlowFuture from mapResponse
     AsyncServiceImpl impl = new AsyncServiceImpl();
-    transport.registerServiceAndListen(impl, AsyncService.class, serverEndpoint);
+    EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
+
+    transport.registerServiceAndListen(endpointId, impl, AsyncService.class, serverEndpoint);
 
     EndpointId serviceId = new EndpointId("async-service");
     transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);

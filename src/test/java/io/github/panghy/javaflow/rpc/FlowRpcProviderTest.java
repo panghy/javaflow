@@ -2,6 +2,7 @@ package io.github.panghy.javaflow.rpc;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.io.network.Endpoint;
+import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -141,7 +142,7 @@ public class FlowRpcProviderTest {
     }
     
     @Override
-    public <T> T getLocalStub(EndpointId id, Class<T> interfaceClass) {
+    public void registerServiceAndListen(EndpointId endpointId, Object implementation, Class<?> interfaceClass, LocalEndpoint localEndpoint) {
       throw new UnsupportedOperationException("Mock implementation");
     }
     
