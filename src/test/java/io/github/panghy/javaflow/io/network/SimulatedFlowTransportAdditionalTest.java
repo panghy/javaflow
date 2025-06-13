@@ -39,14 +39,14 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       
       // Try to connect - should fail with 100% probability
       FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
-      pumpUntilDone(connectFuture);
+      pumpAndAdvanceTimeUntilDone(connectFuture);
       
       assertTrue(connectFuture.isCompletedExceptionally(), "Connect should fail with 100% error probability");
       
       // Try again with normal parameters to test that at least one connection succeeds
       params.setConnectErrorProbability(0.0);
       FlowFuture<FlowConnection> successFuture = transport.connect(endpoint);
-      pumpUntilDone(successFuture);
+      pumpAndAdvanceTimeUntilDone(successFuture);
       
       assertFalse(successFuture.isCompletedExceptionally(), "Connect should succeed with 0% error probability");
       
@@ -57,13 +57,13 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       // Send should fail with 100% probability
       ByteBuffer data = ByteBuffer.wrap("test".getBytes());
       FlowFuture<Void> sendFuture = connection.send(data);
-      pumpUntilDone(sendFuture);
+      pumpAndAdvanceTimeUntilDone(sendFuture);
       
       assertTrue(sendFuture.isCompletedExceptionally(), "Send should fail with 100% error probability");
       
       // Receive should fail with 100% probability
       FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
-      pumpUntilDone(receiveFuture);
+      pumpAndAdvanceTimeUntilDone(receiveFuture);
       
       assertTrue(receiveFuture.isCompletedExceptionally(), "Receive should fail with 100% error probability");
     } finally {
@@ -89,7 +89,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       
       // Connect (should succeed)
       FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
-      pumpUntilDone(connectFuture);
+      pumpAndAdvanceTimeUntilDone(connectFuture);
       
       assertFalse(connectFuture.isCompletedExceptionally(), "Connect should succeed");
       
@@ -99,7 +99,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       // Send with 100% disconnect probability should cause connection to close
       ByteBuffer data = ByteBuffer.wrap("test".getBytes());
       FlowFuture<Void> sendFuture = connection.send(data);
-      pumpUntilDone(sendFuture);
+      pumpAndAdvanceTimeUntilDone(sendFuture);
       
       assertTrue(sendFuture.isCompletedExceptionally(), "Send should fail due to disconnect");
       assertFalse(connection.isOpen(), "Connection should be closed after disconnect");
@@ -128,12 +128,12 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       FlowFuture<FlowConnection> connectFuture2 = transport.connect(endpoint2);
       
       // Wait for connections
-      pumpUntilDone(connectFuture1, connectFuture2);
+      pumpAndAdvanceTimeUntilDone(connectFuture1, connectFuture2);
       
       // Get connections from listeners
       FlowFuture<FlowConnection> acceptFuture1 = stream1.nextAsync();
       FlowFuture<FlowConnection> acceptFuture2 = stream2.nextAsync();
-      pumpUntilDone(acceptFuture1, acceptFuture2);
+      pumpAndAdvanceTimeUntilDone(acceptFuture1, acceptFuture2);
       
       // Verify all connections were established
       assertFalse(connectFuture1.isCompletedExceptionally());
@@ -148,7 +148,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       acceptFuture2.getNow().close();
       
       // Wait for close operations
-      pumpUntilDone();
+      pumpAndAdvanceTimeUntilDone();
     } finally {
       // Clean up
       transport.close();
@@ -167,7 +167,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     // Create a connection
     FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
     FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
-    pumpUntilDone(connectFuture, acceptFuture);
+    pumpAndAdvanceTimeUntilDone(connectFuture, acceptFuture);
     
     // Get the connections
     FlowConnection clientConn = connectFuture.getNow();
@@ -192,14 +192,14 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     
     // Close the transport while operations are in progress
     FlowFuture<Void> closeFuture = transport.close();
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Verify all futures completed
     assertTrue(closeFuture.isDone() && !closeFuture.isCompletedExceptionally(), 
         "Transport close should complete successfully");
     
     // Wait for callbacks to execute
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
     
     // Verify all closeFutures completed
     assertEquals(2, closeFutureCompletions.get(), "All connection closeFutures should have completed");
@@ -210,7 +210,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     
     // Try to connect/listen after close - this should fail
     FlowFuture<FlowConnection> postCloseFuture = transport.connect(endpoint);
-    pumpUntilDone(postCloseFuture);
+    pumpAndAdvanceTimeUntilDone(postCloseFuture);
     
     assertTrue(postCloseFuture.isCompletedExceptionally(), "Connect after close should fail");
   }

@@ -58,7 +58,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create the file with error parameters but directly assert the failure
       FlowFuture<ByteBuffer> readFuture = file.read(0, 10);
-      pumpUntilDone(readFuture);
+      pumpAndAdvanceTimeUntilDone(readFuture);
       
       try {
         // Try to get the result (should throw exception)
@@ -90,7 +90,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create write future and wait for it to complete
       FlowFuture<Void> writeFuture = file.write(0, writeBuffer);
-      pumpUntilDone(writeFuture);
+      pumpAndAdvanceTimeUntilDone(writeFuture);
       
       try {
         // Try to get the result (should throw exception)
@@ -119,7 +119,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create truncate future and wait for it to complete
       FlowFuture<Void> truncateFuture = file.truncate(100);
-      pumpUntilDone(truncateFuture);
+      pumpAndAdvanceTimeUntilDone(truncateFuture);
       
       try {
         // Try to get the result (should throw exception)
@@ -148,7 +148,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     
     // Test negative position
     FlowFuture<ByteBuffer> negativePosReadFuture = file.read(-1, 10);
-    pumpUntilDone(negativePosReadFuture);
+    pumpAndAdvanceTimeUntilDone(negativePosReadFuture);
     
     ExecutionException exception1 = assertThrows(
         ExecutionException.class, 
@@ -159,7 +159,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     
     // Test zero length
     FlowFuture<ByteBuffer> zeroLengthReadFuture = file.read(0, 0);
-    pumpUntilDone(zeroLengthReadFuture);
+    pumpAndAdvanceTimeUntilDone(zeroLengthReadFuture);
     
     ExecutionException exception2 = assertThrows(
         ExecutionException.class, 
@@ -170,7 +170,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     
     // Test negative length
     FlowFuture<ByteBuffer> negativeLengthReadFuture = file.read(0, -10);
-    pumpUntilDone(negativeLengthReadFuture);
+    pumpAndAdvanceTimeUntilDone(negativeLengthReadFuture);
     
     ExecutionException exception3 = assertThrows(
         ExecutionException.class, 
@@ -190,7 +190,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     
     // Test negative position
     FlowFuture<Void> negativePositionWriteFuture = file.write(-1, writeBuffer);
-    pumpUntilDone(negativePositionWriteFuture);
+    pumpAndAdvanceTimeUntilDone(negativePositionWriteFuture);
     
     ExecutionException exception = assertThrows(
         ExecutionException.class, 
@@ -207,7 +207,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     
     // Test negative size
     FlowFuture<Void> negativeSizeTruncateFuture = file.truncate(-1);
-    pumpUntilDone(negativeSizeTruncateFuture);
+    pumpAndAdvanceTimeUntilDone(negativeSizeTruncateFuture);
     
     ExecutionException exception = assertThrows(
         ExecutionException.class, 
@@ -228,7 +228,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Still should not be considered closed
     assertTrue(file.isClosed());

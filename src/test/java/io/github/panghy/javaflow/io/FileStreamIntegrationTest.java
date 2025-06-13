@@ -153,7 +153,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     
     // Create base directory
     FlowFuture<Void> dirFuture = fileSystem.createDirectories(Paths.get("/test"));
-    pumpUntilDone(dirFuture);
+    pumpAndAdvanceTimeUntilDone(dirFuture);
     
     // Start file processor actor
     FlowFuture<Void> processorFuture = startFileProcessor(
@@ -174,7 +174,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     }
     
     // Make sure all futures are done
-    pumpUntilDone(senderFuture, processorFuture);
+    pumpAndAdvanceTimeUntilDone(senderFuture, processorFuture);
     
     // Get the results
     Map<Path, FileOperationResponse> results = senderFuture.getNow();
@@ -463,7 +463,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     
     // Create base directory
     FlowFuture<Void> dirFuture = errorFs.createDirectories(Paths.get("/test"));
-    pumpUntilDone(dirFuture);
+    pumpAndAdvanceTimeUntilDone(dirFuture);
     
     // Start custom file processor actor that uses the error-injecting file system
     FlowFuture<Void> processorFuture = Flow.startActor(() -> {
@@ -565,7 +565,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     requestStream.close();
     
     // Make sure all futures are done
-    pumpUntilDone(resultsFuture, processorFuture);
+    pumpAndAdvanceTimeUntilDone(resultsFuture, processorFuture);
     
     // Get results
     List<FileOperationResponse> results = resultsFuture.getNow();

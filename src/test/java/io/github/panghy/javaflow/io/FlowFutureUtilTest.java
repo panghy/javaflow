@@ -30,7 +30,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     FlowFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
 
     // Run scheduler using pumpUntilDone
-    pumpUntilDone(mappedFuture);
+    pumpAndAdvanceTimeUntilDone(mappedFuture);
 
     // Verify result
     assertEquals(4, mappedFuture.getNow());
@@ -47,7 +47,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     FlowFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
 
     // Run scheduler using pumpUntilDone
-    pumpUntilDone(mappedFuture);
+    pumpAndAdvanceTimeUntilDone(mappedFuture);
 
     // Verify exception propagation
     assertTrue(mappedFuture.isCompletedExceptionally());
@@ -75,7 +75,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     assertFalse(resultFuture.isDone());
 
     // Run until completion
-    pumpUntilDone(resultFuture);
+    pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Verify result
     assertTrue(resultFuture.isDone());
@@ -106,7 +106,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     });
 
     // Run scheduler using pumpUntilDone
-    pumpUntilDone(resultFuture);
+    pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Should get our sentinel value because of the expected exception
     assertEquals(-1, resultFuture.getNow());
@@ -137,7 +137,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     });
 
     // Run scheduler using pumpUntilDone
-    pumpUntilDone(resultFuture);
+    pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Should be true from our exception handler
     assertTrue(resultFuture.getNow());
@@ -198,7 +198,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     assertFalse(resultFuture.isDone());
 
     // Run until completion using pumpUntilDone
-    pumpUntilDone(resultFuture);
+    pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Verify result
     assertTrue(resultFuture.isDone());

@@ -1555,10 +1555,10 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Send some values to the stream
     tracker.sendToLocalStream(streamId, "value1");
-    pumpUntilDone(); // Process first value
+    pumpAndAdvanceTimeUntilDone(); // Process first value
 
     tracker.sendToLocalStream(streamId, "value2");
-    pumpUntilDone(); // Process second value
+    pumpAndAdvanceTimeUntilDone(); // Process second value
 
     // Verify values were received so far
     assertEquals(2, receivedValues.size());
@@ -1570,14 +1570,14 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.closeLocalStreamExceptionally(streamId, error);
 
     // Pump to process the close
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
 
     // Verify the stream is closed
     assertTrue(remoteStream.isClosed());
 
     // Try to get a value from the closed stream - this should fail with the error
     FlowFuture<String> nextFuture = remoteStream.getFutureStream().nextAsync();
-    pumpUntilDone();
+    pumpAndAdvanceTimeUntilDone();
 
     // This future should be completed exceptionally
     assertTrue(nextFuture.isDone());

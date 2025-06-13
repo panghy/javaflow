@@ -6,6 +6,7 @@ import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.FlowConnection;
 import io.github.panghy.javaflow.io.network.FlowTransport;
 import io.github.panghy.javaflow.rpc.error.RpcConnectionException;
+import io.github.panghy.javaflow.rpc.error.RpcTimeoutException;
 
 import java.util.Map;
 import java.util.Optional;
@@ -57,6 +58,9 @@ public class ConnectionManager {
   // The endpoint resolver for dynamic endpoint resolution
   private final EndpointResolver endpointResolver;
 
+  // Configuration for the RPC transport
+  private final FlowRpcConfiguration configuration;
+
   // Maps physical endpoints to their active connections
   private final Map<Endpoint, FlowConnection> activeConnections = new ConcurrentHashMap<>();
 
@@ -79,8 +83,21 @@ public class ConnectionManager {
    * @param endpointResolver The endpoint resolver for dynamic endpoint resolution
    */
   public ConnectionManager(FlowTransport transport, EndpointResolver endpointResolver) {
+    this(transport, endpointResolver, FlowRpcConfiguration.defaultConfig());
+  }
+
+  /**
+   * Creates a new ConnectionManager with specific configuration.
+   *
+   * @param transport        The network transport to use
+   * @param endpointResolver The endpoint resolver for dynamic endpoint resolution
+   * @param configuration    The RPC configuration
+   */
+  public ConnectionManager(FlowTransport transport, EndpointResolver endpointResolver,
+                           FlowRpcConfiguration configuration) {
     this.transport = transport;
     this.endpointResolver = endpointResolver;
+    this.configuration = configuration;
   }
 
   /**
@@ -148,7 +165,6 @@ public class ConnectionManager {
    * @return A future that completes with the connection
    */
   private FlowFuture<FlowConnection> establishConnection(Endpoint endpoint, int retryAttempt) {
-
     // Create a future for the connection
     FlowFuture<FlowConnection> future = new FlowFuture<>();
     FlowPromise<FlowConnection> promise = future.getPromise();
@@ -156,26 +172,55 @@ public class ConnectionManager {
     // Register the pending connection
     pendingConnections.put(endpoint, promise);
 
-    // Connect to the endpoint
-    transport.connect(endpoint)
-        .whenComplete((connection, ex) -> {
-          // Execute completion within an actor to ensure proper Flow context
-          startActor(() -> {
-            pendingConnections.remove(endpoint);
+    // Start an actor to handle the connection establishment with timeout
+    startActor(() -> {
+      FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
 
-            if (ex != null) {
-              // Connection failed, handle retry if appropriate
-              handleConnectionFailure(endpoint, retryAttempt, promise, ex);
-            } else {
-              // Connection succeeded, set up monitoring and complete the promise
-              activeConnections.put(endpoint, connection);
-              retryCounters.put(endpoint, 0); // Reset retry counter on success
-              monitorConnection(endpoint, connection);
-              promise.complete(connection);
-            }
-            return null;
-          });
+      // Only set up timeout if timeout is greater than 0
+      if (configuration.getConnectionTimeoutMs() > 0) {
+        // Create a timeout future (now inside an actor context)
+        FlowFuture<Void> timeoutFuture = delay(configuration.getConnectionTimeoutMs() / 1000.0);
+
+        // Race between connection and timeout
+        startActor(() -> {
+          await(timeoutFuture);
+          if (!future.isDone()) {
+            // Timeout occurred before connection was established
+            pendingConnections.remove(endpoint);
+            // Cancel the connection attempt
+            connectFuture.cancel();
+            promise.completeExceptionally(
+                new RpcTimeoutException(RpcTimeoutException.TimeoutType.CONNECTION,
+                    configuration.getConnectionTimeoutMs(),
+                    "Connection to " + endpoint + " timed out after " +
+                    configuration.getConnectionTimeoutMs() + "ms"));
+          }
+          return null;
         });
+      }
+
+      // Handle connection completion
+      connectFuture.whenComplete((connection, ex) -> {
+        // Execute completion within an actor to ensure proper Flow context
+        startActor(() -> {
+          pendingConnections.remove(endpoint);
+
+          if (ex != null) {
+            // Connection failed, handle retry if appropriate
+            handleConnectionFailure(endpoint, retryAttempt, promise, ex);
+          } else {
+            // Connection succeeded, set up monitoring and complete the promise
+            activeConnections.put(endpoint, connection);
+            retryCounters.put(endpoint, 0); // Reset retry counter on success
+            monitorConnection(endpoint, connection);
+            promise.complete(connection);
+          }
+          return null;
+        });
+      });
+
+      return null;
+    });
 
     return future;
   }
@@ -199,37 +244,32 @@ public class ConnectionManager {
     }
 
     // Calculate retry delay with exponential backoff
-    double delay = Math.min(
+    double retryDelay = Math.min(
         BASE_RETRY_DELAY * Math.pow(2, retryAttempt),
         MAX_RETRY_DELAY);
 
-    // Retry after delay
-    delay(delay).whenComplete((v, ex) -> {
-      // Execute within an actor to ensure proper Flow context
-      startActor(() -> {
-        if (closed.get()) {
-          promise.completeExceptionally(
-              new IllegalStateException("ConnectionManager was closed during retry delay"));
-          return null;
-        }
-
-        // Try to establish the connection again
-        establishConnection(endpoint, retryAttempt + 1)
-            .whenComplete((connection, retryEx) -> {
-              // Execute within an actor to ensure proper Flow context
-              startActor(() -> {
-                if (retryEx != null) {
-                  // Propagate the exception (this shouldn't normally happen as retries
-                  // are handled in establishConnection)
-                  promise.completeExceptionally(retryEx);
-                } else {
-                  promise.complete(connection);
-                }
-                return null;
-              });
-            });
+    // Start an actor to handle the retry after delay
+    startActor(() -> {
+      // Wait for the retry delay
+      await(delay(retryDelay));
+      
+      if (closed.get()) {
+        promise.completeExceptionally(
+            new IllegalStateException("ConnectionManager was closed during retry delay"));
         return null;
-      });
+      }
+
+      // Try to establish the connection again
+      establishConnection(endpoint, retryAttempt + 1)
+          .whenComplete((connection, retryEx) -> {
+            if (retryEx != null) {
+              // Propagate the exception
+              promise.completeExceptionally(retryEx);
+            } else {
+              promise.complete(connection);
+            }
+          });
+      return null;
     });
   }
 
@@ -262,7 +302,7 @@ public class ConnectionManager {
 
   /**
    * Returns a connection to the pool when it's no longer needed.
-   * 
+   * <p>
    * TODO: Connection pooling with dynamic endpoint resolution requires tracking
    * which EndpointId was used to obtain a connection to a specific Endpoint.
    * For now, connections are not pooled when using round-robin resolution.

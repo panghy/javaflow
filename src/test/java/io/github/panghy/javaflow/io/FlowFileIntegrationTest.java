@@ -55,7 +55,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     });
     
     // Run until the directory is created
-    pumpUntilDone(dirFuture);
+    pumpAndAdvanceTimeUntilDone(dirFuture);
     dirFuture.getNow();
     
     // Create files sequentially to avoid timing issues
@@ -81,7 +81,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       });
       
       // Wait for the file to be created before creating the next one
-      pumpUntilDone(createFuture);
+      pumpAndAdvanceTimeUntilDone(createFuture);
       createFuture.getNow(); // Will throw if an error occurred
       
       // Make sure the operation is fully completed
@@ -107,7 +107,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
         return exists;
       });
       
-      pumpUntilDone(existsFuture);
+      pumpAndAdvanceTimeUntilDone(existsFuture);
       assertTrue(existsFuture.getNow(), "File " + filePath + " should exist");
     }
     
@@ -159,7 +159,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       });
       
       // Process one file at a time
-      pumpUntilDone(future);
+      pumpAndAdvanceTimeUntilDone(future);
       try {
         future.getNow(); // Will throw if an error occurred
         System.out.println("==== Successfully processed file: " + filePath + " ====\n");
@@ -190,7 +190,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     });
     
     // Run until the actor completes
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     // The actor should complete normally because it caught the exception
     future.getNow(); // Should not throw
@@ -203,7 +203,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     });
     
     // Run until the actor completes
-    pumpUntilDone(unhandledFuture);
+    pumpAndAdvanceTimeUntilDone(unhandledFuture);
     
     // The actor should complete exceptionally
     ExecutionException exception = org.junit.jupiter.api.Assertions.assertThrows(
@@ -223,7 +223,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       return Flow.await(fileSystem.createDirectory(Paths.get("/test")));
     });
     
-    pumpUntilDone(dirFuture);
+    pumpAndAdvanceTimeUntilDone(dirFuture);
     dirFuture.getNow();
     
     // Start an actor to perform a long file operation

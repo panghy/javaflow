@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 
 import static io.github.panghy.javaflow.Flow.await;
 import static io.github.panghy.javaflow.Flow.startActor;
@@ -39,8 +38,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Timeout(30)
 public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
-  private static final Logger LOGGER = Logger.getLogger(FlowRpcTransportImplPromiseTest.class.getName());
-
   private FlowRpcTransportImpl transport;
   private SimulatedFlowTransport networkTransport;
   private LocalEndpoint serverEndpoint;
@@ -56,22 +53,31 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   // Test interfaces
   public interface AsyncService {
     FlowPromise<String> delayedPromise(double seconds);
+
     FlowFuture<String> delayedFuture(double seconds);
+
     FlowPromise<String> immediatePromise(String value);
+
     FlowFuture<String> immediateFuture(String value);
+
     FlowPromise<String> failingPromise();
+
     FlowFuture<String> failingFuture();
   }
 
   public interface ComplexPromiseService {
     FlowPromise<List<String>> getListPromise();
+
     FlowPromise<CustomData> getCustomDataPromise();
   }
 
   public interface PromiseArgumentService {
     String waitForPromise(FlowPromise<String> promise);
+
     String waitForFuture(FlowFuture<String> future);
+
     FlowPromise<String> transformPromise(FlowPromise<String> input);
+
     FlowFuture<String> transformFuture(FlowFuture<String> input);
   }
 
@@ -248,7 +254,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -277,7 +283,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -314,7 +320,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   // Test removed - required access to private fields
@@ -363,7 +369,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -414,7 +420,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -432,27 +438,27 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       // Test 1: Pass a completed promise
       FlowFuture<String> completedFuture = new FlowFuture<>();
       completedFuture.complete("completed value");
-      
+
       String result1 = client.waitForPromise(completedFuture.getPromise());
       assertEquals("Received: completed value", result1);
 
       // Test 2: Pass an incomplete promise
       FlowFuture<String> incompleteFuture = new FlowFuture<>();
-      
+
       // Start actor to complete promise after delay
       startActor(() -> {
         await(Flow.delay(0.1));
         incompleteFuture.complete("delayed value");
         return null;
       });
-      
+
       String result2 = client.waitForPromise(incompleteFuture.getPromise());
       assertEquals("Received: delayed value", result2);
 
       // Test 3: Transform a promise
       FlowFuture<String> inputFuture = new FlowFuture<>();
       inputFuture.complete("input");
-      
+
       FlowPromise<String> transformed = client.transformPromise(inputFuture.getPromise());
       String transformedResult = await(transformed.getFuture());
       assertEquals("Transformed: input", transformedResult);
@@ -460,7 +466,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -488,21 +494,21 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
       // Test 2: Call method with uncompleted FlowFuture argument
       FlowFuture<String> uncompletedFuture = new FlowFuture<>();
-      
+
       FlowFuture<String> result2 = client.processFlowFuture(uncompletedFuture);
-      
+
       // Complete the future after method call
       startActor(() -> {
         await(Flow.delay(0.1));
         uncompletedFuture.complete("delayed-value");
         return null;
       });
-      
+
       assertEquals("future-processed", await(result2));
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -520,14 +526,14 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       // Test 1: Pass a completed future
       FlowFuture<String> completedFuture = new FlowFuture<>();
       completedFuture.complete("completed value");
-      
+
       String result1 = client.waitForFuture(completedFuture);
       assertEquals("Received: completed value", result1);
 
       // Test 2: Transform a future
       FlowFuture<String> inputFuture = new FlowFuture<>();
       inputFuture.complete("input");
-      
+
       FlowFuture<String> transformed = client.transformFuture(inputFuture);
       String transformedResult = await(transformed);
       assertEquals("Transformed: input", transformedResult);
@@ -535,7 +541,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -570,7 +576,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -578,9 +584,13 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     // Test type extraction from method parameters
     interface GenericService {
       void processPromise(FlowPromise<String> promise);
+
       void processFuture(FlowFuture<Integer> future);
+
       void processStream(PromiseStream<Double> stream);
+
       void processFutureStream(FutureStream<Boolean> stream);
+
       void processPlainObject(String obj);
     }
 
@@ -593,7 +603,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     // Get the RemoteInvocationHandler for testing
     FlowRpcTransportImpl.RemoteInvocationHandler handler = transport.new RemoteInvocationHandler(
-        new EndpointId("test"), null, null, null);
+        new EndpointId("test"), null, null, null, FlowRpcConfiguration.defaultConfig());
 
     // Test extracting types from parameterized types
     Type promiseType = processPromiseMethod.getGenericParameterTypes()[0];
@@ -633,7 +643,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       }
 
       @Override
-      public void sendError(io.github.panghy.javaflow.io.network.Endpoint destination, UUID promiseId, 
+      public void sendError(io.github.panghy.javaflow.io.network.Endpoint destination, UUID promiseId,
                             Throwable error) {
         if (error instanceof IllegalStateException && error.getMessage().equals("Promise was cancelled")) {
           cancellationSent.set(true);
@@ -647,7 +657,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       }
 
       @Override
-      public <T> void sendStreamValue(io.github.panghy.javaflow.io.network.Endpoint destination, 
+      public <T> void sendStreamValue(io.github.panghy.javaflow.io.network.Endpoint destination,
                                       UUID streamId, T value) {
       }
 
@@ -656,17 +666,17 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       }
 
       @Override
-      public void sendStreamError(io.github.panghy.javaflow.io.network.Endpoint destination, UUID streamId, 
+      public void sendStreamError(io.github.panghy.javaflow.io.network.Endpoint destination, UUID streamId,
                                   Throwable error) {
       }
     };
 
     RemotePromiseTracker tracker = new RemotePromiseTracker(messageSender);
     UUID promiseId = UUID.randomUUID();
-    
+
     // Simulate sending cancellation
     tracker.sendCancellationToEndpoint(serverEndpoint, promiseId);
-    
+
     assertTrue(cancellationSent.get());
     assertEquals(promiseId, cancelledPromiseId.get());
   }
@@ -696,6 +706,6 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 }

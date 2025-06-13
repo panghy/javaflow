@@ -89,6 +89,11 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     }
 
     @Override
+    public FlowFuture<Void> onClose() {
+      return new FlowFuture<>();
+    }
+
+    @Override
     public <R> FlowStream<R> map(java.util.function.Function<? super T, ? extends R> mapper) {
       return null;
     }

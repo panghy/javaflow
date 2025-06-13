@@ -155,7 +155,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -184,7 +184,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -278,7 +278,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -301,7 +301,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -321,7 +321,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(voidFuture);
+    pumpAndAdvanceTimeUntilDone(voidFuture);
     assertTrue(voidFuture.isDone());
     assertFalse(voidFuture.isCompletedExceptionally());
   }
@@ -346,7 +346,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -368,14 +368,14 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
   public void testClosedTransport() {
     // Test that operations fail after transport is closed
     FlowFuture<Void> closeFuture = transport.close();
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
 
     // Try to get a stub after closing
     try {

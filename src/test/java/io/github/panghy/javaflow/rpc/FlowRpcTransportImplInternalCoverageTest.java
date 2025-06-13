@@ -229,7 +229,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -287,7 +287,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -379,7 +379,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -420,7 +420,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -455,7 +455,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -492,7 +492,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -529,7 +529,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -554,7 +554,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -602,7 +602,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -655,7 +655,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -696,7 +696,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -731,7 +731,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -761,7 +761,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -789,7 +789,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -840,7 +840,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -891,7 +891,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -946,7 +946,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -998,7 +998,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1031,7 +1031,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1077,7 +1077,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1133,7 +1133,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1164,7 +1164,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1194,7 +1194,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1224,7 +1224,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1249,7 +1249,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1294,7 +1294,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1345,7 +1345,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1389,7 +1389,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1434,7 +1434,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1481,7 +1481,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1530,7 +1530,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1569,7 +1569,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1606,7 +1606,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1688,7 +1688,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1740,7 +1740,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1804,7 +1804,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1870,7 +1870,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1921,7 +1921,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -1986,7 +1986,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2016,7 +2016,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2075,7 +2075,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2109,7 +2109,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2143,7 +2143,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2222,7 +2222,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         return null;
       });
 
-      pumpUntilDone(testFuture);
+      pumpAndAdvanceTimeUntilDone(testFuture);
 
     } finally {
       logger.removeHandler(testHandler);
@@ -2293,11 +2293,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
 
     // Clean up
     FlowFuture<Void> cleanupFuture = transport.close();
-    pumpUntilDone(cleanupFuture);
+    pumpAndAdvanceTimeUntilDone(cleanupFuture);
   }
 
   @Test
@@ -2343,7 +2343,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   @Test
@@ -2390,7 +2390,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   // Interface for numeric conversion tests
@@ -2482,7 +2482,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       return null;
     });
 
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
   }
 
   private void testLongToByteConversions(io.github.panghy.javaflow.io.network.FlowConnection connection)

@@ -154,7 +154,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
       return rootExists && dir1Exists && subdirExists && hasSubdir;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -190,7 +190,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
              path1Listed && path2Listed && path3Listed;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -235,7 +235,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
              rootHasParent && rootHasFile && parentHasFile;
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertTrue(future.getNow());
   }
@@ -261,7 +261,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertEquals(java.io.IOException.class, future.getNow());
   }
@@ -291,7 +291,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(future);
+    pumpAndAdvanceTimeUntilDone(future);
     
     assertEquals(FileAlreadyExistsException.class, future.getNow());
   }

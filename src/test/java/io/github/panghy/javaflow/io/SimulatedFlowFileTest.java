@@ -60,7 +60,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Get the result and verify it
     String result = testFuture.getNow();
@@ -88,7 +88,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Get the result and verify it
     String result = testFuture.getNow();
@@ -113,7 +113,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the result - should be an empty buffer (0 bytes remaining)
     assertEquals(0, testFuture.getNow().intValue());
@@ -156,7 +156,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the result
     String result = testFuture.getNow();
@@ -187,7 +187,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the result
     String result = testFuture.getNow();
@@ -204,7 +204,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the actor to complete
-    pumpUntilDone(testFuture);
+    pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify sync completed without exception
     assertTrue(testFuture.getNow());
@@ -219,7 +219,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
     
     // Wait for the close operation to complete
-    pumpUntilDone(closeFuture);
+    pumpAndAdvanceTimeUntilDone(closeFuture);
     assertTrue(closeFuture.getNow());
     assertTrue(file.isClosed(), "File should be marked as closed");
 
@@ -235,7 +235,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     });
 
     // Wait for the read operation to complete
-    pumpUntilDone(readFuture);
+    pumpAndAdvanceTimeUntilDone(readFuture);
     assertTrue(readFuture.getNow(), "Should fail with 'File is closed' message");
   }
   
@@ -250,7 +250,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(setupFuture);
+    pumpAndAdvanceTimeUntilDone(setupFuture);
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to write to the closed file
@@ -264,7 +264,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(writeFuture);
+    pumpAndAdvanceTimeUntilDone(writeFuture);
     assertEquals("File is closed", writeFuture.getNow(), "Write should fail with 'File is closed'");
   }
   
@@ -279,7 +279,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(setupFuture);
+    pumpAndAdvanceTimeUntilDone(setupFuture);
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to truncate the closed file
@@ -292,7 +292,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(truncateFuture);
+    pumpAndAdvanceTimeUntilDone(truncateFuture);
     assertEquals("File is closed", truncateFuture.getNow(), "Truncate should fail with 'File is closed'");
   }
   
@@ -304,7 +304,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(setupFuture);
+    pumpAndAdvanceTimeUntilDone(setupFuture);
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to sync the closed file
@@ -317,7 +317,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(syncFuture);
+    pumpAndAdvanceTimeUntilDone(syncFuture);
     assertEquals("File is closed", syncFuture.getNow(), "Sync should fail with 'File is closed'");
   }
   
@@ -332,7 +332,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       return null;
     });
     
-    pumpUntilDone(setupFuture);
+    pumpAndAdvanceTimeUntilDone(setupFuture);
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to get size of the closed file
@@ -345,7 +345,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       }
     });
     
-    pumpUntilDone(sizeFuture);
+    pumpAndAdvanceTimeUntilDone(sizeFuture);
     assertEquals("File is closed", sizeFuture.getNow(), "Size operation should fail with 'File is closed'");
   }
   
@@ -368,7 +368,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
       return true;
     });
     
-    pumpUntilDone(multipleFuture);
+    pumpAndAdvanceTimeUntilDone(multipleFuture);
     assertTrue(multipleFuture.getNow(), "Multiple close operations should succeed");
     assertTrue(file.isClosed(), "File should remain marked as closed");
   }
@@ -395,7 +395,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
         return e.getClass();
       }
     });
-    pumpUntilDone(readFuture);
+    pumpAndAdvanceTimeUntilDone(readFuture);
     assertEquals(IllegalArgumentException.class, readFuture.getNow());
     
     // Test zero length for read
@@ -407,7 +407,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
         return e.getClass();
       }
     });
-    pumpUntilDone(zeroLengthFuture);
+    pumpAndAdvanceTimeUntilDone(zeroLengthFuture);
     assertEquals(IllegalArgumentException.class, zeroLengthFuture.getNow());
     
     // Test negative position for write
@@ -419,7 +419,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
         return e.getClass();
       }
     });
-    pumpUntilDone(writeFuture);
+    pumpAndAdvanceTimeUntilDone(writeFuture);
     assertEquals(IllegalArgumentException.class, writeFuture.getNow());
     
     // Test negative size for truncate
@@ -431,7 +431,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
         return e.getClass();
       }
     });
-    pumpUntilDone(truncateFuture);
+    pumpAndAdvanceTimeUntilDone(truncateFuture);
     assertEquals(IllegalArgumentException.class, truncateFuture.getNow());
   }
 }

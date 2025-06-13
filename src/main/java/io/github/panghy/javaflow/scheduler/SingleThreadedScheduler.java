@@ -343,9 +343,13 @@ public class SingleThreadedScheduler implements AutoCloseable {
     Task flowTask = new Task(taskId, priority, wrappedTask, currentTask);
     // Initialize effective priority to original priority
     flowTask.setEffectivePriority(priority);
+    // Set up cancellation callback to propagate cancellation to associated timer tasks
     flowTask.setCancellationCallback((timerIds) -> {
       cancelTask(taskId);
-      timerIds.forEach(this::cancelTimer);
+      List<Long> timerIdsCopy = new ArrayList<>(timerIds);
+      debug(LOGGER, "Cancelling " + timerIdsCopy.size() + " timers for task " + taskId);
+      // Cancel all associated timer tasks
+      timerIdsCopy.forEach(this::cancelTimer);
     });
     if (currentTask != null) {
       currentTask.addChild(flowTask);
@@ -463,6 +467,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
 
       // Store in timer map for execution at the appropriate time
+      debug(LOGGER, "Scheduling timer task " + timerId + " at time: " + executionTimeMs + " current time: "
+                    + clock.currentTimeMillis());
       timerTasks.computeIfAbsent(executionTimeMs, $ -> new ArrayList<>()).add(timerTask);
 
       // Store in ID map for cancellation
@@ -1024,6 +1030,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
     // Advance the clock without processing tasks (the clock no longer handles tasks)
     simulatedClock.advanceTime(millis);
+    long l = simulatedClock.currentTimeMillis();
+    debug(LOGGER, "Advanced time to " + l + "ms after advancing by " + millis + "ms");
 
     // Process any new timer tasks that are now due based on the new time
     int additionalTimerTasks = processTimerTasks();
