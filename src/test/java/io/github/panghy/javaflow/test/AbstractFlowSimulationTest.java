@@ -2,6 +2,7 @@ package io.github.panghy.javaflow.test;
 
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
+import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,7 @@ public abstract class AbstractFlowSimulationTest {
   
   private long currentSeed;
   private boolean isSimulated = true;
+  private SimulationConfiguration configuration;
   
   /**
    * Sets up the simulation context before each test.
@@ -65,8 +67,11 @@ public abstract class AbstractFlowSimulationTest {
     System.out.printf("[TEST] %s.%s running with seed: %d (use @FixedSeed(%d) to reproduce)%n",
         getClass().getSimpleName(), methodName, currentSeed, currentSeed);
     
+    // Determine configuration
+    configuration = determineConfiguration(testMethod);
+    
     // Set up simulation context
-    SimulationContext context = new SimulationContext(currentSeed, isSimulated);
+    SimulationContext context = new SimulationContext(currentSeed, isSimulated, configuration);
     SimulationContext.setCurrent(context);
     
     // Initialize FlowRandom
@@ -166,5 +171,27 @@ public abstract class AbstractFlowSimulationTest {
    */
   protected void onTearDown() {
     // Default: no additional cleanup
+  }
+  
+  /**
+   * Determines the simulation configuration based on test annotations.
+   * Subclasses can override to provide custom configuration logic.
+   *
+   * @param testMethod The test method being run
+   * @return The configuration to use
+   */
+  protected SimulationConfiguration determineConfiguration(Method testMethod) {
+    // Default to deterministic configuration
+    // Subclasses can override to check for configuration annotations
+    return SimulationConfiguration.deterministic();
+  }
+  
+  /**
+   * Gets the current simulation configuration.
+   *
+   * @return The simulation configuration
+   */
+  protected SimulationConfiguration getConfiguration() {
+    return configuration;
   }
 }
