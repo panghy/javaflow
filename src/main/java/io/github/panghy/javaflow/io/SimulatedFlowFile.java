@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -72,7 +73,7 @@ public class SimulatedFlowFile implements FlowFile {
 
     // Check for injected errors
     if (params.getReadErrorProbability() > 0.0 &&
-        Math.random() < params.getReadErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getReadErrorProbability()) {
       return failed(new IOException("Simulated read error"));
     }
 
@@ -97,7 +98,7 @@ public class SimulatedFlowFile implements FlowFile {
 
     // Check for injected errors
     if (params.getWriteErrorProbability() > 0.0 &&
-        Math.random() < params.getWriteErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getWriteErrorProbability()) {
       return failed(new IOException("Simulated write error"));
     }
 
@@ -136,7 +137,7 @@ public class SimulatedFlowFile implements FlowFile {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return failed(new IOException("Simulated truncate error"));
     }
 

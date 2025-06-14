@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.core.FlowFuture;
+import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -55,7 +56,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated open error"));
     }
 
@@ -130,7 +131,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated delete error"));
     }
 
@@ -192,7 +193,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated exists error"));
     }
 
@@ -214,7 +215,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated createDirectory error"));
     }
 
@@ -262,7 +263,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated createDirectories error"));
     }
 
@@ -328,7 +329,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated list error"));
     }
 
@@ -367,7 +368,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
-        Math.random() < params.getMetadataErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated move error"));
     }
 

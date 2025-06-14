@@ -4,6 +4,7 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
+import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -94,13 +95,13 @@ public class SimulatedFlowConnection implements FlowConnection {
 
     // Check for injected errors
     if (params.getSendErrorProbability() > 0.0 &&
-        Math.random() < params.getSendErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getSendErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated send error"));
     }
 
     // Check for random disconnects
     if (params.getDisconnectProbability() > 0.0 &&
-        Math.random() < params.getDisconnectProbability()) {
+        FlowRandom.current().nextDouble() < params.getDisconnectProbability()) {
       close();
       return FlowFuture.failed(new IOException("Connection closed during send"));
     }
@@ -137,13 +138,13 @@ public class SimulatedFlowConnection implements FlowConnection {
 
     // Check for injected errors
     if (params.getReceiveErrorProbability() > 0.0 &&
-        Math.random() < params.getReceiveErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getReceiveErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated receive error"));
     }
 
     // Check for random disconnects
     if (params.getDisconnectProbability() > 0.0 &&
-        Math.random() < params.getDisconnectProbability()) {
+        FlowRandom.current().nextDouble() < params.getDisconnectProbability()) {
       close();
       return FlowFuture.failed(new IOException("Connection closed during receive"));
     }
