@@ -142,7 +142,8 @@ public class FlowRpcProviderTest {
     }
     
     @Override
-    public void registerServiceAndListen(EndpointId endpointId, Object implementation, Class<?> interfaceClass, LocalEndpoint localEndpoint) {
+    public void registerServiceAndListen(EndpointId endpointId, Object implementation, 
+                                         Class<?> interfaceClass, LocalEndpoint localEndpoint) {
       throw new UnsupportedOperationException("Mock implementation");
     }
     
