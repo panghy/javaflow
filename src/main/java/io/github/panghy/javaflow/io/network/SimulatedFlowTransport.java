@@ -4,6 +4,7 @@ import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
+import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.util.Map;
@@ -106,7 +107,7 @@ public class SimulatedFlowTransport implements FlowTransport {
 
     // Check for injected errors
     if (params.getConnectErrorProbability() > 0.0 &&
-        Math.random() < params.getConnectErrorProbability()) {
+        FlowRandom.current().nextDouble() < params.getConnectErrorProbability()) {
       return FlowFuture.failed(new IOException("Simulated connection error"));
     }
 
@@ -114,7 +115,7 @@ public class SimulatedFlowTransport implements FlowTransport {
     SimulatedNode targetNode = getOrCreateNode(endpoint);
 
     // Get the local node (assign a random local endpoint)
-    Endpoint localEndpoint = new Endpoint("127.0.0.1", 10000 + (int) (Math.random() * 55536));
+    Endpoint localEndpoint = new Endpoint("127.0.0.1", 10000 + FlowRandom.current().nextInt(55536));
     SimulatedNode localNode = getOrCreateNode(localEndpoint);
 
     // Check if the connection is partitioned
@@ -171,7 +172,7 @@ public class SimulatedFlowTransport implements FlowTransport {
     // If the requested port is 0, generate a random port between 10000 and 65535
     LocalEndpoint actualEndpoint;
     if (requestedEndpoint.getPort() == 0) {
-      int randomPort = 10000 + (int) (Math.random() * 55536);
+      int randomPort = 10000 + FlowRandom.current().nextInt(55536);
       actualEndpoint = LocalEndpoint.create(
           requestedEndpoint.getHost(), randomPort);
     } else {
