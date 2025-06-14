@@ -247,7 +247,7 @@ public class DefaultEndpointResolver implements EndpointResolver {
    * Helper class to store information about remote endpoints.
    * Includes support for round-robin selection of physical endpoints.
    */
-  private static class RemoteEndpointInfo {
+  static class RemoteEndpointInfo {
     private final List<Endpoint> endpoints = new CopyOnWriteArrayList<>();
     private final AtomicInteger nextIndex = new AtomicInteger(0);
     

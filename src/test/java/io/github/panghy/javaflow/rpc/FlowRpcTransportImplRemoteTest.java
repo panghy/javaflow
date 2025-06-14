@@ -70,8 +70,10 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     EndpointId promiseServiceId = new EndpointId("promise-service-impl");
     EndpointId multiArgsServiceId = new EndpointId("multi-args-service-impl");
     serverTransport.registerServiceAndListen(testServiceId, testServiceImpl, TestService.class, serverEndpoint);
-    serverTransport.registerServiceAndListen(promiseServiceId, promiseServiceImpl, ServiceWithPromise.class, serverEndpoint);
-    serverTransport.registerServiceAndListen(multiArgsServiceId, multiArgsServiceImpl, ServiceWithMultipleArgs.class, serverEndpoint);
+    serverTransport.registerServiceAndListen(promiseServiceId, promiseServiceImpl, 
+        ServiceWithPromise.class, serverEndpoint);
+    serverTransport.registerServiceAndListen(multiArgsServiceId, multiArgsServiceImpl, 
+        ServiceWithMultipleArgs.class, serverEndpoint);
 
     // Register endpoints on client side
     clientResolver.registerRemoteEndpoint(new EndpointId("test-service"), serverEndpoint);

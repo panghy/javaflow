@@ -1871,7 +1871,8 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     EndpointId serviceEndpointId = new EndpointId("test-service-" + System.nanoTime());
 
-    transport.registerServiceAndListen(serviceEndpointId, bidirectionalImpl, BidirectionalService.class, serverEndpoint);
+    transport.registerServiceAndListen(serviceEndpointId, bidirectionalImpl, 
+        BidirectionalService.class, serverEndpoint);
     EndpointId bidirectionalId = new EndpointId("bidirectional-service");
     transport.getEndpointResolver().registerRemoteEndpoint(bidirectionalId, serverEndpoint);
 
