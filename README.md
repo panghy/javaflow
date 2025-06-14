@@ -30,8 +30,8 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | ✅ Completed |
 | 4 | **Asynchronous I/O and RPC Framework** - Network, disk operations, and remote communication | ✅ Completed |
-| 5 | **Deterministic Simulation Mode** - Simulation environment | 📅 Planned |
-| 6 | **Error Handling and Propagation** - Error model | 📅 Planned |
+| 5 | **Deterministic Simulation Mode** - Simulation environment | 🚧 In Progress |
+| 6 | **Error Handling and Propagation** - Error model | 🚧 In Progress |
 | 7 | **Advanced Actor Patterns and Library** - Enhanced API for usability | 📅 Planned |
 | 8 | **Testing and Simulation at Scale** - Complex scenario testing | 📅 Planned |
 | 9 | **Performance Optimization and Polishing** - Optimization and refinement | 📅 Planned |
@@ -124,6 +124,8 @@ Key completed functionality includes:
 - Connection management with automatic reconnection and endpoint resolution
 - Loopback optimization for local communication
 - Configurable buffer sizes and other transport parameters via FlowRpcConfiguration
+- Comprehensive timeout configuration for unary RPCs, stream inactivity, and connections
+- Round-robin load balancing for multiple physical endpoints
 - Comprehensive test coverage for all RPC components
 
 The RPC framework provides location transparency where the same code can work for both local and remote communication. The architecture supports loopback endpoints for maximum efficiency in local communication, dynamic endpoint resolution for service discovery, and a robust serialization framework that preserves generic type information across network boundaries. All I/O operations are designed to be non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
@@ -224,10 +226,10 @@ JavaFlow provides:
 - **IOUtil**: Utility classes for I/O operations
 - **RPC Framework Implementation**: Complete implementation of promise-based remote procedure calls
 - **ConnectionManager**: Connection management for RPC with automatic reconnection and endpoint resolution
-- **EndpointId & EndpointResolver**: Service discovery and addressing for RPC services with load balancing
+- **EndpointId & DefaultEndpointResolver**: Service discovery and addressing for RPC services with round-robin load balancing
 - **FlowRpcTransportImpl**: Full RPC transport implementation with message handling and connection management
 - **Serialization Framework**: Advanced serialization with generic type preservation and system type handling
-- **FlowRpcConfiguration**: Configurable transport parameters with builder pattern for customization
+- **FlowRpcConfiguration**: Configurable transport parameters including buffer sizes and comprehensive timeout settings
 
 ### Design Principles
 1. A programming model where asynchronous code is written in a sequential style
@@ -368,9 +370,12 @@ void testFileOperations() {
 }
 
 // Using RPC framework
-// Configure RPC transport with custom buffer size
+// Configure RPC transport with custom settings
 FlowRpcConfiguration config = FlowRpcConfiguration.builder()
     .receiveBufferSize(128 * 1024)  // 128KB buffer
+    .unaryRpcTimeoutMs(60_000)      // 60s RPC timeout
+    .streamInactivityTimeoutMs(120_000) // 2min stream inactivity timeout
+    .connectionTimeoutMs(5_000)      // 5s connection timeout
     .build();
 FlowRpcTransportImpl transport = new FlowRpcTransportImpl(
     FlowTransport.getDefault(), config);
@@ -396,7 +401,7 @@ FlowFuture<UserInfo> userLookup = startActor(() -> {
 
 ### Asynchronous I/O and RPC Framework (Phase 4)
 
-Phase 4 implementation is partially complete, with the file I/O subsystem fully implemented and network/RPC components in progress. All I/O operations in JavaFlow are non-blocking and integrate seamlessly with the actor model.
+Phase 4 implementation is complete. All I/O operations in JavaFlow are non-blocking and integrate seamlessly with the actor model.
 
 #### File System I/O (Completed)
 
@@ -436,13 +441,15 @@ The network component of the I/O framework is now largely complete:
 6. **Error Handling**: Comprehensive error propagation and connection state management
 7. **Simulation Support**: Deterministic testing of network code with configurable parameters
 
-The RPC Framework has made significant progress:
+The RPC Framework is now complete with the following features:
 - Core interfaces and implementations for RPC functionality with extensive test coverage
 - Promise-based remote procedure calls for cross-network actor communication
 - Location transparency for seamless distributed programming
-- Message structure and endpoint addressing mechanism
+- Message structure and endpoint addressing mechanism with round-robin load balancing
 - Serialization infrastructure for efficient data exchange
+- Comprehensive timeout configuration for unary RPCs, stream inactivity, and connection establishment
 - Core simulated implementation for deterministic testing
+- Simplified two-tier endpoint architecture for easier service discovery
 
 All I/O operations in JavaFlow never block the main thread. When an actor awaits an I/O operation, it yields control to other actors until the operation completes. This design ensures maximum concurrency while maintaining the deterministic, single-threaded execution model that makes Flow-based systems both highly performant and easily testable.
 

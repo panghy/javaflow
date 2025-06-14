@@ -28,29 +28,41 @@ This document summarizes the progress made on implementing the JavaFlow RPC Fram
 ### Error Handling
 - ✅ Network error handling and propagation through futures
 - ✅ Timeout support with proper cancellation for RPC calls
+- ✅ Comprehensive timeout configuration for unary RPCs, stream inactivity, and connections
+- ✅ RpcTimeoutException and other specialized RPC exceptions
 
 ### Network Management
 - ✅ Connection management system with re-establishment capabilities
 - ✅ Enhanced connection manager with endpoint resolver integration
 - ✅ Automatic connection pooling and resource management
+- ✅ Round-robin load balancing for multiple endpoints
+- ✅ Simplified two-tier endpoint architecture
 
 ### Examples
 - ✅ Key-value store example using the RPC framework
 - ✅ Chat service example with bi-directional streams
 - ✅ Advanced endpoint resolution examples with load balancing and failover
 
-## Features In Progress
+## Recently Completed Features
 
-### Performance Optimizations
-- 🔄 Advanced backpressure mechanisms for stream control
-- 🔄 Message batching optimizations for small payloads
+### Timeout Configuration
+- ✅ FlowRpcConfiguration with builder pattern for customizable transport settings
+- ✅ Configurable timeouts for unary RPCs (default 30s)
+- ✅ Configurable timeouts for stream inactivity (default 60s)
+- ✅ Configurable timeouts for connection establishment (default 10s)
+- ✅ RpcTimeoutUtil and RpcStreamTimeoutUtil for timeout management
 
-### Testing and Simulation
+### Testing and Code Quality
 - ✅ Comprehensive test suite for RPC framework core components
 - ✅ Complete test coverage for FlowRpcTransport implementation
-- 🔄 Advanced fault injection for comprehensive RPC testing
+- ✅ High code coverage (>85% line coverage, >75% branch coverage)
+- ✅ Test coverage for DefaultEndpointResolver and RPC timeout utilities
 
 ## Planned Features
+
+### Performance Optimizations
+- ⏳ Advanced backpressure mechanisms for stream control
+- ⏳ Message batching optimizations for small payloads
 
 ### Usability and API
 - ⏳ Create convenience helper methods for common RPC patterns
@@ -131,6 +143,19 @@ The RPC system is built on several key components:
    - Enhanced testing of ConnectionManager and endpoint resolution
    - Coverage tests to ensure all major code paths are validated
    - Integration tests for full RPC workflows including promise and stream handling
+   - Test coverage for RPC timeout utilities and DefaultEndpointResolver
+
+6. **RPC Timeout Configuration**: Implemented comprehensive timeout support with:
+   - FlowRpcConfiguration class with builder pattern for easy configuration
+   - Separate configurable timeouts for unary RPCs, stream inactivity, and connection establishment
+   - RpcTimeoutUtil for managing timeouts on promise-based RPC calls
+   - RpcStreamTimeoutUtil for managing stream inactivity timeouts
+   - Proper cancellation and cleanup when timeouts occur
+
+7. **Endpoint Model Simplification**: Refactored from three-tier to two-tier architecture:
+   - Simplified endpoint resolution with direct EndpointId to Endpoint mapping
+   - Improved round-robin load balancing for multiple physical endpoints
+   - Better separation between local and remote endpoint handling
 
 ## Next Steps
 

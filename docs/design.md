@@ -84,7 +84,7 @@ JavaFlow employs a **single-threaded, cooperative scheduling** model to run all 
 
 * **Integration with JDK Continuation API:** JavaFlow creates each actor using the JDK's Continuation API to allow suspending and resuming execution. This approach is simpler than using virtual threads, as it gives full control over scheduling and continuations. When an actor calls `Flow.await(someFuture)`, the Continuation API suspends that actor and the scheduler can run another task from its queue. When the awaited future completes, the actor is placed back on the ready queue. This effectively implements an event loop using the Continuation API's scheduling.
 
-* **Handling Slow Tasks:** JavaFlow includes mechanisms to detect and handle actors that overrun their time. Since there's no timer preemption, an actor that forgets to yield could stall the system. If an iteration of the event loop takes longer than a certain threshold (e.g. 100ms) without returning to the loop, JavaFlow can log a **Slow Task** warning. This warning includes which actor or operation was running and possibly a snapshot of its stack trace. This helps developers pinpoint performance issues.
+* **Handling Slow Tasks:** JavaFlow includes mechanisms to detect and handle actors that overrun their time. Since there's no timer preemption, an actor that forgets to yield could stall the system. If an iteration of the event loop takes longer than a certain threshold (e.g. 100ms) without returning to the loop, JavaFlow logs a **Slow Task** warning. This warning includes the actor or operation that was running and helps developers pinpoint performance issues. The framework tracks execution time for each task and logs when tasks exceed the threshold.
 
 * **Task Lifetime and Implicit Cancellation:** JavaFlow implements **automatic cancellation propagation**. If a `FlowFuture` is explicitly cancelled, the system stops the corresponding actor task from continuing, to avoid doing useless work. JavaFlow provides an API like `FlowFuture.cancel()` that signals cancellation, and ensures that actors can handle cancellation at await points. When a cancellation is detected, JavaFlow unwinds the actor's stack (using a `FlowCancelledException` that the actor might catch or, if uncaught, will simply terminate the actor). The scheduler removes the cancelled task from the ready queue. Furthermore, any futures that the cancelled actor was going to set are marked as cancelled or error, propagating the cancellation downstream. This cascading cancellation feature is critical for building timeouts and bounding resource use. For instance, if a client request times out, the entire chain of actors handling that request is torn down promptly. In summary, **the scheduler and future system cooperate to remove cancelled tasks and propagate cancellation events**, all without requiring a lot of manual code in the actors themselves.
 
@@ -127,9 +127,20 @@ As of the current version, JavaFlow's implementation status is as follows:
 - **Scheduling System**: Fully implemented with priority-based scheduling and priority aging.
 - **File I/O**: Fully implemented with both real (`RealFlowFile`) and simulated (`SimulatedFlowFile`) implementations.
 - **Network Layer**: Fully implemented with `FlowConnection` and `FlowTransport` interfaces, plus both real and simulated implementations.
-- **RPC Framework**: Design completed, but implementation pending. The core network transport is ready, but the higher-level RPC functionality is still in the design phase.
+- **RPC Framework**: Fully implemented with dynamic proxy-based stub generation, comprehensive serialization, timeout configuration, and load balancing.
+- **Error Handling**: Partially implemented with comprehensive RPC error handling and basic future error propagation.
+- **Deterministic Simulation**: Partially implemented with simulated file and network I/O, but full simulation mode is still in progress.
 
-The next phases of development will focus on completing the RPC framework implementation and enhancing the simulation capabilities to provide a full deterministic testing environment.
+The RPC framework implementation includes:
+- Dynamic proxy-based service stubs (no code generation required)
+- Automatic serialization/deserialization with generic type preservation
+- Promise and stream support across network boundaries
+- Configurable timeouts for unary RPCs, stream inactivity, and connections
+- Round-robin load balancing for multiple endpoints
+- Simplified two-tier endpoint architecture
+- Complete error propagation with specialized RPC exceptions
+
+The next phases of development will focus on completing the deterministic simulation mode, enhancing error handling throughout the framework, and implementing advanced actor patterns.
 
 ## Conclusion
 
