@@ -26,7 +26,7 @@ public final class FlowRandom {
   private static final ThreadLocal<RandomSource> randomSource = new ThreadLocal<>();
   
   // Private constructor to prevent instantiation
-  private FlowRandom() {}
+  private FlowRandom() { }
   
   /**
    * Initializes the random source for the current thread.
@@ -34,8 +34,12 @@ public final class FlowRandom {
    * when starting a new simulated process.
    *
    * @param source The random source to use
+   * @throws NullPointerException if source is null
    */
   public static void initialize(RandomSource source) {
+    if (source == null) {
+      throw new NullPointerException("RandomSource cannot be null");
+    }
     randomSource.set(source);
   }
   
@@ -94,8 +98,12 @@ public final class FlowRandom {
    *
    * @param name A unique name for the child source
    * @return A new RandomSource with independent randomness
+   * @throws NullPointerException if name is null
    */
   public static RandomSource createChild(String name) {
+    if (name == null) {
+      throw new NullPointerException("Child name cannot be null");
+    }
     RandomSource source = randomSource.get();
     if (source == null) {
       source = new SystemRandomSource();
