@@ -213,4 +213,33 @@ public class SingleThreadedSchedulerSimulationTest {
     assertTrue(high.isDone());
     assertTrue(low.isDone());
   }
+  
+  @Test
+  public void testRandomTaskSelectionTriggered() {
+    // Set up configuration with very high randomization probability
+    // Use a specific seed that will trigger random selection
+    FlowRandom.initialize(new DeterministicRandomSource(7777));
+    SimulationConfiguration config = new SimulationConfiguration()
+        .setTaskSelectionProbability(0.99) // 99% chance of random selection
+        .setTaskExecutionLogging(true);
+    SimulationContext context = new SimulationContext(7777, true, config);
+    SimulationContext.setCurrent(context);
+    
+    // Schedule multiple tasks to ensure randomization path is taken
+    List<FlowFuture<Void>> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      futures.add(scheduler.schedule(() -> null, 50));
+    }
+    
+    // Add a task, pump once to move it to ready queue
+    scheduler.pump();
+    
+    // Now pump to execute - this should trigger random selection
+    while (futures.stream().anyMatch(f -> !f.isDone())) {
+      scheduler.pump();
+    }
+    
+    // All tasks should complete
+    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+  }
 }
