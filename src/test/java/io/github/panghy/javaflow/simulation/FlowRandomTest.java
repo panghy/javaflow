@@ -9,7 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the FlowRandom infrastructure.
@@ -109,5 +114,147 @@ public class FlowRandomTest extends AbstractFlowSimulationTest {
       values.add(random.nextInt(1000));
     }
     return values;
+  }
+  
+  @Test
+  @FixedSeed(777)
+  public void testFlowRandomInitializeWithNull() {
+    // Test initializing with null (should throw NPE)
+    try {
+      FlowRandom.initialize(null);
+      // Should not reach here
+      throw new AssertionError("Should throw NullPointerException");
+    } catch (NullPointerException e) {
+      // Expected
+    }
+  }
+  
+  @Test
+  @FixedSeed(888)
+  public void testFlowRandomGetCurrentSeed() {
+    long seed = FlowRandom.getCurrentSeed();
+    assertEquals(888, seed, "Should return current seed");
+  }
+  
+  @Test
+  @FixedSeed(999)
+  public void testDeterministicRandomSourceReset() {
+    DeterministicRandomSource source = new DeterministicRandomSource(999);
+    
+    // Generate some values
+    List<Integer> firstRun = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      firstRun.add(source.getRandom().nextInt());
+    }
+    
+    // Reset to same seed
+    source.reset(999);
+    
+    // Generate again - should be identical
+    List<Integer> secondRun = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      secondRun.add(source.getRandom().nextInt());
+    }
+    
+    assertEquals(firstRun, secondRun, "Reset should produce same sequence");
+  }
+  
+  @Test
+  public void testSystemRandomSourceMethods() {
+    SystemRandomSource source = new SystemRandomSource();
+    
+    // Test getSeed returns creation time (non-zero)
+    assertTrue(source.getSeed() > 0, "System random should return non-zero seed (creation time)");
+    
+    // Test reset does nothing (no exceptions)
+    source.reset(12345); // Should not throw
+    
+    // Test createChild returns new system random
+    RandomSource child = source.createChild("test");
+    assertNotNull(child, "Child should not be null");
+    assertTrue(child instanceof SystemRandomSource, "Child should be SystemRandomSource");
+    assertNotEquals(source, child, "Child should be different instance");
+  }
+  
+  @Test
+  @FixedSeed(1111)
+  public void testSimulationContextGettersSetters() {
+    SimulationContext context = new SimulationContext(1111, true);
+    
+    // Test getters
+    assertEquals(1111, context.getSeed(), "Seed should match");
+    assertTrue(context.isSimulatedContext(), "Should be simulated");
+    
+    // Test setCurrent and current
+    SimulationContext.setCurrent(context);
+    assertEquals(context, SimulationContext.current(), "Current should match");
+    
+    // Test static isSimulated method
+    assertTrue(SimulationContext.isSimulated(), "Static isSimulated should be true");
+    
+    // Test clear
+    SimulationContext.clear();
+    assertNotEquals(context, SimulationContext.current(), "Should be cleared");
+  }
+  
+  @Test
+  public void testSimulationContextWithNonSimulated() {
+    SimulationContext context = new SimulationContext(2222, false);
+    assertFalse(context.isSimulatedContext(), "Should not be simulated");
+    
+    // Test that non-simulated context uses SystemRandomSource
+    assertTrue(context.getRandomSource() instanceof SystemRandomSource, 
+        "Non-simulated should use SystemRandomSource");
+  }
+  
+  @Test
+  @FixedSeed(3333)
+  public void testFlowRandomCreateChildWithNull() {
+    try {
+      FlowRandom.createChild(null);
+      // Should not reach here
+      throw new AssertionError("Should throw NullPointerException");
+    } catch (NullPointerException e) {
+      // Expected
+    }
+  }
+  
+  @Test
+  public void testSimulationContextStaticIsSimulatedWithNoContext() {
+    // Clear any existing context
+    SimulationContext.clear();
+    
+    // Test static isSimulated returns false when no context
+    assertFalse(SimulationContext.isSimulated(), "Should be false when no context");
+  }
+  
+  @Test
+  public void testSimulationContextCurrentReturnsNull() {
+    // Clear any existing context
+    SimulationContext.clear();
+    
+    // Test current() returns null when no context set
+    assertNull(SimulationContext.current(), "Should return null when no context");
+  }
+  
+  @Test
+  @FixedSeed(4444)
+  public void testFlowRandomEdgeCases() {
+    // Test getCurrentSeed when source is null
+    FlowRandom.clear();
+    assertEquals(0, FlowRandom.getCurrentSeed(), "Should return 0 when no source");
+    
+    // Test isDeterministic with system random
+    FlowRandom.clear();
+    FlowRandom.current(); // Forces creation of SystemRandomSource
+    assertFalse(FlowRandom.isDeterministic(), "System random should not be deterministic");
+  }
+  
+  @Test
+  public void testDeterministicRandomSourceToString() {
+    DeterministicRandomSource source = new DeterministicRandomSource(5555);
+    String str = source.toString();
+    assertTrue(str.contains("5555"), "toString should contain seed");
+    assertTrue(str.contains("DeterministicRandomSource"), "toString should contain class name");
   }
 }
