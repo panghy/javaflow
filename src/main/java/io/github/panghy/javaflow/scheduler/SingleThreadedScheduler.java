@@ -2,6 +2,9 @@ package io.github.panghy.javaflow.scheduler;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowPromise;
+import io.github.panghy.javaflow.simulation.FlowRandom;
+import io.github.panghy.javaflow.simulation.SimulationConfiguration;
+import io.github.panghy.javaflow.simulation.SimulationContext;
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 
@@ -765,8 +768,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
             }
           }
 
-          // Take the highest priority task (first one in the sorted list)
-          task = readyTasks.removeFirst();
+          // Select next task based on simulation configuration
+          task = selectNextTask();
 
           // We can release the lock once we have obtained a task
           taskLock.unlock();
@@ -774,6 +777,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
 
           // Process task if we got one
           if (task != null) {
+            // Apply inter-task delay if configured
+            applyInterTaskDelay();
+            
             if (taskToContinuation.containsKey(task.getId())) {
               // This is a resume task for an existing continuation
               resumeTask(task.getId());
@@ -1203,6 +1209,73 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Check if we still have active tasks (which would be unexpected in drain mode)
       if (!idToTask.isEmpty()) {
         warn(LOGGER, "Some tasks still remain after draining: " + idToTask.size());
+      }
+    }
+  }
+  
+  /**
+   * Selects the next task to execute based on simulation configuration.
+   * In deterministic mode, always selects the highest priority task.
+   * In simulation modes, may randomly select from ready tasks.
+   *
+   * @return The next task to execute, or null if no tasks are ready
+   */
+  private Task selectNextTask() {
+    if (readyTasks.isEmpty()) {
+      return null;
+    }
+    
+    // Check if we should use random selection
+    SimulationConfiguration config = SimulationContext.currentConfiguration();
+    if (config != null && config.getTaskSelectionProbability() > 0.0) {
+      double rand = FlowRandom.current().nextDouble();
+      if (rand < config.getTaskSelectionProbability()) {
+        // Random selection from ready tasks
+        if (config.isTaskExecutionLogging()) {
+          info(LOGGER, "Random task selection triggered (rand=" + rand + ")");
+        }
+        
+        // Convert to list for random access
+        List<Task> taskList = new ArrayList<>(readyTasks);
+        int index = FlowRandom.current().nextInt(taskList.size());
+        Task selected = taskList.get(index);
+        
+        // Remove the selected task from ready queue
+        readyTasks.remove(selected);
+        
+        if (config.isTaskExecutionLogging()) {
+          info(LOGGER, "Selected task " + selected.getId() + " (priority=" + 
+               selected.getEffectivePriority() + ") from " + taskList.size() + " ready tasks");
+        }
+        
+        return selected;
+      }
+    }
+    
+    // Default: take the highest priority task (first one in the sorted list)
+    Task selected = readyTasks.removeFirst();
+    
+    if (config != null && config.isTaskExecutionLogging()) {
+      info(LOGGER, "Selected highest priority task " + selected.getId() + 
+           " (priority=" + selected.getEffectivePriority() + ")");
+    }
+    
+    return selected;
+  }
+  
+  /**
+   * Applies inter-task delay based on simulation configuration.
+   * This simulates scheduling overhead and can help find timing-sensitive bugs.
+   */
+  private void applyInterTaskDelay() {
+    SimulationConfiguration config = SimulationContext.currentConfiguration();
+    if (config != null && config.getInterTaskDelayMs() > 0) {
+      try {
+        // Use real sleep for inter-task delays to simulate scheduling overhead
+        Thread.sleep((long) config.getInterTaskDelayMs());
+      } catch (InterruptedException e) {
+        // Restore interrupt status
+        Thread.currentThread().interrupt();
       }
     }
   }

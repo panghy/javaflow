@@ -2,10 +2,12 @@ package io.github.panghy.javaflow.simulation;
 
 /**
  * Context for simulation mode that tracks simulation state and configuration.
- * This class will be expanded in future phases to include fault injection,
- * metrics collection, and other simulation features.
+ * This class manages the simulation environment including random sources,
+ * configuration, and simulation state.
  * 
- * <p>For now, it primarily manages the random source and simulation mode flag.</p>
+ * <p>SimulationContext is thread-local, allowing different threads to have
+ * independent simulation contexts. This is essential for deterministic
+ * multi-threaded testing.</p>
  */
 public class SimulationContext {
   
@@ -14,16 +16,29 @@ public class SimulationContext {
   private final long seed;
   private final RandomSource randomSource;
   private final boolean isSimulated;
+  private final SimulationConfiguration configuration;
   
   /**
-   * Creates a new simulation context with the given seed.
+   * Creates a new simulation context with the given seed and default configuration.
    *
    * @param seed The seed for deterministic randomness
    * @param isSimulated Whether this is a simulated context
    */
   public SimulationContext(long seed, boolean isSimulated) {
+    this(seed, isSimulated, SimulationConfiguration.deterministic());
+  }
+  
+  /**
+   * Creates a new simulation context with the given seed and configuration.
+   *
+   * @param seed The seed for deterministic randomness
+   * @param isSimulated Whether this is a simulated context
+   * @param configuration The simulation configuration to use
+   */
+  public SimulationContext(long seed, boolean isSimulated, SimulationConfiguration configuration) {
     this.seed = seed;
     this.isSimulated = isSimulated;
+    this.configuration = configuration != null ? configuration : SimulationConfiguration.deterministic();
     this.randomSource = isSimulated 
         ? new DeterministicRandomSource(seed) 
         : new SystemRandomSource();
@@ -94,5 +109,24 @@ public class SimulationContext {
    */
   public boolean isSimulatedContext() {
     return isSimulated;
+  }
+  
+  /**
+   * Gets the simulation configuration for this context.
+   *
+   * @return The simulation configuration
+   */
+  public SimulationConfiguration getConfiguration() {
+    return configuration;
+  }
+  
+  /**
+   * Gets the current simulation configuration from the thread-local context.
+   *
+   * @return The configuration or null if no context is set
+   */
+  public static SimulationConfiguration currentConfiguration() {
+    SimulationContext context = current();
+    return context != null ? context.getConfiguration() : null;
   }
 }
