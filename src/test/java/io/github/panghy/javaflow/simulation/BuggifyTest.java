@@ -267,6 +267,34 @@ public class BuggifyTest extends AbstractFlowTest {
   }
   
   @Test
+  public void testBuggifyMethodsWithoutBugRegistration() {
+    // Test that methods work correctly when bugs aren't registered
+    
+    // Unregistered bug should never be enabled
+    assertFalse(Buggify.isEnabled("unregistered_bug"));
+    assertFalse(Buggify.isEnabledWithRecovery("unregistered_bug"));
+    assertFalse(Buggify.isEnabledIf("unregistered_bug", true));
+    
+    // Test sometimes with extreme probabilities for coverage
+    for (int i = 0; i < 10; i++) {
+      assertFalse(Buggify.sometimes(0.0));
+      assertTrue(Buggify.sometimes(1.0));
+    }
+    
+    // Test randomInt with various ranges
+    for (int i = 0; i < 10; i++) {
+      int value = Buggify.randomInt(0, 10);
+      assertTrue(value >= 0 && value < 10);
+    }
+    
+    // Test randomDouble with various ranges  
+    for (int i = 0; i < 10; i++) {
+      double value = Buggify.randomDouble(0.0, 1.0);
+      assertTrue(value >= 0.0 && value < 1.0);
+    }
+  }
+  
+  @Test
   public void testBuggifyInActorContext() {
     BugRegistry.getInstance()
         .register("actor_bug", 0.5)

@@ -110,13 +110,17 @@ public final class Buggify {
    * Injects a delay with the specified probability.
    * 
    * <p>This is a convenience method for injecting random delays, one of the most
-   * common BUGGIFY patterns.
+   * common BUGGIFY patterns. Note that this method must be called from within
+   * a Flow task (actor) context.
    * 
    * @param probability The probability of injecting the delay
    * @param delaySeconds The delay duration in seconds
    * @return true if the delay was injected, false otherwise
    */
   public static boolean injectDelay(double probability, double delaySeconds) {
+    if (!Flow.isSimulated()) {
+      return false;
+    }
     if (sometimes(probability)) {
       Flow.delay(delaySeconds);
       return true;
