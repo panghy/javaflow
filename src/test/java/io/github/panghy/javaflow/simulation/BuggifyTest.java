@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -125,34 +126,6 @@ public class BuggifyTest extends AbstractFlowTest {
   }
   
   @Test
-  public void testInjectDelay() {
-    AtomicBoolean delayInjected = new AtomicBoolean(false);
-    
-    FlowFuture<Void> future = Flow.startActor(() -> {
-      // Always inject delay
-      if (Buggify.injectDelay(1.0, 0.1)) {
-        delayInjected.set(true);
-      }
-      return null;
-    });
-    
-    pumpAndAdvanceTimeUntilDone(future);
-    assertTrue(delayInjected.get(), "Delay should have been injected");
-    
-    // Test with 0% probability
-    delayInjected.set(false);
-    future = Flow.startActor(() -> {
-      if (Buggify.injectDelay(0.0, 0.1)) {
-        delayInjected.set(true);
-      }
-      return null;
-    });
-    
-    pumpAndAdvanceTimeUntilDone(future);
-    assertFalse(delayInjected.get(), "Delay should not have been injected");
-  }
-  
-  @Test
   public void testChoose() {
     // Test with 100% probability
     assertEquals("first", Buggify.choose(1.0, "first", "second"));
@@ -235,29 +208,32 @@ public class BuggifyTest extends AbstractFlowTest {
   }
   
   @Test
-  public void testInjectDelayMethod() {
-    // Test the actual delay injection - this method is void but schedules a delay
+  public void testMaybeDelayMethod() {
+    // Test the delay injection with 100% probability
     AtomicBoolean taskCompleted = new AtomicBoolean(false);
     
     FlowFuture<Void> future = Flow.startActor(() -> {
-      // This should always inject delay with 100% probability
-      boolean injected = Buggify.injectDelay(1.0, 0.5);
-      assertTrue(injected, "Delay should have been injected");
+      // This should always return a delay future with 100% probability
+      FlowFuture<Void> delay = Buggify.maybeDelay(1.0, 0.5);
+      assertNotNull(delay, "Delay future should be returned with 100% probability");
       
-      // Do something after potential delay
+      // Actually wait for the delay
+      Flow.await(delay);
+      
+      // Do something after delay
       taskCompleted.set(true);
       return null;
     });
     
-    // The task should complete after we pump the scheduler
+    // The task should complete after we pump the scheduler and advance time
     pumpAndAdvanceTimeUntilDone(future);
     assertTrue(taskCompleted.get(), "Task should have completed");
     
     // Test with 0% probability
     taskCompleted.set(false);
     future = Flow.startActor(() -> {
-      boolean injected = Buggify.injectDelay(0.0, 0.5);
-      assertFalse(injected, "Delay should not have been injected");
+      FlowFuture<Void> delay = Buggify.maybeDelay(0.0, 0.5);
+      assertNull(delay, "No delay should be returned with 0% probability");
       taskCompleted.set(true);
       return null;
     });
