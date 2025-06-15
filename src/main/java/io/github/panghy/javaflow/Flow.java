@@ -3,6 +3,7 @@ package io.github.panghy.javaflow;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
+import io.github.panghy.javaflow.simulation.SimulationContext;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -249,11 +250,26 @@ public final class Flow {
 
   /**
    * Determines if the flow scheduler is using a simulated clock.
+   * 
+   * <p>This method checks both the scheduler's clock and the current
+   * SimulationContext to provide a consistent view of simulation state.
    *
    * @return true if the clock is a simulated clock, false otherwise
    */
   public static boolean isSimulated() {
-    return scheduler.getClock().isSimulated();
+    // Check scheduler's clock first
+    boolean schedulerSimulated = scheduler.getClock().isSimulated();
+    
+    // Also check SimulationContext for consistency
+    SimulationContext context = SimulationContext.current();
+    if (context != null) {
+      // If we have a context, use its simulation state
+      // This ensures consistency with simulation configuration
+      return context.isSimulatedContext() && schedulerSimulated;
+    }
+    
+    // Fall back to just scheduler's clock
+    return schedulerSimulated;
   }
 
   /**
