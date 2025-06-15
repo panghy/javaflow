@@ -17,6 +17,7 @@ public class SimulationContext {
   private final RandomSource randomSource;
   private final boolean isSimulated;
   private final SimulationConfiguration configuration;
+  private double currentTimeSeconds = 0.0;
   
   /**
    * Creates a new simulation context with the given seed and default configuration.
@@ -128,5 +129,32 @@ public class SimulationContext {
   public static SimulationConfiguration currentConfiguration() {
     SimulationContext context = current();
     return context != null ? context.getConfiguration() : null;
+  }
+  
+  /**
+   * Gets the current simulation time in seconds.
+   *
+   * @return The current time in seconds
+   */
+  public double getCurrentTimeSeconds() {
+    return currentTimeSeconds;
+  }
+  
+  /**
+   * Advances the simulation time by the specified amount.
+   * This is typically called by the scheduler during simulation.
+   *
+   * @param seconds The number of seconds to advance
+   */
+  public void advanceTime(double seconds) {
+    currentTimeSeconds += seconds;
+  }
+  
+  /**
+   * Clears the current simulation context for the current thread.
+   * This is an alias for clear() to match the naming convention.
+   */
+  public static void clearCurrent() {
+    clear();
   }
 }

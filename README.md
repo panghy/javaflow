@@ -419,6 +419,45 @@ FlowFuture<UserInfo> userLookup = startActor(() -> {
 });
 ```
 
+### BUGGIFY Fault Injection Framework
+
+JavaFlow includes a BUGGIFY-style fault injection framework inspired by FoundationDB's testing methodology. This allows you to inject faults and unusual conditions into your code during simulation runs to test edge cases that would be difficult to reproduce in real systems.
+
+```java
+// Example: Using BUGGIFY for fault injection
+import io.github.panghy.javaflow.simulation.*;
+
+// Configure chaos scenario
+ChaosScenarios.networkChaos(); // Enables network-related faults
+
+// Or register specific bugs
+BugRegistry.getInstance()
+    .register(BugIds.DISK_SLOW, 0.1)      // 10% slow disk
+    .register(BugIds.PACKET_LOSS, 0.05)   // 5% packet loss
+    .register(BugIds.PROCESS_CRASH, 0.01); // 1% process crash
+
+// In your code, inject faults
+if (Buggify.isEnabled(BugIds.DISK_SLOW)) {
+    await(Flow.delay(5.0)); // Simulate slow disk
+}
+
+if (Buggify.isEnabled(BugIds.WRITE_FAILURE)) {
+    throw new IOException("Simulated disk write failure");
+}
+
+// Use time-aware injection (reduces after 300s for recovery testing)
+if (Buggify.isEnabledWithRecovery(BugIds.NETWORK_PARTITION)) {
+    throw new NetworkException("Network partition");
+}
+
+// Random injection without pre-registration
+if (Buggify.sometimes(0.01)) { // 1% chance
+    // Inject rare condition
+}
+```
+
+See [BuggifyExample](src/test/java/io/github/panghy/javaflow/examples/BuggifyExample.java) for a complete example demonstrating fault injection in a distributed key-value store.
+
 ### Race Condition Debugging with Deterministic Simulation
 
 JavaFlow's deterministic simulation mode can help find and debug concurrency issues that would be difficult to reproduce in real systems. See the [RaceConditionBugExample](src/test/java/io/github/panghy/javaflow/examples/RaceConditionBugExample.java) for a complete example that demonstrates:
