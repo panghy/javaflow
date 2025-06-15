@@ -57,6 +57,11 @@ public class NetworkSimulationParameters {
   private double receiveErrorProbability = 0.0;
   private double disconnectProbability = 0.0;
   
+  // Additional fault injection parameters
+  private double packetLossProbability = 0.0;
+  private double packetReorderProbability = 0.0;
+  private double maxReorderDelay = 0.1;  // Maximum delay for reordered packets (100ms)
+  
   /**
    * Creates simulation parameters with default values.
    */
@@ -262,5 +267,65 @@ public class NetworkSimulationParameters {
    */
   public double calculateReceiveDelay(int sizeBytes) {
     return receiveDelay + (sizeBytes / receiveBytesPerSecond);
+  }
+  
+  /**
+   * Gets the probability of packet loss during transmission.
+   *
+   * @return The packet loss probability (0.0-1.0)
+   */
+  public double getPacketLossProbability() {
+    return packetLossProbability;
+  }
+  
+  /**
+   * Sets the probability of packet loss during transmission.
+   *
+   * @param packetLossProbability The packet loss probability (0.0-1.0)
+   * @return This instance for chaining
+   */
+  public NetworkSimulationParameters setPacketLossProbability(double packetLossProbability) {
+    this.packetLossProbability = packetLossProbability;
+    return this;
+  }
+  
+  /**
+   * Gets the probability of packet reordering during transmission.
+   *
+   * @return The packet reorder probability (0.0-1.0)
+   */
+  public double getPacketReorderProbability() {
+    return packetReorderProbability;
+  }
+  
+  /**
+   * Sets the probability of packet reordering during transmission.
+   *
+   * @param packetReorderProbability The packet reorder probability (0.0-1.0)
+   * @return This instance for chaining
+   */
+  public NetworkSimulationParameters setPacketReorderProbability(double packetReorderProbability) {
+    this.packetReorderProbability = packetReorderProbability;
+    return this;
+  }
+  
+  /**
+   * Gets the maximum delay for reordered packets in seconds.
+   *
+   * @return The maximum reorder delay in seconds
+   */
+  public double getMaxReorderDelay() {
+    return maxReorderDelay;
+  }
+  
+  /**
+   * Sets the maximum delay for reordered packets in seconds.
+   *
+   * @param maxReorderDelay The maximum reorder delay in seconds
+   * @return This instance for chaining
+   */
+  public NetworkSimulationParameters setMaxReorderDelay(double maxReorderDelay) {
+    this.maxReorderDelay = maxReorderDelay;
+    return this;
   }
 }

@@ -5,6 +5,8 @@ import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.simulation.FlowRandom;
+import io.github.panghy.javaflow.simulation.SimulationConfiguration;
+import io.github.panghy.javaflow.simulation.SimulationContext;
 
 import java.io.IOException;
 import java.util.Map;
@@ -97,6 +99,39 @@ public class SimulatedFlowTransport implements FlowTransport {
     
     FlowFuture<Void> closeFuture = new FlowFuture<>();
     this.closePromise = closeFuture.getPromise();
+  }
+  
+  /**
+   * Creates a new simulated transport using parameters from the current SimulationConfiguration.
+   * This factory method integrates with the simulation framework to automatically
+   * configure network behavior based on the current simulation settings.
+   *
+   * @return A new simulated transport configured from SimulationConfiguration
+   */
+  public static SimulatedFlowTransport fromSimulationConfig() {
+    SimulationConfiguration config = SimulationContext.currentConfiguration();
+    NetworkSimulationParameters params = new NetworkSimulationParameters();
+    
+    if (config != null) {
+      // Apply network-related configuration
+      params.setConnectDelay(config.getNetworkConnectDelay());
+      params.setSendDelay(config.getNetworkSendDelay());
+      params.setReceiveDelay(config.getNetworkReceiveDelay());
+      params.setSendBytesPerSecond(config.getNetworkBytesPerSecond());
+      params.setReceiveBytesPerSecond(config.getNetworkBytesPerSecond());
+      
+      // Apply error probabilities
+      params.setConnectErrorProbability(config.getNetworkErrorProbability());
+      params.setSendErrorProbability(config.getNetworkErrorProbability());
+      params.setReceiveErrorProbability(config.getNetworkErrorProbability());
+      params.setDisconnectProbability(config.getNetworkDisconnectProbability());
+      
+      // Apply packet-level fault injection
+      params.setPacketLossProbability(config.getPacketLossProbability());
+      params.setPacketReorderProbability(config.getPacketReorderProbability());
+    }
+    
+    return new SimulatedFlowTransport(params);
   }
 
   @Override
@@ -276,13 +311,12 @@ public class SimulatedFlowTransport implements FlowTransport {
    * Represents a node (endpoint) in the simulated network.
    */
   private static class SimulatedNode {
-    private final Endpoint endpoint;
     private final PromiseStream<FlowConnection> incomingConnectionStream = new PromiseStream<>();
     private final Map<Endpoint, SimulatedFlowConnection> outgoingConnections = new ConcurrentHashMap<>();
     private final Map<Endpoint, SimulatedFlowConnection> incomingConnections = new ConcurrentHashMap<>();
 
     SimulatedNode(Endpoint endpoint) {
-      this.endpoint = endpoint;
+      // Endpoint is only used for construction, not stored
     }
 
     /**

@@ -34,6 +34,8 @@ import static io.github.panghy.javaflow.util.LoggingUtil.debug;
 import static io.github.panghy.javaflow.util.LoggingUtil.error;
 import static io.github.panghy.javaflow.util.LoggingUtil.info;
 import static io.github.panghy.javaflow.util.LoggingUtil.warn;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * SingleThreadedScheduler implements a cooperative multitasking scheduler
@@ -344,15 +346,34 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Create a task and associate it with the current task if any
     Task currentTask = FlowScheduler.CURRENT_TASK.get();
     Task flowTask = new Task(taskId, priority, wrappedTask, currentTask);
-    // Initialize effective priority to original priority
-    flowTask.setEffectivePriority(priority);
+
+    // Apply priority randomization if configured
+    int effectivePriority = priority;
+    SimulationConfiguration config = SimulationContext.currentConfiguration();
+    if (config != null && config.isPriorityRandomization()) {
+      // Add random variance to priority (-20% to +20% of original value)
+      double variance = 0.4 * FlowRandom.current().nextDouble() - 0.2;
+      effectivePriority = (int) (priority * (1.0 + variance));
+      // Ensure priority doesn't go negative
+      effectivePriority = Math.max(0, effectivePriority);
+
+      if (config.isTaskExecutionLogging()) {
+        info(LOGGER, "Task " + taskId + " priority randomized from " + priority +
+                     " to " + effectivePriority);
+      }
+    }
+
+    // Initialize effective priority (may be randomized)
+    flowTask.setEffectivePriority(effectivePriority);
     // Set up cancellation callback to propagate cancellation to associated timer tasks
     flowTask.setCancellationCallback((timerIds) -> {
       cancelTask(taskId);
-      List<Long> timerIdsCopy = new ArrayList<>(timerIds);
-      debug(LOGGER, "Cancelling " + timerIdsCopy.size() + " timers for task " + taskId);
-      // Cancel all associated timer tasks
-      timerIdsCopy.forEach(this::cancelTimer);
+      if (!timerIds.isEmpty()) {
+        List<Long> timerIdsCopy = new ArrayList<>(timerIds);
+        debug(LOGGER, "Cancelling " + timerIdsCopy.size() + " timers for task " + taskId);
+        // Cancel all associated timer tasks
+        timerIdsCopy.forEach(this::cancelTimer);
+      }
     });
     if (currentTask != null) {
       currentTask.addChild(flowTask);
@@ -744,7 +765,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
               long waitTime = nextTimer - now;
               if (waitTime > 0) {
                 //noinspection ResultOfMethodCallIgnored
-                tasksAvailableCondition.await(waitTime, java.util.concurrent.TimeUnit.MILLISECONDS);
+                tasksAvailableCondition.await(waitTime, MILLISECONDS);
               }
             } else {
               // No timers, wait indefinitely for tasks
@@ -778,8 +799,31 @@ public class SingleThreadedScheduler implements AutoCloseable {
           // Process task if we got one
           if (task != null) {
             // Apply inter-task delay if configured
-            applyInterTaskDelay();
-            
+            SimulationConfiguration config = SimulationContext.currentConfiguration();
+            if (config != null && config.getInterTaskDelayMs() > 0) {
+              // Schedule the task to run after the delay using the clock
+              FlowFuture<Void> delayFuture = new FlowFuture<>();
+              FlowPromise<Void> delayPromise = delayFuture.getPromise();
+              scheduleTimerTask((long) config.getInterTaskDelayMs(), delayPromise,
+                  task.getPriority(), task);
+
+              // When the timer fires, re-add the task to ready queue
+              delayFuture.whenComplete((v, ex) -> {
+                if (ex == null) {
+                  taskLock.lock();
+                  try {
+                    readyTasks.add(task);
+                    tasksAvailableCondition.signal();
+                  } finally {
+                    taskLock.unlock();
+                  }
+                }
+              });
+
+              // Skip processing this task for now - it will be re-added after the delay
+              continue;
+            }
+
             if (taskToContinuation.containsKey(task.getId())) {
               // This is a resume task for an existing continuation
               resumeTask(task.getId());
@@ -1098,29 +1142,10 @@ public class SingleThreadedScheduler implements AutoCloseable {
         debug(LOGGER, "Waiting for scheduler loop to exit...");
         // Wait with a reasonable timeout to avoid hanging indefinitely if there's an issue
         CountDownLatch latch = schedulerExitLatch.get();
-        boolean exited = latch != null && latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+        boolean exited = latch != null && latch.await(5, SECONDS);
 
         if (!exited) {
           warn(LOGGER, "Scheduler loop did not exit within timeout period");
-
-          // Check if thread is still alive
-          if (schedulerThread.isAlive()) {
-            warn(LOGGER, "Scheduler thread is still alive, attempting to join it...");
-
-            // As a last resort, try to join the thread with a timeout
-            try {
-              schedulerThread.join(2000);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              warn(LOGGER, "Interrupted while joining scheduler thread", e);
-            }
-
-            if (schedulerThread.isAlive()) {
-              warn(LOGGER, "Scheduler thread is still alive after join attempt.");
-            } else {
-              debug(LOGGER, "Scheduler thread terminated after join.");
-            }
-          }
         } else {
           debug(LOGGER, "Scheduler loop exited successfully");
         }
@@ -1212,7 +1237,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       }
     }
   }
-  
+
   /**
    * Selects the next task to execute based on simulation configuration.
    * In deterministic mode, always selects the highest priority task.
@@ -1224,7 +1249,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (readyTasks.isEmpty()) {
       return null;
     }
-    
+
     // Check if we should use random selection
     SimulationConfiguration config = SimulationContext.currentConfiguration();
     if (config != null && config.getTaskSelectionProbability() > 0.0) {
@@ -1234,49 +1259,33 @@ public class SingleThreadedScheduler implements AutoCloseable {
         if (config.isTaskExecutionLogging()) {
           info(LOGGER, "Random task selection triggered (rand=" + rand + ")");
         }
-        
+
         // Convert to list for random access
         List<Task> taskList = new ArrayList<>(readyTasks);
         int index = FlowRandom.current().nextInt(taskList.size());
         Task selected = taskList.get(index);
-        
+
         // Remove the selected task from ready queue
         readyTasks.remove(selected);
-        
+
         if (config.isTaskExecutionLogging()) {
-          info(LOGGER, "Selected task " + selected.getId() + " (priority=" + 
-               selected.getEffectivePriority() + ") from " + taskList.size() + " ready tasks");
+          info(LOGGER, "Selected task " + selected.getId() + " (priority=" +
+                       selected.getEffectivePriority() + ") from " + taskList.size() + " ready tasks");
         }
-        
+
         return selected;
       }
     }
-    
+
     // Default: take the highest priority task (first one in the sorted list)
     Task selected = readyTasks.removeFirst();
-    
+
     if (config != null && config.isTaskExecutionLogging()) {
-      info(LOGGER, "Selected highest priority task " + selected.getId() + 
-           " (priority=" + selected.getEffectivePriority() + ")");
+      info(LOGGER, "Selected highest priority task " + selected.getId() +
+                   " (priority=" + selected.getEffectivePriority() + ")");
     }
-    
+
     return selected;
   }
-  
-  /**
-   * Applies inter-task delay based on simulation configuration.
-   * This simulates scheduling overhead and can help find timing-sensitive bugs.
-   */
-  private void applyInterTaskDelay() {
-    SimulationConfiguration config = SimulationContext.currentConfiguration();
-    if (config != null && config.getInterTaskDelayMs() > 0) {
-      try {
-        // Use real sleep for inter-task delays to simulate scheduling overhead
-        Thread.sleep((long) config.getInterTaskDelayMs());
-      } catch (InterruptedException e) {
-        // Restore interrupt status
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
+
 }
