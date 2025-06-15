@@ -9,8 +9,10 @@ import io.github.panghy.javaflow.simulation.FlowRandom;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 
 import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
+import static io.github.panghy.javaflow.util.LoggingUtil.debug;
 
 /**
  * A simulated implementation of FlowConnection for testing purposes.
@@ -51,6 +53,8 @@ import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
  */
 public class SimulatedFlowConnection implements FlowConnection {
 
+  private static final Logger LOGGER = Logger.getLogger(SimulatedFlowConnection.class.getName());
+  
   private final Endpoint localEndpoint;
   private final Endpoint remoteEndpoint;
   private final NetworkSimulationParameters params;
@@ -106,8 +110,26 @@ public class SimulatedFlowConnection implements FlowConnection {
       return FlowFuture.failed(new IOException("Connection closed during send"));
     }
 
+    // Check for packet loss
+    if (params.getPacketLossProbability() > 0.0 &&
+        FlowRandom.current().nextDouble() < params.getPacketLossProbability()) {
+      // Simulate packet loss - pretend the send succeeded but don't deliver
+      debug(LOGGER, "Simulating packet loss from " + localEndpoint + " to " + remoteEndpoint);
+      double delay = params.calculateSendDelay(data.remaining());
+      return delayThenRun(delay, () -> null);
+    }
+
     // Calculate a realistic delay based on the simulation parameters
     double delay = params.calculateSendDelay(data.remaining());
+    
+    // Check for packet reordering
+    if (params.getPacketReorderProbability() > 0.0 &&
+        FlowRandom.current().nextDouble() < params.getPacketReorderProbability()) {
+      // Add random additional delay for reordering
+      double reorderDelay = FlowRandom.current().nextDouble() * params.getMaxReorderDelay();
+      delay += reorderDelay;
+      debug(LOGGER, "Simulating packet reordering with additional delay: " + reorderDelay + "s");
+    }
 
     // Duplicate the buffer so we don't affect the original
     ByteBuffer toSend = data.duplicate();

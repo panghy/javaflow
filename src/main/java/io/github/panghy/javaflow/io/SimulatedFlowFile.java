@@ -81,7 +81,27 @@ public class SimulatedFlowFile implements FlowFile {
     double delay = params.calculateReadDelay(length);
 
     // Perform the read after the delay
-    return delayThenRun(delay, () -> dataStore.read(position, length));
+    return delayThenRun(delay, () -> {
+      ByteBuffer result = dataStore.read(position, length);
+      
+      // Check for data corruption
+      if (params.getCorruptionProbability() > 0.0 &&
+          FlowRandom.current().nextDouble() < params.getCorruptionProbability()) {
+        // Simulate data corruption by flipping random bits
+        if (result != null && result.hasRemaining()) {
+          int corruptionCount = 1 + FlowRandom.current().nextInt(Math.min(10, result.remaining()));
+          for (int i = 0; i < corruptionCount; i++) {
+            int pos = result.position() + FlowRandom.current().nextInt(result.remaining());
+            byte original = result.get(pos);
+            int bitToFlip = FlowRandom.current().nextInt(8);
+            byte corrupted = (byte) (original ^ (1 << bitToFlip));
+            result.put(pos, corrupted);
+          }
+        }
+      }
+      
+      return result;
+    });
   }
 
   @Override
@@ -100,6 +120,12 @@ public class SimulatedFlowFile implements FlowFile {
     if (params.getWriteErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getWriteErrorProbability()) {
       return failed(new IOException("Simulated write error"));
+    }
+    
+    // Check for disk full errors
+    if (params.getDiskFullProbability() > 0.0 &&
+        FlowRandom.current().nextDouble() < params.getDiskFullProbability()) {
+      return failed(new IOException("No space left on device"));
     }
 
     // Calculate a realistic delay based on the simulation parameters

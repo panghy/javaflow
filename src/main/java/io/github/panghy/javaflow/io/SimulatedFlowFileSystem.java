@@ -2,6 +2,8 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.FlowRandom;
+import io.github.panghy.javaflow.simulation.SimulationConfiguration;
+import io.github.panghy.javaflow.simulation.SimulationContext;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -593,5 +595,17 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     boolean isEmpty() {
       return children.isEmpty();
     }
+  }
+  
+  /**
+   * Creates a SimulatedFlowFileSystem from the current SimulationConfiguration.
+   * This factory method integrates file system simulation with the unified configuration.
+   *
+   * @return A SimulatedFlowFileSystem configured from the current SimulationConfiguration
+   */
+  public static SimulatedFlowFileSystem fromSimulationConfig() {
+    SimulationConfiguration config = SimulationContext.currentConfiguration();
+    SimulationParameters params = SimulationParameters.fromSimulationConfig(config);
+    return new SimulatedFlowFileSystem(params);
   }
 }

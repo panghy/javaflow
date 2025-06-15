@@ -1,5 +1,6 @@
 package io.github.panghy.javaflow.io;
 
+import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -196,5 +197,76 @@ class SimulationParametersTest {
     assertEquals(0.1, params.getReadErrorProbability());
     assertEquals(0.2, params.getWriteErrorProbability());
     assertEquals(0.3, params.getMetadataErrorProbability());
+  }
+  
+  @Test
+  void testDiskFullProbability() {
+    SimulationParameters params = new SimulationParameters();
+    
+    // Test default value
+    assertEquals(0.0, params.getDiskFullProbability());
+    
+    // Test setting and getting
+    SimulationParameters result = params.setDiskFullProbability(0.25);
+    assertTrue(result == params);
+    assertEquals(0.25, params.getDiskFullProbability());
+  }
+  
+  @Test
+  void testCorruptionProbability() {
+    SimulationParameters params = new SimulationParameters();
+    
+    // Test default value
+    assertEquals(0.0, params.getCorruptionProbability());
+    
+    // Test setting and getting
+    SimulationParameters result = params.setCorruptionProbability(0.15);
+    assertTrue(result == params);
+    assertEquals(0.15, params.getCorruptionProbability());
+  }
+  
+  @Test
+  void testFromSimulationConfigWithNullConfig() {
+    // Test with null config - should return params with default values
+    SimulationParameters params = SimulationParameters.fromSimulationConfig(null);
+    
+    // Verify default values are used
+    assertEquals(0.001, params.getReadDelay());
+    assertEquals(0.002, params.getWriteDelay());
+    assertEquals(0.0005, params.getMetadataDelay());
+    assertEquals(100_000_000, params.getReadBytesPerSecond());
+    assertEquals(50_000_000, params.getWriteBytesPerSecond());
+    assertEquals(0.0, params.getReadErrorProbability());
+    assertEquals(0.0, params.getWriteErrorProbability());
+    assertEquals(0.0, params.getMetadataErrorProbability());
+    assertEquals(0.0, params.getDiskFullProbability());
+    assertEquals(0.0, params.getCorruptionProbability());
+  }
+  
+  @Test
+  void testFromSimulationConfigWithConfig() {
+    // Create a config with custom values
+    SimulationConfiguration config = new SimulationConfiguration();
+    config.setDiskReadDelay(0.5);
+    config.setDiskWriteDelay(0.6);
+    config.setDiskBytesPerSecond(1_000_000);
+    config.setDiskFailureProbability(0.1);
+    config.setDiskFullProbability(0.2);
+    config.setDiskCorruptionProbability(0.3);
+    
+    // Create params from config
+    SimulationParameters params = SimulationParameters.fromSimulationConfig(config);
+    
+    // Verify values from config are applied
+    assertEquals(0.5, params.getReadDelay());
+    assertEquals(0.6, params.getWriteDelay());
+    assertEquals(0.25, params.getMetadataDelay()); // 0.5 * 0.5
+    assertEquals(1_000_000, params.getReadBytesPerSecond());
+    assertEquals(500_000, params.getWriteBytesPerSecond()); // 1_000_000 * 0.5
+    assertEquals(0.1, params.getReadErrorProbability());
+    assertEquals(0.1, params.getWriteErrorProbability());
+    assertEquals(0.05, params.getMetadataErrorProbability()); // 0.1 * 0.5
+    assertEquals(0.2, params.getDiskFullProbability());
+    assertEquals(0.3, params.getCorruptionProbability());
   }
 }

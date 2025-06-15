@@ -30,7 +30,7 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 2 | **Event Loop and Scheduling** - Cooperative scheduler with priorities | ✅ Completed |
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | ✅ Completed |
 | 4 | **Asynchronous I/O and RPC Framework** - Network, disk operations, and remote communication | ✅ Completed |
-| 5 | **Deterministic Simulation Mode** - Simulation environment | 🚧 In Progress |
+| 5 | **Deterministic Simulation Mode** - Simulation environment | ✅ Completed |
 | 6 | **Error Handling and Propagation** - Error model | 🚧 In Progress |
 | 7 | **Advanced Actor Patterns and Library** - Enhanced API for usability | 📅 Planned |
 | 8 | **Testing and Simulation at Scale** - Complex scenario testing | 📅 Planned |
@@ -106,7 +106,19 @@ These subtasks represent the foundation of JavaFlow's actor model and form the b
 | 4.13 | **Simulation Compatibility** - Design for deterministic testing in Phase 5 | ✅ Completed |
 | 4.14 | **Utilities and Testing** - Helper utilities for I/O operations | ✅ Completed |
 
-Phase 4 has been completed, with all major components now implemented and fully functional. Both the file system I/O and network transport implementations are complete, along with a comprehensive RPC framework that enables distributed actor programming with location transparency.
+Phases 4 and 5 have been completed, with all major components now implemented and fully functional. Both the file system I/O and network transport implementations are complete, along with a comprehensive RPC framework that enables distributed actor programming with location transparency. The simulation framework now includes advanced fault injection capabilities for robust testing.
+
+#### Phase 5: Deterministic Simulation Mode
+
+| Subtask | Description | Status |
+|---------|-------------|--------|
+| 5.1 | **Simulation Architecture** - Core simulation context and configuration | ✅ Completed |
+| 5.2 | **Deterministic Random Number Generation** - Seeded random operations | ✅ Completed |
+| 5.3 | **Simulated Scheduler with Priority Randomization** - Non-deterministic scheduling | ✅ Completed |
+| 5.4 | **Enhanced Network Simulation with Fault Injection** - Packet loss, reordering, errors | ✅ Completed |
+| 5.5 | **Enhanced File System Simulation with Fault Injection** - Corruption, disk full errors | ✅ Completed |
+| 5.6 | **Race Condition Debugging Example** - Demonstrates seed-based bug reproduction | ✅ Completed |
+| 5.7 | **BUGGIFY-style Fault Injection** - Dynamic fault injection framework | 📅 Planned |
 
 Key completed functionality includes:
 - Asynchronous file read and write operations that return futures
@@ -129,6 +141,14 @@ Key completed functionality includes:
 - Comprehensive test coverage for all RPC components
 
 The RPC framework provides location transparency where the same code can work for both local and remote communication. The architecture supports loopback endpoints for maximum efficiency in local communication, dynamic endpoint resolution for service discovery, and a robust serialization framework that preserves generic type information across network boundaries. All I/O operations are designed to be non-blocking and return futures that can be awaited by actors, maintaining the cooperative multitasking model that is central to JavaFlow.
+
+Phase 5 has enhanced the simulation framework with advanced fault injection capabilities:
+- Priority randomization in the scheduler for non-deterministic task scheduling
+- Network fault injection including packet loss, packet reordering, and network errors
+- File system fault injection including data corruption and disk full errors  
+- Integration of all simulation parameters with the unified SimulationConfiguration
+- Factory methods for easy creation of simulated components from configuration
+- Race condition debugging example showing how deterministic seeds enable bug reproduction
 
 ## Requirements
 
@@ -397,6 +417,31 @@ FlowFuture<UserInfo> userLookup = startActor(() -> {
     UserInfo user = await(userService.getUserAsync(new GetUserRequest("user123")));
     return processUserInfo(user);
 });
+```
+
+### Race Condition Debugging with Deterministic Simulation
+
+JavaFlow's deterministic simulation mode can help find and debug concurrency issues that would be difficult to reproduce in real systems. See the [RaceConditionBugExample](src/test/java/io/github/panghy/javaflow/examples/RaceConditionBugExample.java) for a complete example that demonstrates:
+
+- How race conditions manifest in distributed systems
+- Using deterministic seeds to reproduce bugs consistently
+- Debugging concurrency issues with execution logging
+- Comparing buggy vs. fixed implementations
+
+```java
+// Example: Finding race conditions with different seeds
+for (long seed = 1; seed <= 100; seed++) {
+  SimulationContext context = new SimulationContext(seed, true, config);
+  SimulationContext.setCurrent(context);
+  
+  // Run test scenario...
+  int result = runTest();
+  
+  if (result != expected) {
+    System.out.println("Found race condition with seed " + seed);
+    // Same seed can be used to debug the issue
+  }
+}
 ```
 
 ### Asynchronous I/O and RPC Framework (Phase 4)
