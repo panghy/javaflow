@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.simulation;
 
 import io.github.panghy.javaflow.Flow;
+import io.github.panghy.javaflow.core.FlowFuture;
 
 /**
  * BUGGIFY-style fault injection framework for JavaFlow.
@@ -30,6 +31,12 @@ import io.github.panghy.javaflow.Flow;
  * }</pre>
  */
 public final class Buggify {
+  
+  /**
+   * The time threshold (in seconds) after which fault injection probability
+   * is reduced to allow the system to demonstrate recovery behavior.
+   */
+  private static final double RECOVERY_THRESHOLD_SECONDS = 300.0;
   
   private Buggify() {
     // Prevent instantiation
@@ -84,8 +91,8 @@ public final class Buggify {
     }
     
     SimulationContext context = SimulationContext.current();
-    if (context != null && context.getCurrentTimeSeconds() > 300.0) {
-      // After 300 seconds, reduce fault injection to 1% to test recovery
+    if (context != null && context.getCurrentTimeSeconds() > RECOVERY_THRESHOLD_SECONDS) {
+      // After RECOVERY_THRESHOLD_SECONDS, reduce fault injection to 1% to test recovery
       return sometimes(0.01);
     }
     
@@ -107,25 +114,29 @@ public final class Buggify {
   }
   
   /**
-   * Injects a delay with the specified probability.
+   * Returns a delay future with the specified probability.
    * 
    * <p>This is a convenience method for injecting random delays, one of the most
-   * common BUGGIFY patterns. Note that this method must be called from within
-   * a Flow task (actor) context.
+   * common BUGGIFY patterns. The caller should await the returned future to
+   * actually pause execution.
    * 
-   * @param probability The probability of injecting the delay
+   * <p>Example usage:
+   * <pre>{@code
+   * FlowFuture<Void> delay = Buggify.maybeDelay(0.1, 5.0); // 10% chance of 5s delay
+   * if (delay != null) {
+   *     Flow.await(delay);
+   * }
+   * }</pre>
+   * 
+   * @param probability The probability of returning a delay future
    * @param delaySeconds The delay duration in seconds
-   * @return true if the delay was injected, false otherwise
+   * @return A delay future if the probability check passes, null otherwise
    */
-  public static boolean injectDelay(double probability, double delaySeconds) {
-    if (!Flow.isSimulated()) {
-      return false;
+  public static FlowFuture<Void> maybeDelay(double probability, double delaySeconds) {
+    if (!Flow.isSimulated() || !sometimes(probability)) {
+      return null;
     }
-    if (sometimes(probability)) {
-      Flow.delay(delaySeconds);
-      return true;
-    }
-    return false;
+    return Flow.delay(delaySeconds);
   }
   
   /**

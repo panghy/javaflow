@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -36,9 +37,8 @@ public class BuggifyNonSimulationTest {
     assertEquals(1.0, Buggify.randomDouble(1.0, 2.0), 0.001);
     assertEquals(1.0, Buggify.randomDouble(1.0, 1.0), 0.001); // Equal min/max
     
-    // Can't test injectDelay outside of a Flow task, but we can verify
-    // it would return false if we could call it
-    // (calling it would throw IllegalStateException: scheduleDelay called outside of a flow task)
+    // maybeDelay should return null in non-simulation mode
+    assertNull(Buggify.maybeDelay(1.0, 1.0));
   }
   
   @Test
