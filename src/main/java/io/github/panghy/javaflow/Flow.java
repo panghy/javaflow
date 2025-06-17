@@ -1,11 +1,14 @@
 package io.github.panghy.javaflow;
 
+import io.github.panghy.javaflow.core.FlowCancellationException;
 import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
+import io.github.panghy.javaflow.scheduler.Task;
 import io.github.panghy.javaflow.simulation.SimulationContext;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPriority;
@@ -82,6 +85,12 @@ public final class Flow {
   /**
    * Starts a new actor with the given task.
    *
+   * <p><b>Cancellation behavior:</b> When the returned future is cancelled using
+   * {@link FlowFuture#cancel()}, the actor's execution is immediately terminated. 
+   * The cancellation happens eagerly - any cleanup code in the actor will not run
+   * unless it's in a {@code finally} block or unless the scheduler is allowed to
+   * run all remaining tasks (not just until the future resolves).</p>
+   *
    * @param task The task to run in the actor
    * @param <T>  The return type of the actor
    * @return A future that will be completed with the actor's result
@@ -148,7 +157,9 @@ public final class Flow {
     if (future.isDone()) {
       if (future.isCompletedExceptionally()) {
         Throwable cause = future.getException();
-        if (cause instanceof Exception) {
+        if (cause instanceof CancellationException) {
+          throw new FlowCancellationException("Future was cancelled", cause);
+        } else if (cause instanceof Exception) {
           throw (Exception) cause;
         } else {
           throw new ExecutionException(cause);
@@ -169,12 +180,34 @@ public final class Flow {
    * it yields control to the scheduler, allowing other actors to run. When the future completes,
    * the actor will resume execution from this point.</p>
    *
+   * <p><b>Cancellation behavior:</b> When a future is cancelled, this method will throw
+   * {@link FlowCancellationException}. <b>Important:</b> When this exception is thrown, the task's
+   * execution does not resume after the await() call. The exception propagates up the call stack,
+   * and the task is terminated unless caught. To ensure cleanup code runs during cancellation,
+   * use a {@code finally} block:</p>
+   *
+   * <pre>{@code
+   * Flow.startActor(() -> {
+   *   try {
+   *     String result = Flow.await(someFuture);
+   *     processResult(result); // This won't run if cancelled
+   *   } finally {
+   *     cleanup(); // This will always run, even on cancellation
+   *   }
+   * });
+   * }</pre>
+   *
+   * <p>Additionally, this method checks if the current task has been cancelled before attempting
+   * to await the future. If the task is already cancelled, it will throw {@link FlowCancellationException}
+   * immediately without suspending.</p>
+   *
    * <p>This method can only be called from within a flow task created with {@link #startActor}.
    * Attempting to call it from outside a flow task will result in an {@link IllegalStateException}.</p>
    *
    * @param future The future to await
    * @param <T>    The type of the future value
    * @return The value of the completed future
+   * @throws FlowCancellationException If the future is cancelled or the current task is cancelled
    * @throws Exception             If the future completes exceptionally
    * @throws IllegalStateException if called outside a flow task
    */
@@ -182,7 +215,22 @@ public final class Flow {
     if (futureReadyOrThrow(future)) {
       return future.getNow();
     }
-    return scheduler.await(future);
+    
+    // Check for cancellation before awaiting
+    checkCancellation();
+    
+    try {
+      return scheduler.await(future);
+    } catch (CancellationException e) {
+      throw new FlowCancellationException("Future was cancelled", e);
+    } catch (ExecutionException e) {
+      // Check if the cause is a CancellationException
+      Throwable cause = e.getCause();
+      if (cause instanceof CancellationException) {
+        throw new FlowCancellationException("Future was cancelled", cause);
+      }
+      throw e;
+    }
   }
 
   /**
@@ -224,6 +272,31 @@ public final class Flow {
    */
   public static boolean isInFlowContext() {
     return FlowScheduler.isInFlowContext();
+  }
+
+  /**
+   * Checks if the current task has been cancelled.
+   * This can be called during CPU-intensive operations to detect cancellation.
+   * 
+   * @throws FlowCancellationException if the current task is cancelled
+   * @throws IllegalStateException if called outside a flow context
+   */
+  public static void checkCancellation() {
+    Task currentTask = FlowScheduler.getCurrentTask();
+    if (currentTask != null && currentTask.isCancelled()) {
+      throw new FlowCancellationException("Task was cancelled");
+    }
+  }
+  
+  /**
+   * Returns true if the current task has been cancelled.
+   * This is a non-throwing version for conditional logic.
+   * 
+   * @return true if the current task is cancelled, false if not cancelled or outside flow context
+   */
+  public static boolean isCancelled() {
+    Task currentTask = FlowScheduler.getCurrentTask();
+    return currentTask != null && currentTask.isCancelled();
   }
 
   /**
@@ -289,6 +362,23 @@ public final class Flow {
    * give up its execution slot, allowing other actors to run. This is particularly useful
    * when an actor has been running for a long time and wants to ensure fairness.</p>
    *
+   * <p><b>Cancellation behavior:</b> If the task is cancelled while yielded, the returned
+   * future will complete exceptionally with a {@link FlowCancellationException} when the
+   * task attempts to resume. Similar to {@link #await}, execution does not continue after
+   * the yield point when cancelled. Use a {@code finally} block to ensure cleanup code runs:</p>
+   *
+   * <pre>{@code
+   * Flow.startActor(() -> {
+   *   try {
+   *     // Do some work
+   *     Flow.await(Flow.yieldF()); // Yield to other tasks
+   *     // More work (won't run if cancelled during yield)
+   *   } finally {
+   *     cleanup(); // Always runs, even if cancelled
+   *   }
+   * });
+   * }</pre>
+   *
    * <p>This method can only be called from within a flow task created with {@link #startActor}.
    * Attempting to call it from outside a flow task will result in an {@link IllegalStateException}.</p>
    *
@@ -303,9 +393,14 @@ public final class Flow {
    * Yields control from the current actor to allow other actors to run with the specified priority.
    * The current actor will be rescheduled with this priority to continue execution in the next event loop cycle.
    *
+   * <p><b>Cancellation behavior:</b> Same as {@link #yieldF()}. If the task is cancelled while yielded,
+   * execution will not resume after the yield point. The returned future will complete exceptionally
+   * with a {@link FlowCancellationException}.</p>
+   *
    * @param priority The priority to use when rescheduling the task (must be non-negative)
    * @return A future that completes when the actor is resumed
    * @throws IllegalArgumentException if the priority is negative
+   * @throws IllegalStateException if called outside a flow task
    */
   public static FlowFuture<Void> yieldF(int priority) {
     // Validate that user-provided priority isn't negative

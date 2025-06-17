@@ -224,6 +224,15 @@ public class FlowScheduler implements AutoCloseable {
   public static boolean isInFlowContext() {
     return FlowScheduler.CURRENT_TASK.get() != null;
   }
+  
+  /**
+   * Gets the current task if executing within a flow context.
+   *
+   * @return the current task or null if not in a flow context
+   */
+  public static Task getCurrentTask() {
+    return CURRENT_TASK.get();
+  }
 
   /**
    * Awaits the completion of a future, suspending the current actor until the future
