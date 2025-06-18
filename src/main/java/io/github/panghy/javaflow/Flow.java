@@ -351,9 +351,10 @@ public final class Flow {
    * <p><b>Important notes:</b></p>
    * <ul>
    *   <li>This method does not block or yield - it's a quick check</li>
-   *   <li>Can be called outside a flow context (will not throw)</li>
-   *   <li>The thrown exception should typically not be caught, allowing
-   *       cancellation to propagate</li>
+   *   <li>Safe to call outside a flow context - will simply return without throwing,
+   *       as there is no task to check for cancellation</li>
+   *   <li>When called within a flow context, the thrown exception should typically 
+   *       not be caught, allowing cancellation to propagate</li>
    * </ul>
    * 
    * @throws FlowCancellationException if the current task is cancelled
