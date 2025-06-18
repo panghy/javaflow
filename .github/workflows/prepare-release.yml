@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -70,6 +72,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN }}
           tag_name: v${{ github.event.inputs.release_version }}
           name: Release ${{ github.event.inputs.release_version }}
           draft: false
