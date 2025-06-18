@@ -1,8 +1,70 @@
 # Release Notes
 
-## Version 1.3.0 (Upcoming)
+## Version 1.3.0
 
-_To be determined_
+### Major Features
+
+#### Phase 6: Core Cancellation Infrastructure
+- **FlowCancellationException**: New runtime exception for consistent cancellation signaling
+- **Cooperative Cancellation API**: Added `Flow.checkCancellation()` and `Flow.isCancelled()` methods
+- **Automatic Propagation**: Cancellation propagates through future chains and across RPC boundaries
+- **Enhanced Suspension Points**: All await, yield, and delay operations now properly handle cancellation
+
+#### Phase 5: Deterministic Simulation Mode
+- **BUGGIFY-style Fault Injection**: Framework for introducing controlled faults in tests
+- **Simulation Context**: Unified configuration for all simulation parameters
+- **Deterministic Random**: Infrastructure for reproducible randomness in simulations
+- **Priority Randomization**: Non-deterministic task scheduling for finding race conditions
+- **Network Fault Injection**: Simulate packet loss, reordering, and network errors
+- **File System Fault Injection**: Simulate data corruption and disk full errors
+
+#### RPC Framework Enhancements
+- **Comprehensive RPC Timeout Configuration**: Fine-grained control over timeouts
+- **Simplified Endpoint Model**: Refactored from three-tier to two-tier architecture
+- **FlowRpcConfiguration**: Builder pattern for customizable transport settings
+
+### API Additions
+- `Flow.checkCancellation()` - Throws FlowCancellationException if current task is cancelled
+- `Flow.isCancelled()` - Returns cancellation status without throwing
+- `Flow.isSimulated()` - Determines if running in simulation mode
+- `FlowCancellationException` - New exception type extending RuntimeException
+- `CancellationTestUtils` - Comprehensive utilities for testing cancellation behavior
+- `SimulationContext` - Central configuration for simulation parameters
+- `FlowRandom` - Deterministic random number generator for simulations
+- `Buggify` - Fault injection utilities
+- `FlowScheduler.getCurrentTask()` - Package-private helper for cancellation support
+
+### Breaking Changes
+- `Flow.await()` now throws `FlowCancellationException` instead of `CancellationException`
+  - Since FlowCancellationException extends RuntimeException, most code continues to work unchanged
+  - Only affects code that explicitly catches CancellationException
+- Endpoint model simplified from three-tier to two-tier architecture (affects RPC internals)
+
+### Improvements
+- Enhanced Javadoc for all Flow methods documenting cancellation behavior
+- Converted FlowTest to use AbstractFlowTest simulation framework
+- Added comprehensive cancellation examples and documentation
+- Improved test reliability by eliminating Thread.sleep() usage
+- Better test coverage across RPC, simulation, and core components
+- Added race condition debugging example demonstrating simulation capabilities
+- Enhanced timer cancellation with proper parent-child propagation
+- Improved scheduler shutdown and task cancellation mechanisms
+- Added Apache License 2.0 file
+
+### Documentation
+- Added comprehensive cancellation examples in `docs/phase_6/cancellation_examples.md`
+- Added Phase 5 deterministic simulation design documentation
+- Added race condition debugging example to README
+- Created migration guide for handling the breaking change
+- Updated README.md to reflect Phase 5 and 6 completion
+- Enhanced Javadoc with detailed cancellation behavior descriptions
+
+### Internal Improvements
+- Fixed code coverage gaps and checkstyle issues
+- Improved numeric type conversion in RPC serialization
+- Enhanced test stability and FlowFuture support
+- Refactored RPC implementation for better type handling
+- Added comprehensive test coverage for edge cases
 
 ## Version 1.2.0
 
