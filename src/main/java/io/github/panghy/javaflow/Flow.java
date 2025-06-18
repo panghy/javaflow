@@ -49,6 +49,59 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  *   return null;
  * });
  * }</pre>
+ *
+ * <h2>Cancellation Support</h2>
+ * 
+ * <p>JavaFlow provides comprehensive cancellation support through cooperative cancellation.
+ * When a {@link FlowFuture} is cancelled, the associated task will throw a
+ * {@link FlowCancellationException} at the next suspension point (await, yield, or delay)
+ * or when {@link #checkCancellation()} is called.</p>
+ * 
+ * <p><b>Cancellation Methods:</b></p>
+ * <ul>
+ *   <li>{@link #checkCancellation()} - Throws if cancelled (for periodic checks)</li>
+ *   <li>{@link #isCancelled()} - Returns cancellation status (for conditional logic)</li>
+ *   <li>{@link #await(FlowFuture)} - Automatically checks cancellation</li>
+ *   <li>{@link #yieldF()} - Checks cancellation when resuming</li>
+ * </ul>
+ * 
+ * <p><b>Example: Long-running operation with cancellation support:</b></p>
+ * <pre>{@code
+ * FlowFuture<String> operation = Flow.startActor(() -> {
+ *   try {
+ *     for (int i = 0; i < 1000; i++) {
+ *       // Check for cancellation
+ *       Flow.checkCancellation();
+ *       
+ *       // Or use conditional check
+ *       if (Flow.isCancelled()) {
+ *         return "Cancelled at " + i;
+ *       }
+ *       
+ *       // Do work and yield periodically
+ *       processItem(i);
+ *       if (i % 10 == 0) {
+ *         Flow.await(Flow.yieldF());
+ *       }
+ *     }
+ *     return "Completed";
+ *   } finally {
+ *     // Cleanup code runs even if cancelled
+ *     cleanup();
+ *   }
+ * });
+ * 
+ * // Later, cancel the operation
+ * operation.cancel();
+ * }</pre>
+ * 
+ * <p><b>Best Practices:</b></p>
+ * <ul>
+ *   <li>Call {@link #checkCancellation()} periodically in CPU-intensive loops</li>
+ *   <li>Use finally blocks for cleanup that must run even if cancelled</li>
+ *   <li>Don't catch {@link FlowCancellationException} unless you need specific cleanup</li>
+ *   <li>Cancellation automatically propagates to child tasks</li>
+ * </ul>
  */
 public final class Flow {
 
@@ -275,11 +328,38 @@ public final class Flow {
   }
 
   /**
-   * Checks if the current task has been cancelled.
-   * This can be called during CPU-intensive operations to detect cancellation.
+   * Checks if the current task has been cancelled and throws an exception if so.
+   * 
+   * <p>This method should be called periodically in long-running operations to enable
+   * cooperative cancellation. When a task is cancelled, this method will throw a
+   * {@link FlowCancellationException}, allowing the task to exit cleanly.</p>
+   * 
+   * <p><b>Usage example:</b></p>
+   * <pre>{@code
+   * Flow.startActor(() -> {
+   *   for (int i = 0; i < 1000; i++) {
+   *     // Check for cancellation every iteration
+   *     Flow.checkCancellation();
+   *     
+   *     // Do some work
+   *     processItem(i);
+   *   }
+   *   return "completed";
+   * });
+   * }</pre>
+   * 
+   * <p><b>Important notes:</b></p>
+   * <ul>
+   *   <li>This method does not block or yield - it's a quick check</li>
+   *   <li>Can be called outside a flow context (will not throw)</li>
+   *   <li>The thrown exception should typically not be caught, allowing
+   *       cancellation to propagate</li>
+   * </ul>
    * 
    * @throws FlowCancellationException if the current task is cancelled
-   * @throws IllegalStateException if called outside a flow context
+   * @see #isCancelled() for a non-throwing alternative
+   * @see #await(FlowFuture) which also checks for cancellation
+   * @since 1.3
    */
   public static void checkCancellation() {
     Task currentTask = FlowScheduler.getCurrentTask();
@@ -290,9 +370,41 @@ public final class Flow {
   
   /**
    * Returns true if the current task has been cancelled.
-   * This is a non-throwing version for conditional logic.
+   * 
+   * <p>This is a non-throwing alternative to {@link #checkCancellation()} that allows
+   * for conditional logic based on cancellation status. It's useful when you want to
+   * perform different actions based on whether the task is cancelled, rather than
+   * immediately throwing an exception.</p>
+   * 
+   * <p><b>Usage example:</b></p>
+   * <pre>{@code
+   * Flow.startActor(() -> {
+   *   List<String> results = new ArrayList<>();
+   *   
+   *   for (String item : items) {
+   *     if (Flow.isCancelled()) {
+   *       // Graceful early exit with partial results
+   *       return results;
+   *     }
+   *     
+   *     results.add(processItem(item));
+   *   }
+   *   
+   *   return results;
+   * });
+   * }</pre>
+   * 
+   * <p><b>Important notes:</b></p>
+   * <ul>
+   *   <li>Returns false when called outside a flow context</li>
+   *   <li>Does not throw exceptions</li>
+   *   <li>Useful for graceful shutdown or partial result handling</li>
+   *   <li>Can be used in finally blocks for cleanup decisions</li>
+   * </ul>
    * 
    * @return true if the current task is cancelled, false if not cancelled or outside flow context
+   * @see #checkCancellation() for a throwing alternative
+   * @since 1.3
    */
   public static boolean isCancelled() {
     Task currentTask = FlowScheduler.getCurrentTask();
