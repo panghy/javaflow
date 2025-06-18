@@ -31,13 +31,13 @@ JavaFlow is in the early stages of development. Below are the major development 
 | 3 | **Timers and Clock** - Time-based waits and controllable clock | ✅ Completed |
 | 4 | **Asynchronous I/O and RPC Framework** - Network, disk operations, and remote communication | ✅ Completed |
 | 5 | **Deterministic Simulation Mode** - Simulation environment | ✅ Completed |
-| 6 | **Error Handling and Propagation** - Error model | 🚧 In Progress |
+| 6 | **Error Handling and Propagation** - Error model | ✅ Completed |
 | 7 | **Advanced Actor Patterns and Library** - Enhanced API for usability | 📅 Planned |
 | 8 | **Testing and Simulation at Scale** - Complex scenario testing | 📅 Planned |
 | 9 | **Performance Optimization and Polishing** - Optimization and refinement | 📅 Planned |
 | 10 | **Production Hardening and Documentation** - Production readiness | 📅 Planned |
 
-Phases 1, 2, 3, and 4 have been completed, establishing the core future and actor abstractions, implementing the cooperative scheduling system, adding timer and clock functionality for time-based operations, and delivering a complete asynchronous I/O and RPC framework. Below are the detailed tasks that were completed in these phases:
+Phases 1, 2, 3, 4, 5, and 6 have been completed, establishing the core future and actor abstractions, implementing the cooperative scheduling system, adding timer and clock functionality for time-based operations, delivering a complete asynchronous I/O and RPC framework, providing deterministic simulation capabilities, and implementing comprehensive error handling and cancellation support. Below are the detailed tasks that were completed in these phases:
 
 #### Phase 1: Core Futures and Actors
 
@@ -149,6 +149,15 @@ Phase 5 has enhanced the simulation framework with advanced fault injection capa
 - Integration of all simulation parameters with the unified SimulationConfiguration
 - Factory methods for easy creation of simulated components from configuration
 - Race condition debugging example showing how deterministic seeds enable bug reproduction
+
+Phase 6 has implemented comprehensive error handling and cancellation support:
+- FlowCancellationException for proper cancellation signaling
+- Cooperative cancellation checking with Flow.checkCancellation() and Flow.isCancelled()
+- Automatic cancellation propagation through future chains and RPC boundaries
+- Enhanced Flow.await() and Flow.yieldF() to properly handle cancellation
+- CancellationTestUtils for testing cancellation behavior
+- Comprehensive documentation and examples for cancellation patterns
+- Full backward compatibility maintained with existing code
 
 ## Requirements
 
