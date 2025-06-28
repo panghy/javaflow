@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
-import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +55,7 @@ class TimerCoverageTest {
       parentTask.cancel();
 
       // Schedule a delay - this should immediately fail due to cancelled parent
-      FlowFuture<Void> delayFuture = scheduler.scheduleDelay(1.0);
+      CompletableFuture<Void> delayFuture = scheduler.scheduleDelay(1.0);
 
       // Verify the future is completed exceptionally with CancellationException
       assertTrue(delayFuture.isCompletedExceptionally());
@@ -88,7 +86,7 @@ class TimerCoverageTest {
       FlowScheduler.CURRENT_TASK.set(parentTask);
 
       // Schedule a delay
-      FlowFuture<Void> delayFuture = scheduler.scheduleDelay(5.0);
+      CompletableFuture<Void> delayFuture = scheduler.scheduleDelay(5.0);
 
       // Get the timer ID via reflection
       Field timerIdCounterField = SingleThreadedScheduler.class.getDeclaredField("timerIdCounter");
@@ -152,21 +150,21 @@ class TimerCoverageTest {
       List<Integer> executionOrder = Collections.synchronizedList(new ArrayList<>());
 
       // Schedule multiple timers for the same time
-      FlowFuture<Void> timer1 = scheduler.scheduleDelay(1.0);
+      CompletableFuture<Void> timer1 = scheduler.scheduleDelay(1.0);
       timer1.whenComplete(($, t) -> {
         if (t == null) {
           executionOrder.add(1);
         }
       });
 
-      FlowFuture<Void> timer2 = scheduler.scheduleDelay(1.0);
+      CompletableFuture<Void> timer2 = scheduler.scheduleDelay(1.0);
       timer2.whenComplete(($, t) -> {
         if (t == null) {
           executionOrder.add(2);
         }
       });
 
-      FlowFuture<Void> timer3 = scheduler.scheduleDelay(1.0);
+      CompletableFuture<Void> timer3 = scheduler.scheduleDelay(1.0);
       timer3.whenComplete(($, t) -> {
         if (t == null) {
           executionOrder.add(3);
@@ -174,7 +172,7 @@ class TimerCoverageTest {
       });
 
       // Schedule another timer for later
-      FlowFuture<Void> laterTimer = scheduler.scheduleDelay(2.0);
+      CompletableFuture<Void> laterTimer = scheduler.scheduleDelay(2.0);
       laterTimer.whenComplete(($, t) -> {
         if (t == null) {
           executionOrder.add(4);
@@ -216,7 +214,7 @@ class TimerCoverageTest {
       AtomicBoolean cancellationExceptionReceived = new AtomicBoolean(false);
 
       // Schedule a delay
-      FlowFuture<Void> delayFuture = scheduler.scheduleDelay(1.0);
+      CompletableFuture<Void> delayFuture = scheduler.scheduleDelay(1.0);
       delayFuture.whenComplete(($, t) -> {
         if (t instanceof CancellationException) {
           cancellationExceptionReceived.set(true);
@@ -273,7 +271,7 @@ class TimerCoverageTest {
       idToTask.put(taskId, task);
 
       // Create a future and promise
-      FlowFuture<Void> future = new FlowFuture<>();
+      CompletableFuture<Void> future = new CompletableFuture<>();
       FlowPromise<Void> promise = future.getPromise();
 
       // Add the promise to yieldPromises
@@ -321,7 +319,7 @@ class TimerCoverageTest {
         executionOrder.add("task1");
 
         // Schedule a timer that will execute when we advance time
-        FlowFuture<Void> timer1 = scheduler.scheduleDelay(1.0);
+        CompletableFuture<Void> timer1 = scheduler.scheduleDelay(1.0);
         timer1.whenComplete(($, t) -> {
           if (t == null) {
             executionOrder.add("timer1");
@@ -329,7 +327,7 @@ class TimerCoverageTest {
             // Schedule another timer on completion of the first timer
             try {
               // Shorter delay to ensure it completes within 2 seconds
-              FlowFuture<Void> timer2 = scheduler.scheduleDelay(0.5);
+              CompletableFuture<Void> timer2 = scheduler.scheduleDelay(0.5);
               timer2.whenComplete(($$, tt) -> {
                 if (tt == null) {
                   executionOrder.add("timer2");

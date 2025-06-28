@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,7 +88,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // Send data to trigger the write error
     ByteBuffer testData = ByteBuffer.wrap("Test data".getBytes());
-    FlowFuture<Void> sendFuture = connection.send(testData);
+    CompletableFuture<Void> sendFuture = connection.send(testData);
     try {
       sendFuture.getNow();
       fail("Expected exception was not thrown");
@@ -125,7 +124,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Call close on the connection
-    FlowFuture<Void> closeFuture = connection.close();
+    CompletableFuture<Void> closeFuture = connection.close();
     try {
       closeFuture.getNow();
       fail("Expected exception was not thrown");
@@ -159,7 +158,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Request to receive data
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     try {
       receiveFuture.getNow();
@@ -187,7 +186,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Close the connection manually
-    FlowFuture<Void> closeFuture = connection.close();
+    CompletableFuture<Void> closeFuture = connection.close();
     closeFuture.getNow();
 
     // Verify connection is closed
@@ -195,14 +194,14 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // Try to send data on closed connection
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = connection.send(data);
+    CompletableFuture<Void> sendFuture = connection.send(data);
 
     // Should immediately complete exceptionally, no need to pump
     assertTrue(sendFuture.isDone());
     assertTrue(sendFuture.isCompletedExceptionally());
 
     // Try to receive data on closed connection
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     // Should immediately complete exceptionally, no need to pump
     assertTrue(receiveFuture.isDone());
@@ -239,7 +238,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Request to receive data
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     try {
       receiveFuture.getNow();
@@ -303,7 +302,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Request to receive data
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
     receiveFuture.getNow();
 
     // Verify the read count indicates that we went through the zero bytes branch
@@ -338,8 +337,8 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Call close on the connection multiple times
-    FlowFuture<Void> firstCloseFuture = connection.close();
-    FlowFuture<Void> secondCloseFuture = connection.close();
+    CompletableFuture<Void> firstCloseFuture = connection.close();
+    CompletableFuture<Void> secondCloseFuture = connection.close();
 
     firstCloseFuture.getNow();
     secondCloseFuture.getNow();
@@ -367,13 +366,13 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Close the connection
-    FlowFuture<Void> closeFuture = connection.close();
+    CompletableFuture<Void> closeFuture = connection.close();
 
     closeFuture.getNow();
 
     // Try to send data after closing
     ByteBuffer testData = ByteBuffer.wrap("Test data".getBytes());
-    FlowFuture<Void> sendFuture = connection.send(testData);
+    CompletableFuture<Void> sendFuture = connection.send(testData);
 
     // The future should complete immediately with an exception
     assertTrue(sendFuture.isDone());
@@ -406,11 +405,11 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
 
     // Close the connection
-    FlowFuture<Void> closeFuture = connection.close();
+    CompletableFuture<Void> closeFuture = connection.close();
     closeFuture.getNow();
 
     // Try to receive data after closing
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     // The future should complete immediately with an exception
     assertTrue(receiveFuture.isDone());

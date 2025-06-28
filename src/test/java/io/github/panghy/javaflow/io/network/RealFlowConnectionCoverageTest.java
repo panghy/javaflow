@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,7 +79,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     largeBuffer.flip();
 
     // Send should fail due to exception
-    FlowFuture<Void> sendFuture = connection.send(largeBuffer);
+    CompletableFuture<Void> sendFuture = connection.send(largeBuffer);
 
     // Verify exception is propagated
     assertThrows(ExecutionException.class, sendFuture::getNow);
@@ -103,7 +102,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     buffer.flip();
 
     // Send should fail due to exception
-    FlowFuture<Void> sendFuture = connection.send(buffer);
+    CompletableFuture<Void> sendFuture = connection.send(buffer);
 
     // Verify exception is propagated
     assertThrows(ExecutionException.class, sendFuture::getNow);
@@ -141,13 +140,13 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     }).when(mockChannel).read(bufferCaptor.capture(), any(), handlerCaptor.capture());
 
     // Request only 50 bytes (less than what will be returned)
-    FlowFuture<ByteBuffer> future1 = connection.receive(50);
+    CompletableFuture<ByteBuffer> future1 = connection.receive(50);
     ByteBuffer result1 = future1.getNow();
 
     assertEquals(50, result1.remaining());
 
     // Now request another 30 bytes - should come from pending buffer
-    FlowFuture<ByteBuffer> future2 = connection.receive(30);
+    CompletableFuture<ByteBuffer> future2 = connection.receive(30);
     ByteBuffer result2 = future2.getNow();
 
     assertEquals(30, result2.remaining());
@@ -186,11 +185,11 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
 
     // Request 50 bytes - will leave 50 pending
-    FlowFuture<ByteBuffer> future1 = connection.receive(50);
+    CompletableFuture<ByteBuffer> future1 = connection.receive(50);
     assertEquals(50, future1.getNow().remaining());
 
     // Request exactly 50 bytes - should consume all pending and trigger new read
-    FlowFuture<ByteBuffer> future2 = connection.receive(50);
+    CompletableFuture<ByteBuffer> future2 = connection.receive(50);
     assertEquals(50, future2.getNow().remaining());
 
     // Verify two reads were performed
@@ -205,7 +204,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     FlowStream<ByteBuffer> stream = connection.receiveStream();
 
     // Test hasNextAsync
-    FlowFuture<Boolean> hasNextFuture = stream.hasNextAsync();
+    CompletableFuture<Boolean> hasNextFuture = stream.hasNextAsync();
     assertNotNull(hasNextFuture);
 
     // Test isClosed
@@ -220,20 +219,20 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     assertNotNull(filteredStream);
 
     // Test forEach
-    FlowFuture<Void> forEachFuture = stream.forEach(buf -> {
+    CompletableFuture<Void> forEachFuture = stream.forEach(buf -> {
     });
     assertNotNull(forEachFuture);
 
     // Test close
-    FlowFuture<Void> closeFuture = stream.close();
+    CompletableFuture<Void> closeFuture = stream.close();
     assertNotNull(closeFuture);
 
     // Test onClose
-    FlowFuture<Void> onCloseFuture = stream.onClose();
+    CompletableFuture<Void> onCloseFuture = stream.onClose();
     assertNotNull(onCloseFuture);
 
     // Test closeExceptionally
-    FlowFuture<Void> closeExFuture = stream.closeExceptionally(new IOException("Test"));
+    CompletableFuture<Void> closeExFuture = stream.closeExceptionally(new IOException("Test"));
     assertNotNull(closeExFuture);
   }
 
@@ -254,8 +253,8 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
 
     // Get the stream and request data multiple times
     FlowStream<ByteBuffer> stream = connection.receiveStream();
-    FlowFuture<ByteBuffer> future1 = stream.nextAsync();
-    FlowFuture<ByteBuffer> future2 = stream.nextAsync();
+    CompletableFuture<ByteBuffer> future1 = stream.nextAsync();
+    CompletableFuture<ByteBuffer> future2 = stream.nextAsync();
 
     // Complete the first read
     if (!handlers.isEmpty()) {
@@ -289,7 +288,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     doThrow(new IOException("Close failed")).when(mockChannel).close();
 
     // Get close future before closing
-    FlowFuture<Void> closeFuture = connection.closeFuture();
+    CompletableFuture<Void> closeFuture = connection.closeFuture();
 
     // Close the connection - should fail
     connection.close();
@@ -306,12 +305,12 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
   @Test
   void testReceiveWithInvalidMaxBytes() {
     // Test zero maxBytes
-    FlowFuture<ByteBuffer> future1 = connection.receive(0);
+    CompletableFuture<ByteBuffer> future1 = connection.receive(0);
     ExecutionException ex1 = assertThrows(ExecutionException.class, future1::getNow);
     assertInstanceOf(IllegalArgumentException.class, ex1.getCause());
 
     // Test negative maxBytes
-    FlowFuture<ByteBuffer> future2 = connection.receive(-1);
+    CompletableFuture<ByteBuffer> future2 = connection.receive(-1);
     ExecutionException ex2 = assertThrows(ExecutionException.class, future2::getNow);
     assertInstanceOf(IllegalArgumentException.class, ex2.getCause());
   }
@@ -335,7 +334,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
 
     // First receive to establish pending buffer
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(50);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(50);
     receiveFuture.getNow();
 
     // Mock ByteBuffer to throw exception during put operation
@@ -353,7 +352,7 @@ public class RealFlowConnectionCoverageTest extends AbstractFlowTest {
     connection.close();
 
     // Try to receive - should fail
-    FlowFuture<ByteBuffer> future = connection.receive(100);
+    CompletableFuture<ByteBuffer> future = connection.receive(100);
     ExecutionException ex = assertThrows(ExecutionException.class, future::getNow);
     assertInstanceOf(IOException.class, ex.getCause());
     assertTrue(ex.getCause().getMessage().contains("closed"));

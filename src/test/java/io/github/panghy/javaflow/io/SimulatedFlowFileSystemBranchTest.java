@@ -2,8 +2,9 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.CompletableFuture;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -42,7 +43,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     // Create a directory structure first
     Path dir = Paths.get("/test");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory first time
       Flow.await(fileSystem.createDirectory(dir));
       
@@ -65,7 +66,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     // Create a file first
     Path filePath = Paths.get("/testfile");
     
-    FlowFuture<String> future = Flow.startActor(() -> {
+    CompletableFuture<String> future = Flow.startActor(() -> {
       // Create a file
       System.out.println("Creating file at " + filePath);
       Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
@@ -120,7 +121,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testCreateNestedDirectories() throws Exception {
     Path deepPath = Paths.get("/level1/level2/level3");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create all directories at once
       Flow.await(fileSystem.createDirectories(deepPath));
       
@@ -145,7 +146,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path pathWithTrailingSlash = Paths.get("/test/");
     Path pathWithoutTrailingSlash = Paths.get("/test");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory using path with trailing slash
       Flow.await(fileSystem.createDirectory(pathWithTrailingSlash));
       
@@ -165,7 +166,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testRelativePathNormalization() throws Exception {
     Path relativePath = Paths.get("relative");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory with relative path
       Flow.await(fileSystem.createDirectory(relativePath));
       
@@ -188,7 +189,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path childDir = Paths.get("/parentdir/childdir");
     Path targetDir = Paths.get("/targetdir");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory structure
       Flow.await(fileSystem.createDirectory(parentDir));
       Flow.await(fileSystem.open(childFile, OpenOptions.CREATE, OpenOptions.WRITE)).close();
@@ -220,7 +221,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testRootDirectoryOperations() throws Exception {
     Path root = Paths.get("/");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // List the root directory
       List<Path> rootEntries = Flow.await(fileSystem.list(root));
       
@@ -241,7 +242,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path root = Paths.get("/");
     Path childFile = Paths.get("/rootfile.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create a file at root level
       Flow.await(fileSystem.open(childFile, OpenOptions.CREATE, OpenOptions.WRITE)).close();
       
@@ -264,7 +265,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testOpenWithoutRequiredOptions() throws Exception {
     Path filePath = Paths.get("/testfile.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Try to open a non-existent file without CREATE
       try {
         Flow.await(fileSystem.open(filePath)).close();
@@ -287,7 +288,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testOpenCreateNewWithExistingFile() throws Exception {
     Path filePath = Paths.get("/testfile.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create file first
       Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
       
@@ -313,7 +314,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testListNonExistentDirectory() throws Exception {
     Path nonExistentDir = Paths.get("/nonexistentdir");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         Flow.await(fileSystem.list(nonExistentDir));
         return false; // Should not reach here
@@ -333,12 +334,12 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
    */
   @Test
   void testNullPathHandling() throws Exception {
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       boolean allPassedNullTests = true;
       
       // Test null path handling in open
       try {
-        FlowFuture<FlowFile> openFuture = fileSystem.open(null);
+        CompletableFuture<FlowFile> openFuture = fileSystem.open(null);
         Flow.await(openFuture);
         allPassedNullTests = false; // Should not reach here
       } catch (Exception e) {
@@ -350,7 +351,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test null path handling in delete
       try {
-        FlowFuture<Void> deleteFuture = fileSystem.delete(null);
+        CompletableFuture<Void> deleteFuture = fileSystem.delete(null);
         // Not awaiting, just checking the returned future
         if (!deleteFuture.isCompletedExceptionally()) {
           allPassedNullTests = false;
@@ -361,7 +362,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test null path handling in exists
       try {
-        FlowFuture<Boolean> existsFuture = fileSystem.exists(null);
+        CompletableFuture<Boolean> existsFuture = fileSystem.exists(null);
         // Not awaiting, just checking the returned future
         if (!existsFuture.isCompletedExceptionally()) {
           allPassedNullTests = false;
@@ -372,7 +373,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test null path handling in createDirectory
       try {
-        FlowFuture<Void> createDirFuture = fileSystem.createDirectory(null);
+        CompletableFuture<Void> createDirFuture = fileSystem.createDirectory(null);
         // Not awaiting, just checking the returned future
         if (!createDirFuture.isCompletedExceptionally()) {
           allPassedNullTests = false;
@@ -383,7 +384,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test null path handling in createDirectories
       try {
-        FlowFuture<Void> createDirsFuture = fileSystem.createDirectories(null);
+        CompletableFuture<Void> createDirsFuture = fileSystem.createDirectories(null);
         // Not awaiting, just checking the returned future
         if (!createDirsFuture.isCompletedExceptionally()) {
           allPassedNullTests = false;
@@ -394,7 +395,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test null path handling in list
       try {
-        FlowFuture<List<Path>> listFuture = fileSystem.list(null);
+        CompletableFuture<List<Path>> listFuture = fileSystem.list(null);
         // Not awaiting, just checking the returned future
         if (!listFuture.isCompletedExceptionally()) {
           allPassedNullTests = false;
@@ -419,7 +420,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path sourcePath = Paths.get("/source.txt");
     Path targetPath = Paths.get("/target.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create both source and target files
       Flow.await(fileSystem.open(sourcePath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
       Flow.await(fileSystem.open(targetPath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
@@ -447,7 +448,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path dirPath = Paths.get("/nonemptydir");
     Path filePath = Paths.get("/nonemptydir/file.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory and file inside it
       Flow.await(fileSystem.createDirectory(dirPath));
       Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
@@ -475,7 +476,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testCreateExistingDirectory() throws Exception {
     Path dirPath = Paths.get("/existingdir");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory first time
       Flow.await(fileSystem.createDirectory(dirPath));
       
@@ -505,12 +506,12 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     SimulatedFlowFileSystem errorSystem = new SimulatedFlowFileSystem(params);
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       boolean allTestsPassed = true;
       
       // Test error injection in open
       try {
-        FlowFuture<FlowFile> openFuture = errorSystem.open(Paths.get("/file.txt"), OpenOptions.CREATE);
+        CompletableFuture<FlowFile> openFuture = errorSystem.open(Paths.get("/file.txt"), OpenOptions.CREATE);
         // Check if future has failed with the expected error
         try {
           Flow.await(openFuture);
@@ -528,7 +529,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in delete
       try {
-        FlowFuture<Void> deleteFuture = errorSystem.delete(Paths.get("/file.txt"));
+        CompletableFuture<Void> deleteFuture = errorSystem.delete(Paths.get("/file.txt"));
         try {
           Flow.await(deleteFuture);
           allTestsPassed = false; // Should not reach here
@@ -545,7 +546,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in exists
       try {
-        FlowFuture<Boolean> existsFuture = errorSystem.exists(Paths.get("/file.txt"));
+        CompletableFuture<Boolean> existsFuture = errorSystem.exists(Paths.get("/file.txt"));
         try {
           Flow.await(existsFuture);
           allTestsPassed = false; // Should not reach here
@@ -562,7 +563,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in createDirectory
       try {
-        FlowFuture<Void> createDirFuture = errorSystem.createDirectory(Paths.get("/dir"));
+        CompletableFuture<Void> createDirFuture = errorSystem.createDirectory(Paths.get("/dir"));
         try {
           Flow.await(createDirFuture);
           allTestsPassed = false; // Should not reach here
@@ -579,7 +580,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in createDirectories
       try {
-        FlowFuture<Void> createDirsFuture = errorSystem.createDirectories(Paths.get("/dir/subdir"));
+        CompletableFuture<Void> createDirsFuture = errorSystem.createDirectories(Paths.get("/dir/subdir"));
         try {
           Flow.await(createDirsFuture);
           allTestsPassed = false; // Should not reach here
@@ -596,7 +597,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in list
       try {
-        FlowFuture<List<Path>> listFuture = errorSystem.list(Paths.get("/"));
+        CompletableFuture<List<Path>> listFuture = errorSystem.list(Paths.get("/"));
         try {
           Flow.await(listFuture);
           allTestsPassed = false; // Should not reach here
@@ -613,7 +614,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
       
       // Test error injection in move
       try {
-        FlowFuture<Void> moveFuture = errorSystem.move(Paths.get("/src"), Paths.get("/dst"));
+        CompletableFuture<Void> moveFuture = errorSystem.move(Paths.get("/src"), Paths.get("/dst"));
         try {
           Flow.await(moveFuture);
           allTestsPassed = false; // Should not reach here
@@ -643,7 +644,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testDeleteNonExistentFile() throws Exception {
     Path nonExistentPath = Paths.get("/doesnotexist.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         Flow.await(fileSystem.delete(nonExistentPath));
         return false; // Should not reach here
@@ -666,7 +667,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path sourcePath = Paths.get("/noparent/file.txt");
     Path targetPath = Paths.get("/target.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         // Try to move a file with no parent
         Flow.await(fileSystem.move(sourcePath, targetPath));
@@ -690,7 +691,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     Path sourcePath = Paths.get("/source.txt");
     Path targetPath = Paths.get("/noparent/target.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create source file
       Flow.await(fileSystem.open(sourcePath, OpenOptions.CREATE, OpenOptions.WRITE)).close();
       
@@ -717,7 +718,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testCreateDirectoryNoParent() throws Exception {
     Path dirPath = Paths.get("/noparent/dir");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         // Try to create directory with no parent
         Flow.await(fileSystem.createDirectory(dirPath));
@@ -741,7 +742,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
   void testTruncateExisting() throws Exception {
     Path filePath = Paths.get("/file.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create and write to file
       FlowFile file1 = Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE));
       ByteBuffer buffer = ByteBuffer.wrap(new byte[] {1, 2, 3, 4, 5});

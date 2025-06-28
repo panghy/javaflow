@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -43,7 +42,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path path = Paths.get("/test/file.txt");
     
     // Wrap all file operations in an actor
-    FlowFuture<Boolean> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> testFuture = Flow.startActor(() -> {
       // File should not exist initially
       boolean exists = Flow.await(fileSystem.exists(path));
       if (exists) {
@@ -81,7 +80,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     SimulatedFlowFile file = new SimulatedFlowFile(path, params);
     
     // Wrap all file operations in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Write to file
       Flow.await(file.write(0, buffer));
       
@@ -117,7 +116,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap all file system operations in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -172,7 +171,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path file2Path = Paths.get("/test/mydir/file2.txt");
     
     // Wrap all file system operations in an actor
-    FlowFuture<List<Path>> testFuture = Flow.startActor(() -> {
+    CompletableFuture<List<Path>> testFuture = Flow.startActor(() -> {
       // Create directory
       Flow.await(fileSystem.createDirectories(dirPath));
       
@@ -210,7 +209,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path path = Paths.get("/test/to-delete.txt");
     
     // Wrap all file system operations in an actor
-    FlowFuture<Boolean> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -248,7 +247,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     int truncateSize = testData.length() / 2;
     
     // Wrap all file system operations in an actor
-    FlowFuture<Long> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Long> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -290,7 +289,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap all file system operations in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -337,7 +336,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path path = Paths.get("/nonexistent.txt");
     
     // Wrap test in an actor
-    FlowFuture<Class<?>> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> testFuture = Flow.startActor(() -> {
       try {
         // Try to open a non-existent file for reading
         Flow.await(fileSystem.open(path, OpenOptions.READ));
@@ -369,7 +368,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path path = Paths.get("/test/exists.txt");
     
     // Wrap test in an actor
-    FlowFuture<Class<?>> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -410,7 +409,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap test in an actor
-    FlowFuture<Boolean> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -456,7 +455,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     String updatedData = "Updated data through new file handle";
     
     // Wrap test in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       
@@ -506,7 +505,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     Path path = Paths.get("/test/multi-op-test.txt");
     
     // Wrap test in an actor
-    FlowFuture<Boolean> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> testFuture = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectories(Paths.get("/test")));
       

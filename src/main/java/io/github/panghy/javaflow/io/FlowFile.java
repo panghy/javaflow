@@ -1,13 +1,13 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 /**
  * Represents an asynchronous file in the JavaFlow actor system.
- * All operations return FlowFuture objects that can be awaited using Flow.await().
+ * All operations return CompletableFuture objects that can be awaited using Flow.await().
  * This allows file I/O to integrate seamlessly with the actor model.
  */
 public interface FlowFile {
@@ -19,7 +19,7 @@ public interface FlowFile {
    * @param length The number of bytes to read
    * @return A future that completes with a ByteBuffer containing the read data
    */
-  FlowFuture<ByteBuffer> read(long position, int length);
+  CompletableFuture<ByteBuffer> read(long position, int length);
   
   /**
    * Writes data to the file at the specified position.
@@ -28,14 +28,14 @@ public interface FlowFile {
    * @param data The data to write
    * @return A future that completes when the write operation is finished
    */
-  FlowFuture<Void> write(long position, ByteBuffer data);
+  CompletableFuture<Void> write(long position, ByteBuffer data);
   
   /**
    * Flushes any pending changes to the file to the storage device.
    *
    * @return A future that completes when the sync operation is complete
    */
-  FlowFuture<Void> sync();
+  CompletableFuture<Void> sync();
   
   /**
    * Truncates the file to the specified size.
@@ -43,21 +43,21 @@ public interface FlowFile {
    * @param size The new size of the file
    * @return A future that completes when the truncate operation is complete
    */
-  FlowFuture<Void> truncate(long size);
+  CompletableFuture<Void> truncate(long size);
   
   /**
    * Closes the file, releasing any resources held.
    *
    * @return A future that completes when the file is closed
    */
-  FlowFuture<Void> close();
+  CompletableFuture<Void> close();
   
   /**
    * Gets the current size of the file.
    *
    * @return A future that completes with the size of the file in bytes
    */
-  FlowFuture<Long> size();
+  CompletableFuture<Long> size();
   
   /**
    * Gets the path of this file.

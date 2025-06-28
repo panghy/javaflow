@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -36,7 +34,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
   // Test service interface
   public interface TestService extends RpcServiceInterface {
     String echo(String message);
-    FlowFuture<String> asyncEcho(String message);
+    CompletableFuture<String> asyncEcho(String message);
     FlowPromise<String> promiseEcho(String message);
     PromiseStream<String> streamEcho(String message);
     void voidMethod();
@@ -50,15 +48,15 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> asyncEcho(String message) {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> asyncEcho(String message) {
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Async: " + message);
       return future;
     }
 
     @Override
     public FlowPromise<String> promiseEcho(String message) {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Promise: " + message);
       return future.getPromise();
     }
@@ -94,29 +92,29 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     pump();
     
     // Test basic string method
-    FlowFuture<String> echoResult = startActor(() -> stub.echo("test"));
+    CompletableFuture<String> echoResult = startActor(() -> stub.echo("test"));
     pumpAndAdvanceTimeUntilDone(echoResult);
     assertEquals("Echo: test", echoResult.getNow());
     
     // Test async future method
-    FlowFuture<String> asyncResult = stub.asyncEcho("async");
+    CompletableFuture<String> asyncResult = stub.asyncEcho("async");
     pumpAndAdvanceTimeUntilDone(asyncResult);
     assertEquals("Async: async", asyncResult.getNow());
     
     // Test void method
-    FlowFuture<Void> voidResult = startActor(() -> {
+    CompletableFuture<Void> voidResult = startActor(() -> {
       stub.voidMethod();
       return null;
     });
     pumpAndAdvanceTimeUntilDone(voidResult);
     
     // Test promise method
-    FlowFuture<FlowPromise<String>> promiseResultF = startActor(() -> stub.promiseEcho("promise"));
+    CompletableFuture<FlowPromise<String>> promiseResultF = startActor(() -> stub.promiseEcho("promise"));
     pumpAndAdvanceTimeUntilDone(promiseResultF);
     FlowPromise<String> promise = promiseResultF.getNow();
     assertNotNull(promise);
     
-    FlowFuture<String> promiseValue = promise.getFuture();
+    CompletableFuture<String> promiseValue = promise.getFuture();
     pumpAndAdvanceTimeUntilDone(promiseValue);
     assertEquals("Promise: promise", promiseValue.getNow());
   }
@@ -127,12 +125,12 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     TestService service = new TestServiceImpl();
     
     // Test ready() method
-    FlowFuture<Void> readyFuture = service.ready();
+    CompletableFuture<Void> readyFuture = service.ready();
     assertNotNull(readyFuture);
     pumpAndAdvanceTimeUntilDone(readyFuture);
     
     // Test onClose() method  
-    FlowFuture<Void> closeFuture = service.onClose();
+    CompletableFuture<Void> closeFuture = service.onClose();
     assertNotNull(closeFuture);
     // onClose() returns a future that doesn't complete automatically
     assertEquals(false, closeFuture.isDone());
@@ -156,7 +154,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     assertNotNull(stub);
     
     // Test that it works
-    FlowFuture<String> result = startActor(() -> stub.echo("local"));
+    CompletableFuture<String> result = startActor(() -> stub.echo("local"));
     pumpAndAdvanceTimeUntilDone(result);
     assertEquals("Echo: local", result.getNow());
   }

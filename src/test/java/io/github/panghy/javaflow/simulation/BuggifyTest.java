@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.simulation;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -212,9 +211,9 @@ public class BuggifyTest extends AbstractFlowTest {
     // Test the delay injection with 100% probability
     AtomicBoolean taskCompleted = new AtomicBoolean(false);
     
-    FlowFuture<Void> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       // This should always return a delay future with 100% probability
-      FlowFuture<Void> delay = Buggify.maybeDelay(1.0, 0.5);
+      CompletableFuture<Void> delay = Buggify.maybeDelay(1.0, 0.5);
       assertNotNull(delay, "Delay future should be returned with 100% probability");
       
       // Actually wait for the delay
@@ -232,7 +231,7 @@ public class BuggifyTest extends AbstractFlowTest {
     // Test with 0% probability
     taskCompleted.set(false);
     future = Flow.startActor(() -> {
-      FlowFuture<Void> delay = Buggify.maybeDelay(0.0, 0.5);
+      CompletableFuture<Void> delay = Buggify.maybeDelay(0.0, 0.5);
       assertNull(delay, "No delay should be returned with 0% probability");
       taskCompleted.set(true);
       return null;
@@ -279,7 +278,7 @@ public class BuggifyTest extends AbstractFlowTest {
     AtomicInteger bugCount = new AtomicInteger(0);
     AtomicBoolean delayExecuted = new AtomicBoolean(false);
     
-    FlowFuture<String> future = Flow.startActor(() -> {
+    CompletableFuture<String> future = Flow.startActor(() -> {
       // Test basic bug injection
       if (Buggify.isEnabled("actor_bug")) {
         bugCount.incrementAndGet();

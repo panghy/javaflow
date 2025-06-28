@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.examples;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.SimulatedClock;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
@@ -31,7 +30,7 @@ public class PriorityAgingExample {
     AtomicInteger lowPriorityCount = new AtomicInteger(0);
 
     // Create a high priority task that runs repeatedly
-    FlowFuture<Void> highPriorityTask = Flow.startActor(() -> {
+    CompletableFuture<Void> highPriorityTask = Flow.startActor(() -> {
       int count = 0;
       while (count < 100) { // Run 100 iterations
         count++;
@@ -46,7 +45,7 @@ public class PriorityAgingExample {
     }, TaskPriority.HIGH); // HIGH priority
 
     // Create a low priority task that runs repeatedly
-    FlowFuture<Void> lowPriorityTask = Flow.startActor(() -> {
+    CompletableFuture<Void> lowPriorityTask = Flow.startActor(() -> {
       int count = 0;
       while (count < 50) { // Run 50 iterations
         count++;

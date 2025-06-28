@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.simulation.FlowRandom;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.RandomSource;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -92,9 +91,9 @@ public class SingleThreadedSchedulerPriorityAgingTest {
     SimulationContext.setCurrent(context);
     
     // Schedule multiple tasks with different priorities
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1, TaskPriority.HIGH);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2, TaskPriority.DEFAULT);
-    FlowFuture<Integer> f3 = scheduler.schedule(() -> 3, TaskPriority.LOW);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1, TaskPriority.HIGH);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2, TaskPriority.DEFAULT);
+    CompletableFuture<Integer> f3 = scheduler.schedule(() -> 3, TaskPriority.LOW);
     
     // Pump tasks - this will exercise the priority aging logic
     scheduler.pump();
@@ -153,8 +152,8 @@ public class SingleThreadedSchedulerPriorityAgingTest {
     SimulationContext.setCurrent(context);
     
     // Schedule tasks
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2);
     
     // Advance time and pump to handle inter-task delays
     scheduler.advanceTime(100); // Advance 100ms to ensure delays are processed

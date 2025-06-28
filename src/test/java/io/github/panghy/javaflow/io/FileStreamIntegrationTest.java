@@ -2,7 +2,7 @@ package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.Test;
@@ -152,17 +152,17 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     PromiseStream<FileOperationResponse> responseStream = new PromiseStream<>();
     
     // Create base directory
-    FlowFuture<Void> dirFuture = fileSystem.createDirectories(Paths.get("/test"));
+    CompletableFuture<Void> dirFuture = fileSystem.createDirectories(Paths.get("/test"));
     pumpAndAdvanceTimeUntilDone(dirFuture);
     
     // Start file processor actor
-    FlowFuture<Void> processorFuture = startFileProcessor(
+    CompletableFuture<Void> processorFuture = startFileProcessor(
         requestStream.getFutureStream(), 
         responseStream
     );
     
     // Start sender actor
-    FlowFuture<Map<Path, FileOperationResponse>> senderFuture = startFileSender(
+    CompletableFuture<Map<Path, FileOperationResponse>> senderFuture = startFileSender(
         requestStream,
         responseStream.getFutureStream()
     );
@@ -214,7 +214,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
    * @param responseStream Stream to send responses back to
    * @return A future that completes when the processor is done
    */
-  private FlowFuture<Void> startFileProcessor(
+  private CompletableFuture<Void> startFileProcessor(
       FutureStream<FileOperationMessage> requestStream,
       PromiseStream<FileOperationResponse> responseStream) {
     
@@ -356,7 +356,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
    * @param responseStream Stream to receive responses from
    * @return A future that completes with the map of file paths to responses
    */
-  private FlowFuture<Map<Path, FileOperationResponse>> startFileSender(
+  private CompletableFuture<Map<Path, FileOperationResponse>> startFileSender(
       PromiseStream<FileOperationMessage> requestStream,
       FutureStream<FileOperationResponse> responseStream) {
     
@@ -375,7 +375,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
       Map<Path, FileOperationResponse> results = new HashMap<>();
       
       // Start actor to collect responses
-      FlowFuture<Void> collectorFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> collectorFuture = Flow.startActor(() -> {
         return Flow.await(responseStream.forEach(response -> {
           // Add response to results
           results.put(response.getFilePath(), response);
@@ -462,11 +462,11 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     PromiseStream<FileOperationResponse> responseStream = new PromiseStream<>();
     
     // Create base directory
-    FlowFuture<Void> dirFuture = errorFs.createDirectories(Paths.get("/test"));
+    CompletableFuture<Void> dirFuture = errorFs.createDirectories(Paths.get("/test"));
     pumpAndAdvanceTimeUntilDone(dirFuture);
     
     // Start custom file processor actor that uses the error-injecting file system
-    FlowFuture<Void> processorFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> processorFuture = Flow.startActor(() -> {
       // Process stream until closed
       return Flow.await(requestStream.getFutureStream().forEach(message -> {
         try {
@@ -539,7 +539,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     }
     
     // Start collecting responses
-    FlowFuture<List<FileOperationResponse>> resultsFuture = Flow.startActor(() -> {
+    CompletableFuture<List<FileOperationResponse>> resultsFuture = Flow.startActor(() -> {
       List<FileOperationResponse> results = new ArrayList<>();
       
       // Collect numOperations responses

@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.examples;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -25,7 +24,7 @@ public class ActorModelConstraintsExample {
     
     // Create a flow actor using Flow.start
     // This creates a proper flow task context
-    FlowFuture<String> result = Flow.startActor(() -> {
+    CompletableFuture<String> result = Flow.startActor(() -> {
       System.out.println("Inside actor: Flow context active = " + Flow.isInFlowContext());
       
       // Inside an actor, we can use delay operations
@@ -33,7 +32,7 @@ public class ActorModelConstraintsExample {
       Flow.await(Flow.delay(0.1));
       
       // We can start child actors from within an actor
-      FlowFuture<Integer> childFuture = Flow.startActor(() -> {
+      CompletableFuture<Integer> childFuture = Flow.startActor(() -> {
         System.out.println("Child actor: Flow context active = " + Flow.isInFlowContext());
         
         // The child actor can also use delay operations
@@ -79,7 +78,7 @@ public class ActorModelConstraintsExample {
     try {
       // This will throw an IllegalStateException because delay requires a flow context
       System.out.println("Attempting to call Flow.delay() outside an actor...");
-      FlowFuture<Void> delayFuture = Flow.delay(0.1);
+      CompletableFuture<Void> delayFuture = Flow.delay(0.1);
       System.out.println("This line won't execute - exception will be thrown");
       result.complete("This shouldn't happen");
     } catch (IllegalStateException e) {

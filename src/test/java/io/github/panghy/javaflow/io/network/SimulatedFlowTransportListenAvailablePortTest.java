@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
 
@@ -40,10 +39,10 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       
       // Connect to the listener
       FlowStream<FlowConnection> connectionStream = listener.getStream();
-      FlowFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
+      CompletableFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
       
       // Client connects to server
-      FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
+      CompletableFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
       
       // Wait for both to complete
       pumpAndAdvanceTimeUntilDone(clientConnectionFuture, acceptFuture);
@@ -62,7 +61,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       clientConnection.send(buffer);
       
       // Receive on server
-      FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+      CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
       pumpAndAdvanceTimeUntilDone(receiveFuture);
       
       // Verify the message
@@ -99,7 +98,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       assertEquals(requestedEndpoint.getHost(), listener.getBoundEndpoint().getHost());
       
       // Connect to the listener
-      FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
+      CompletableFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
       pumpAndAdvanceTimeUntilDone(clientConnectionFuture);
       
       // Verify connection was established
@@ -131,7 +130,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
     assertNotNull(listener);
     
     // Try to get a connection from the stream - should fail with a stream closed exception
-    FlowFuture<FlowConnection> acceptFuture = listener.getStream().nextAsync();
+    CompletableFuture<FlowConnection> acceptFuture = listener.getStream().nextAsync();
     pumpAndAdvanceTimeUntilDone(acceptFuture);
     
     // The future should be completed exceptionally
@@ -163,7 +162,7 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
       assertEquals("localhost", listener.getBoundEndpoint().getHost());
       
       // Connect to the listener
-      FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
+      CompletableFuture<FlowConnection> clientConnectionFuture = transport.connect(listener.getBoundEndpoint());
       pumpAndAdvanceTimeUntilDone(clientConnectionFuture);
       
       // Verify connection was established

@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
 import org.junit.jupiter.api.AfterEach;
@@ -71,7 +70,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     List<String> serverReceivedMessages = new ArrayList<>();
     
     // Server accepts connections
-    FlowFuture<Void> serverFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> serverFuture = Flow.startActor(() -> {
       FlowConnection serverConn = Flow.await(listener.getStream().nextAsync());
       assertNotNull(serverConn);
       
@@ -93,7 +92,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     });
     
     // Client connects and sends messages
-    FlowFuture<Void> clientFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> clientFuture = Flow.startActor(() -> {
       FlowConnection clientConn = Flow.await(transport.connect(actualServerEndpoint));
       assertNotNull(clientConn);
       
@@ -151,7 +150,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     AtomicInteger receivedCount = new AtomicInteger(0);
     
     // Server accepts connections and receives messages
-    FlowFuture<Void> serverFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> serverFuture = Flow.startActor(() -> {
       FlowConnection serverConn = Flow.await(listener.getStream().nextAsync());
       assertNotNull(serverConn);
       
@@ -175,7 +174,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     });
     
     // Client connects and sends messages with small delays between them
-    FlowFuture<Void> clientFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> clientFuture = Flow.startActor(() -> {
       FlowConnection clientConn = Flow.await(transport.connect(actualServerEndpoint));
       assertNotNull(clientConn);
       
@@ -232,7 +231,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     AtomicInteger disconnectErrors = new AtomicInteger(0);
     
     // Server accepts connections
-    FlowFuture<Void> serverFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> serverFuture = Flow.startActor(() -> {
       FlowConnection serverConn = Flow.await(listener.getStream().nextAsync());
       assertNotNull(serverConn);
       
@@ -242,7 +241,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     });
     
     // Client connects and sends messages
-    FlowFuture<Void> clientFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> clientFuture = Flow.startActor(() -> {
       FlowConnection clientConn = Flow.await(transport.connect(actualServerEndpoint));
       assertNotNull(clientConn);
       
@@ -334,7 +333,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     Endpoint clientAddr = clientListener.getBoundEndpoint();
     
     // Initially, connection should work
-    FlowFuture<FlowConnection> connectFuture1 = Flow.startActor(() -> {
+    CompletableFuture<FlowConnection> connectFuture1 = Flow.startActor(() -> {
       return Flow.await(transport.connect(serverAddr));
     });
     pumpAndAdvanceTimeUntilDone(connectFuture1);
@@ -346,7 +345,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     transport.createPartition(clientAddr, serverAddr);
     
     // Now connection from client to server should fail
-    FlowFuture<FlowConnection> connectFuture2 = Flow.startActor(() -> {
+    CompletableFuture<FlowConnection> connectFuture2 = Flow.startActor(() -> {
       // This simulates connecting from clientAddr to serverAddr
       // The transport will assign a local endpoint close to clientAddr
       return Flow.await(transport.connect(serverAddr));
@@ -362,7 +361,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     transport.healPartition(clientAddr, serverAddr);
     
     // Connection should still work
-    FlowFuture<FlowConnection> connectFuture3 = Flow.startActor(() -> {
+    CompletableFuture<FlowConnection> connectFuture3 = Flow.startActor(() -> {
       return Flow.await(transport.connect(serverAddr));
     });
     pumpAndAdvanceTimeUntilDone(connectFuture3);

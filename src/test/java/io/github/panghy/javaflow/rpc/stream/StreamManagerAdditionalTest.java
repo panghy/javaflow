@@ -1,6 +1,5 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;

@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,12 +49,12 @@ public class TaskTimerCancellationTest {
     AtomicLong timerId = new AtomicLong(0);
 
     // Save the timer future
-    AtomicReference<FlowFuture<Void>> timerFutureRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<Void>> timerFutureRef = new AtomicReference<>();
 
     // Start a parent task with a timer
-    FlowFuture<Void> parentFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> parentFuture = Flow.startActor(() -> {
       // Create a timer for 1 second in the future
-      FlowFuture<Void> timerFuture = Flow.scheduler().scheduleDelay(1.0);
+      CompletableFuture<Void> timerFuture = Flow.scheduler().scheduleDelay(1.0);
       timerFutureRef.set(timerFuture);
 
       // Add timer completion and cancellation detection
@@ -89,7 +88,7 @@ public class TaskTimerCancellationTest {
     testScheduler.advanceTime(100);
 
     // Get the timer future reference
-    FlowFuture<Void> timerFuture = timerFutureRef.get();
+    CompletableFuture<Void> timerFuture = timerFutureRef.get();
     assertTrue(timerFuture != null, "Timer future should be created");
 
     // Get the timer task ID for checking cancellation
@@ -135,12 +134,12 @@ public class TaskTimerCancellationTest {
     AtomicReference<Throwable> exception = new AtomicReference<>();
 
     // Save the timer future
-    AtomicReference<FlowFuture<Void>> timerFutureRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<Void>> timerFutureRef = new AtomicReference<>();
 
     // Start a task with a timer
     Flow.startActor(() -> {
       // Create a timer for 1 second in the future
-      FlowFuture<Void> timerFuture = Flow.scheduler().scheduleDelay(1.0);
+      CompletableFuture<Void> timerFuture = Flow.scheduler().scheduleDelay(1.0);
       timerFutureRef.set(timerFuture);
 
       // Add timer completion and cancellation detection
@@ -166,7 +165,7 @@ public class TaskTimerCancellationTest {
     testScheduler.pump();
 
     // Get the timer future reference
-    FlowFuture<Void> timerFuture = timerFutureRef.get();
+    CompletableFuture<Void> timerFuture = timerFutureRef.get();
     assertTrue(timerFuture != null, "Timer future should be created");
 
     // Cancel the timer future directly

@@ -1,9 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -54,15 +52,15 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public interface AsyncService {
     FlowPromise<String> delayedPromise(double seconds);
 
-    FlowFuture<String> delayedFuture(double seconds);
+    CompletableFuture<String> delayedFuture(double seconds);
 
     FlowPromise<String> immediatePromise(String value);
 
-    FlowFuture<String> immediateFuture(String value);
+    CompletableFuture<String> immediateFuture(String value);
 
     FlowPromise<String> failingPromise();
 
-    FlowFuture<String> failingFuture();
+    CompletableFuture<String> failingFuture();
   }
 
   public interface ComplexPromiseService {
@@ -74,15 +72,15 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   public interface PromiseArgumentService {
     String waitForPromise(FlowPromise<String> promise);
 
-    String waitForFuture(FlowFuture<String> future);
+    String waitForFuture(CompletableFuture<String> future);
 
     FlowPromise<String> transformPromise(FlowPromise<String> input);
 
-    FlowFuture<String> transformFuture(FlowFuture<String> input);
+    CompletableFuture<String> transformFuture(CompletableFuture<String> input);
   }
 
   public interface FutureProcessingService {
-    FlowFuture<String> processFlowFuture(FlowFuture<String> future);
+    CompletableFuture<String> processFlowFuture(CompletableFuture<String> future);
   }
 
   public static class CustomData {
@@ -102,7 +100,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   private static class AsyncServiceImpl implements AsyncService {
     @Override
     public FlowPromise<String> delayedPromise(double seconds) {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       startActor(() -> {
         await(Flow.delay(seconds));
         future.getPromise().complete("Delayed result after " + seconds + " seconds");
@@ -112,8 +110,8 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> delayedFuture(double seconds) {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> delayedFuture(double seconds) {
+      CompletableFuture<String> future = new CompletableFuture<>();
       startActor(() -> {
         await(Flow.delay(seconds));
         future.getPromise().complete("Delayed future result after " + seconds + " seconds");
@@ -124,28 +122,28 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     @Override
     public FlowPromise<String> immediatePromise(String value) {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Immediate: " + value);
       return future.getPromise();
     }
 
     @Override
-    public FlowFuture<String> immediateFuture(String value) {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> immediateFuture(String value) {
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Immediate future: " + value);
       return future;
     }
 
     @Override
     public FlowPromise<String> failingPromise() {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().completeExceptionally(new RuntimeException("Promise failed"));
       return future.getPromise();
     }
 
     @Override
-    public FlowFuture<String> failingFuture() {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> failingFuture() {
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().completeExceptionally(new RuntimeException("Future failed"));
       return future;
     }
@@ -154,7 +152,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
   private static class ComplexPromiseServiceImpl implements ComplexPromiseService {
     @Override
     public FlowPromise<List<String>> getListPromise() {
-      FlowFuture<List<String>> future = new FlowFuture<>();
+      CompletableFuture<List<String>> future = new CompletableFuture<>();
       List<String> list = new ArrayList<>();
       list.add("Item 1");
       list.add("Item 2");
@@ -165,7 +163,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     @Override
     public FlowPromise<CustomData> getCustomDataPromise() {
-      FlowFuture<CustomData> future = new FlowFuture<>();
+      CompletableFuture<CustomData> future = new CompletableFuture<>();
       future.getPromise().complete(new CustomData("Test", 42));
       return future.getPromise();
     }
@@ -182,7 +180,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     @Override
-    public String waitForFuture(FlowFuture<String> future) {
+    public String waitForFuture(CompletableFuture<String> future) {
       try {
         return "Received: " + await(future);
       } catch (Exception e) {
@@ -192,7 +190,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     @Override
     public FlowPromise<String> transformPromise(FlowPromise<String> input) {
-      FlowFuture<String> resultFuture = new FlowFuture<>();
+      CompletableFuture<String> resultFuture = new CompletableFuture<>();
       input.getFuture().whenComplete((value, error) -> {
         if (error != null) {
           resultFuture.getPromise().completeExceptionally(error);
@@ -204,8 +202,8 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> transformFuture(FlowFuture<String> input) {
-      FlowFuture<String> resultFuture = new FlowFuture<>();
+    public CompletableFuture<String> transformFuture(CompletableFuture<String> input) {
+      CompletableFuture<String> resultFuture = new CompletableFuture<>();
       input.whenComplete((value, error) -> {
         if (error != null) {
           resultFuture.getPromise().completeExceptionally(error);
@@ -219,10 +217,10 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
   private static class FutureProcessingServiceImpl implements FutureProcessingService {
     @Override
-    public FlowFuture<String> processFlowFuture(FlowFuture<String> future) {
+    public CompletableFuture<String> processFlowFuture(CompletableFuture<String> future) {
       // The future argument will be replaced with a UUID during RPC serialization
       // Return a completed future with our result
-      FlowFuture<String> result = new FlowFuture<>();
+      CompletableFuture<String> result = new CompletableFuture<>();
       result.complete("future-processed");
       return result;
     }
@@ -241,7 +239,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test immediate promise
       FlowPromise<String> promise = client.immediatePromise("test");
       assertNotNull(promise);
@@ -249,7 +247,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       assertEquals("Immediate: test", result);
 
       // Test immediate future
-      FlowFuture<String> future = client.immediateFuture("test");
+      CompletableFuture<String> future = client.immediateFuture("test");
       assertNotNull(future);
       String futureResult = await(future);
       assertEquals("Immediate future: test", futureResult);
@@ -272,7 +270,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test delayed promise
       FlowPromise<String> promise = client.delayedPromise(0.1);
       assertNotNull(promise);
@@ -280,7 +278,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       assertEquals("Delayed result after 0.1 seconds", result);
 
       // Test delayed future
-      FlowFuture<String> future = client.delayedFuture(0.1);
+      CompletableFuture<String> future = client.delayedFuture(0.1);
       assertNotNull(future);
       String futureResult = await(future);
       assertEquals("Delayed future result after 0.1 seconds", futureResult);
@@ -303,7 +301,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test failing promise
       FlowPromise<String> promise = client.failingPromise();
       assertNotNull(promise);
@@ -315,7 +313,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       }
 
       // Test failing future
-      FlowFuture<String> future = client.failingFuture();
+      CompletableFuture<String> future = client.failingFuture();
       assertNotNull(future);
       try {
         await(future);
@@ -343,7 +341,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
       @Override
       public FlowPromise<String> asyncMethod() {
-        FlowFuture<String> future = new FlowFuture<>();
+        CompletableFuture<String> future = new CompletableFuture<>();
         resultPromise = future.getPromise();
         // Return promise that will complete later
         return resultPromise;
@@ -360,7 +358,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Call method to get promise
       FlowPromise<String> clientPromise = client.asyncMethod();
 
@@ -392,7 +390,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
       @Override
       public FlowPromise<String> asyncMethod() {
-        FlowFuture<String> future = new FlowFuture<>();
+        CompletableFuture<String> future = new CompletableFuture<>();
         resultPromise = future.getPromise();
         // Return promise that will complete later
         return resultPromise;
@@ -409,7 +407,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Call method to get promise
       FlowPromise<String> clientPromise = client.asyncMethod();
 
@@ -446,16 +444,16 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     PromiseArgumentService client = transport.getRpcStub(serviceId, PromiseArgumentService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test 1: Pass a completed promise
-      FlowFuture<String> completedFuture = new FlowFuture<>();
+      CompletableFuture<String> completedFuture = new CompletableFuture<>();
       completedFuture.complete("completed value");
 
       String result1 = client.waitForPromise(completedFuture.getPromise());
       assertEquals("Received: completed value", result1);
 
       // Test 2: Pass an incomplete promise
-      FlowFuture<String> incompleteFuture = new FlowFuture<>();
+      CompletableFuture<String> incompleteFuture = new CompletableFuture<>();
 
       // Start actor to complete promise after delay
       startActor(() -> {
@@ -468,7 +466,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
       assertEquals("Received: delayed value", result2);
 
       // Test 3: Transform a promise
-      FlowFuture<String> inputFuture = new FlowFuture<>();
+      CompletableFuture<String> inputFuture = new CompletableFuture<>();
       inputFuture.complete("input");
 
       FlowPromise<String> transformed = client.transformPromise(inputFuture.getPromise());
@@ -497,19 +495,19 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     FutureProcessingService client = transport.getRpcStub(serviceId, FutureProcessingService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test 1: Call method with completed FlowFuture argument
-      FlowFuture<String> completedFuture = new FlowFuture<>();
+      CompletableFuture<String> completedFuture = new CompletableFuture<>();
       completedFuture.complete("completed-value");
 
       // This will trigger the FlowFuture processing path in processArguments (lines 1360-1369)
-      FlowFuture<String> result1 = client.processFlowFuture(completedFuture);
+      CompletableFuture<String> result1 = client.processFlowFuture(completedFuture);
       assertEquals("future-processed", await(result1));
 
       // Test 2: Call method with uncompleted FlowFuture argument
-      FlowFuture<String> uncompletedFuture = new FlowFuture<>();
+      CompletableFuture<String> uncompletedFuture = new CompletableFuture<>();
 
-      FlowFuture<String> result2 = client.processFlowFuture(uncompletedFuture);
+      CompletableFuture<String> result2 = client.processFlowFuture(uncompletedFuture);
 
       // Complete the future after method call
       startActor(() -> {
@@ -538,19 +536,19 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     PromiseArgumentService client = transport.getRpcStub(serviceId, PromiseArgumentService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test 1: Pass a completed future
-      FlowFuture<String> completedFuture = new FlowFuture<>();
+      CompletableFuture<String> completedFuture = new CompletableFuture<>();
       completedFuture.complete("completed value");
 
       String result1 = client.waitForFuture(completedFuture);
       assertEquals("Received: completed value", result1);
 
       // Test 2: Transform a future
-      FlowFuture<String> inputFuture = new FlowFuture<>();
+      CompletableFuture<String> inputFuture = new CompletableFuture<>();
       inputFuture.complete("input");
 
-      FlowFuture<String> transformed = client.transformFuture(inputFuture);
+      CompletableFuture<String> transformed = client.transformFuture(inputFuture);
       String transformedResult = await(transformed);
       assertEquals("Transformed: input", transformedResult);
 
@@ -577,7 +575,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     ComplexPromiseService client = transport.getRpcStub(serviceId, ComplexPromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test getting list promise
       FlowPromise<List<String>> listPromise = client.getListPromise();
       List<String> result = await(listPromise.getFuture());
@@ -603,7 +601,7 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
     interface GenericService {
       void processPromise(FlowPromise<String> promise);
 
-      void processFuture(FlowFuture<Integer> future);
+      void processFuture(CompletableFuture<Integer> future);
 
       void processStream(PromiseStream<Double> stream);
 
@@ -712,14 +710,14 @@ public class FlowRpcTransportImplPromiseTest extends AbstractFlowTest {
 
     AsyncService client = transport.getRpcStub(serviceId, AsyncService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test immediate future (which should flatten properly)
-      FlowFuture<String> future = client.immediateFuture("test");
+      CompletableFuture<String> future = client.immediateFuture("test");
       String result = await(future);
       assertEquals("Immediate future: test", result);
 
       // Test delayed future
-      FlowFuture<String> delayedFuture = client.delayedFuture(0.1);
+      CompletableFuture<String> delayedFuture = client.delayedFuture(0.1);
       String delayedResult = await(delayedFuture);
       assertEquals("Delayed future result after 0.1 seconds", delayedResult);
 

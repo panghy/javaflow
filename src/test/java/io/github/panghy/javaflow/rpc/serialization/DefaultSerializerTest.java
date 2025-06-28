@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.rpc.serialization;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
-import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.error.RpcSerializationException;
 import org.junit.jupiter.api.Test;
 
@@ -243,10 +241,10 @@ public class DefaultSerializerTest {
 
   @Test
   public void testDeserializeFlowFuture() {
-    DefaultSerializer<FlowFuture<String>> serializer = new DefaultSerializer<>();
+    DefaultSerializer<CompletableFuture<String>> serializer = new DefaultSerializer<>();
     ByteBuffer buffer = ByteBuffer.allocate(10);
     RpcSerializationException exception = assertThrows(RpcSerializationException.class,
-        () -> serializer.deserialize(buffer, (Class<FlowFuture<String>>) (Class<?>) FlowFuture.class));
+        () -> serializer.deserialize(buffer, (Class<CompletableFuture<String>>) (Class<?>) FlowFuture.class));
     assertTrue(exception.getMessage().contains("Cannot be directly serialized/deserialized"));
   }
 
@@ -274,10 +272,10 @@ public class DefaultSerializerTest {
     ByteBuffer buffer = ByteBuffer.allocate(10);
 
     // Custom FlowFuture subclass
-    DefaultSerializer<CustomFlowFuture<String>> futureSerializer = new DefaultSerializer<>();
+    DefaultSerializer<CustomCompletableFuture<String>> futureSerializer = new DefaultSerializer<>();
     RpcSerializationException futureEx = assertThrows(RpcSerializationException.class,
         () -> futureSerializer.deserialize(buffer,
-            (Class<CustomFlowFuture<String>>) (Class<?>) CustomFlowFuture.class));
+            (Class<CustomCompletableFuture<String>>) (Class<?>) CustomFlowFuture.class));
     assertTrue(futureEx.getMessage().contains("Cannot be directly serialized/deserialized"));
 
     // Custom FlowPromise subclass
@@ -461,7 +459,7 @@ public class DefaultSerializerTest {
   }
 
   // Custom flow type subclasses for testing
-  private static class CustomFlowFuture<T> extends FlowFuture<T> {
+  private static class CustomCompletableFuture<T> extends CompletableFuture<T> {
   }
 
   private static class CustomPromiseStream<T> extends PromiseStream<T> {

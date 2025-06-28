@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TestScheduler;
@@ -81,7 +81,7 @@ public abstract class AbstractFlowTest {
    * @param futures The futures to wait for completion. If no futures are provided, the method
    *            will still pump the scheduler to process any pending tasks.
    */
-  protected void pumpUntilDone(FlowFuture<?>... futures) {
+  protected void pumpUntilDone(CompletableFuture<?>... futures) {
     debug(LOGGER, "pumpUntilDone() called with futures: " + futures.length);
     int maxIterations = 1000; // Safety limit to avoid infinite loops
     int iterations = 0;
@@ -102,7 +102,7 @@ public abstract class AbstractFlowTest {
     }
 
     // Final check to report any incomplete futures
-    for (FlowFuture<?> future : futures) {
+    for (CompletableFuture<?> future : futures) {
       if (!future.isDone()) {
         String warning = "WARNING: Future " + future +
                          " is still not done after " + iterations + " iterations!";
@@ -123,7 +123,7 @@ public abstract class AbstractFlowTest {
    * @param futures The futures to wait for completion. If no futures are provided, the method
    *            will still pump the scheduler to process any pending tasks.
    */
-  protected void pumpAndAdvanceTimeUntilDone(FlowFuture<?>... futures) {
+  protected void pumpAndAdvanceTimeUntilDone(CompletableFuture<?>... futures) {
     debug(LOGGER, "pumpAndAdvanceTimeUntilDone() called with futures: " + futures.length);
     int maxIterations = 1000; // Safety limit to avoid infinite loops
     int iterations = 0;
@@ -163,7 +163,7 @@ public abstract class AbstractFlowTest {
     }
 
     // Final check to report any incomplete futures
-    for (FlowFuture<?> future : futures) {
+    for (CompletableFuture<?> future : futures) {
       if (!future.isDone()) {
         String warning = "WARNING: Future " + future +
                          " is still not done after " + iterations + " iterations!";
@@ -179,8 +179,8 @@ public abstract class AbstractFlowTest {
    * @param futures The futures to check
    * @return true if all futures are done, false otherwise
    */
-  private boolean checkAllFuturesDone(FlowFuture<?>[] futures) {
-    for (FlowFuture<?> future : futures) {
+  private boolean checkAllFuturesDone(CompletableFuture<?>[] futures) {
+    for (CompletableFuture<?> future : futures) {
       if (!future.isDone()) {
         return false;
       }

@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,11 +51,11 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Send some data
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = connection2.send(data);
+    CompletableFuture<Void> sendFuture = connection2.send(data);
     pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Receive the data
-    FlowFuture<ByteBuffer> receiveFuture = stream.nextAsync();
+    CompletableFuture<ByteBuffer> receiveFuture = stream.nextAsync();
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertFalse(receiveFuture.isCompletedExceptionally());
@@ -67,7 +66,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone();
     
     // Try to get next item from stream - should fail
-    FlowFuture<ByteBuffer> failFuture = stream.nextAsync();
+    CompletableFuture<ByteBuffer> failFuture = stream.nextAsync();
     pumpAndAdvanceTimeUntilDone(failFuture);
     
     assertTrue(failFuture.isCompletedExceptionally());
@@ -87,7 +86,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Try to send - should fail
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = connection1.send(data);
+    CompletableFuture<Void> sendFuture = connection1.send(data);
     pumpAndAdvanceTimeUntilDone(sendFuture);
     
     assertTrue(sendFuture.isCompletedExceptionally());
@@ -106,7 +105,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone();
     
     // Try to receive - should fail
-    FlowFuture<ByteBuffer> receiveFuture = connection1.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection1.receive(1024);
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertTrue(receiveFuture.isCompletedExceptionally());
@@ -143,7 +142,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     double startTime = currentTimeSeconds();
     
     // Send small data
-    FlowFuture<Void> smallSendFuture = delayConn1.send(smallData);
+    CompletableFuture<Void> smallSendFuture = delayConn1.send(smallData);
     pumpAndAdvanceTimeUntilDone(smallSendFuture);
     
     // Check elapsed time
@@ -157,7 +156,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     startTime = currentTimeSeconds();
     
     // Send large data
-    FlowFuture<Void> largeSendFuture = delayConn1.send(largeData);
+    CompletableFuture<Void> largeSendFuture = delayConn1.send(largeData);
     pumpAndAdvanceTimeUntilDone(largeSendFuture);
     
     // Check elapsed time
@@ -191,7 +190,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Send data - should cause disconnect
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = disconnectConn1.send(data);
+    CompletableFuture<Void> sendFuture = disconnectConn1.send(data);
     pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Should fail with IOException
@@ -207,7 +206,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     assertFalse(disconnectConn1.isOpen());
     
     // Trying to receive should also fail
-    FlowFuture<ByteBuffer> receiveFuture = disconnectConn2.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = disconnectConn2.receive(1024);
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertTrue(receiveFuture.isCompletedExceptionally());
@@ -221,7 +220,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
   @Test
   void testCloseFutureLifecycle() throws Exception {
     // Get close future
-    FlowFuture<Void> closeFuture = connection1.closeFuture();
+    CompletableFuture<Void> closeFuture = connection1.closeFuture();
     
     // Should not be done yet
     assertFalse(closeFuture.isDone());
@@ -250,7 +249,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     
     // Try to send data - should not fail, data is just lost
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = noPeerConn.send(data);
+    CompletableFuture<Void> sendFuture = noPeerConn.send(data);
     pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Should succeed (data is just lost)

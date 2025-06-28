@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 
@@ -82,7 +81,7 @@ public class RealFlowTransport implements FlowTransport {
   private final Map<LocalEndpoint, AsynchronousServerSocketChannel> serverChannels = new ConcurrentHashMap<>();
   private final Map<LocalEndpoint, PromiseStream<FlowConnection>> connectionStreams = new ConcurrentHashMap<>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private final FlowPromise<Void> closePromise;
+  private final CompletableFuture<Void> closePromise;
 
   /**
    * Creates a new RealFlowTransport with a default channel group.
@@ -101,18 +100,16 @@ public class RealFlowTransport implements FlowTransport {
    */
   public RealFlowTransport(AsynchronousChannelGroup channelGroup) {
     this.channelGroup = channelGroup;
-    FlowFuture<Void> closeFuture = new FlowFuture<>();
-    this.closePromise = closeFuture.getPromise();
+    this.closePromise = new CompletableFuture<>();
   }
 
   @Override
-  public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+  public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Transport is closed"));
+      return CompletableFuture.failedFuture(new IOException("Transport is closed"));
     }
 
-    FlowFuture<FlowConnection> result = new FlowFuture<>();
-    FlowPromise<FlowConnection> promise = result.getPromise();
+    CompletableFuture<FlowConnection> result = new CompletableFuture<>();
 
     try {
       // Create an async socket channel
@@ -132,7 +129,7 @@ public class RealFlowTransport implements FlowTransport {
             FlowConnection connection = new RealFlowConnection(channel, localEndpoint, endpoint);
 
             // Complete the promise
-            promise.complete(connection);
+            result.complete(connection);
           } catch (IOException e) {
             failed(e, attachment);
           }
@@ -141,11 +138,11 @@ public class RealFlowTransport implements FlowTransport {
         @Override
         public void failed(Throwable exc, Void attachment) {
           closeQuietly(channel);
-          promise.completeExceptionally(exc);
+          result.completeExceptionally(exc);
         }
       });
     } catch (IOException e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
@@ -230,7 +227,7 @@ public class RealFlowTransport implements FlowTransport {
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       try {
         // Close all server channels
@@ -255,7 +252,7 @@ public class RealFlowTransport implements FlowTransport {
       }
     }
 
-    return closePromise.getFuture();
+    return closePromise;
   }
 
   /**

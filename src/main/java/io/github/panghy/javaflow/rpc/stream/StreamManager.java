@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.rpc.stream;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
@@ -55,7 +55,7 @@ public class StreamManager {
      * @param payload     The message payload
      * @return A future that completes when the message is sent
      */
-    FlowFuture<Void> sendMessage(EndpointId destination, RpcMessageHeader.MessageType type,
+    CompletableFuture<Void> sendMessage(EndpointId destination, RpcMessageHeader.MessageType type,
                                 UUID streamId, Object payload);
   }
   

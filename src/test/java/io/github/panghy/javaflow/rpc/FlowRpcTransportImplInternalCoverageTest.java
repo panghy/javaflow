@@ -1,9 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -62,7 +60,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     void voidMethod();
 
-    FlowFuture<String> futureMethod();
+    CompletableFuture<String> futureMethod();
 
     FlowPromise<String> promiseMethod();
 
@@ -113,15 +111,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> futureMethod() {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> futureMethod() {
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Future result");
       return future;
     }
 
     @Override
     public FlowPromise<String> promiseMethod() {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Promise result");
       return future.getPromise();
     }
@@ -211,7 +209,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NumericService client = transport.getRpcStub(serviceId, NumericService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test return value conversions
       assertEquals(42, client.getByte());
       assertEquals(1234, client.getShort());
@@ -272,7 +270,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     WideNumericService client = transport.getRpcStub(serviceId, WideNumericService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test byte overflow
       try {
         client.processByte(256L); // Too large for byte
@@ -379,7 +377,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NarrowNumericService client = transport.getRpcStub(serviceId, NarrowNumericService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // These should work because byte/short fit in int
       assertEquals(42, client.getByte());
       assertEquals(1234, client.getShort());
@@ -398,7 +396,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -441,7 +439,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -478,7 +476,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -517,7 +515,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -567,7 +565,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NoArgsService client = transport.getRpcStub(serviceId, NoArgsService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       String result = client.noArgs();
       assertEquals("no args result", result);
       return null;
@@ -584,7 +582,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     UnserializablePromiseService impl = () -> {
-      FlowFuture<Object> future = new FlowFuture<>();
+      CompletableFuture<Object> future = new CompletableFuture<>();
       // Complete with non-serializable object
       startActor(() -> {
         await(Flow.delay(0.1));
@@ -612,7 +610,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     UnserializablePromiseService client = transport.getRpcStub(serviceId,
         UnserializablePromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       FlowPromise<Object> promise = client.getUnserializablePromise();
       try {
         await(promise.getFuture());
@@ -658,7 +656,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     UnserializableStreamService client = transport.getRpcStub(serviceId,
         UnserializableStreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<Object> stream = client.getUnserializableStream();
       AtomicBoolean errorReceived = new AtomicBoolean(false);
       stream.getFutureStream().forEach(value -> {
@@ -691,7 +689,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -734,7 +732,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -771,7 +769,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     NullPromiseService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.complete(null);
       return future.getPromise();
     };
@@ -786,7 +784,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NullPromiseService client = transport.getRpcStub(serviceId, NullPromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       FlowPromise<String> promise = client.getNullPromise();
       String result = await(promise.getFuture());
       assertEquals(null, result);
@@ -817,7 +815,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     MultiNumericService client = transport.getRpcStub(serviceId, MultiNumericService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       String result = client.processMultiple(
           (byte) 1, (short) 2, 3, 4L, 5.0f, 6.0);
       assertEquals("b=1,s=2,i=3,l=4,f=5.00,d=6.00", result);
@@ -858,7 +856,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     ExceptionService client = transport.getRpcStub(serviceId, ExceptionService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test checked exception
       try {
         client.throwException();
@@ -885,20 +883,20 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testFutureAlreadyCompleted() {
     // Test returning already completed futures
     interface CompletedFutureService {
-      FlowFuture<String> getCompletedFuture();
+      CompletableFuture<String> getCompletedFuture();
 
-      FlowFuture<String> getExceptionalFuture();
+      CompletableFuture<String> getExceptionalFuture();
     }
 
     CompletedFutureService impl = new CompletedFutureService() {
       @Override
-      public FlowFuture<String> getCompletedFuture() {
+      public CompletableFuture<String> getCompletedFuture() {
         return FlowFuture.completed("Already done");
       }
 
       @Override
-      public FlowFuture<String> getExceptionalFuture() {
-        FlowFuture<String> future = new FlowFuture<>();
+      public CompletableFuture<String> getExceptionalFuture() {
+        CompletableFuture<String> future = new CompletableFuture<>();
         future.getPromise().completeExceptionally(new RuntimeException("Already failed"));
         return future;
       }
@@ -914,15 +912,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     CompletedFutureService client = transport.getRpcStub(serviceId, CompletedFutureService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test already completed future
-      FlowFuture<String> completedFuture = client.getCompletedFuture();
+      CompletableFuture<String> completedFuture = client.getCompletedFuture();
       String result = await(completedFuture);
       assertEquals("Already done", result);
 
       // Test already failed future
       try {
-        FlowFuture<String> failedFuture = client.getExceptionalFuture();
+        CompletableFuture<String> failedFuture = client.getExceptionalFuture();
         await(failedFuture);
         fail("Should have thrown exception");
       } catch (RuntimeException e) {
@@ -982,7 +980,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NarrowingClient client = transport.getRpcStub(serviceId, NarrowingClient.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // These should work with numeric conversion
       assertEquals(42, client.getInt());
       assertEquals(3.14f, client.getFloat(), 0.001);
@@ -1021,7 +1019,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     ErrorStreamService client = transport.getRpcStub(serviceId, ErrorStreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getErrorStream();
       List<String> values = new ArrayList<>();
       AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -1056,7 +1054,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Connect and immediately close to test reader error handling
       var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -1116,7 +1114,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     StreamErrorService client = transport.getRpcStub(serviceId, StreamErrorService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getStream();
 
       try {
@@ -1137,7 +1135,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     // Test handling response with payload that can't be deserialized
     LocalEndpoint customEndpoint = LocalEndpoint.localhost(8889);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Start a custom server that sends invalid response
       var serverStream = networkTransport.listen(customEndpoint);
 
@@ -1196,7 +1194,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Connect then close
       var connection = await(networkTransport.connect(serverEndpoint));
       await(connection.close());
@@ -1245,7 +1243,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FloatClient client = transport.getRpcStub(serviceId, FloatClient.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       String result = client.processDouble(3.14f);
       assertTrue(result.startsWith("Double: 3.14"));
       return null;
@@ -1278,7 +1276,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     IntClient client = transport.getRpcStub(serviceId, IntClient.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       String result = client.processDouble(42);
       assertEquals("Double: 42.0", result);
       return null;
@@ -1306,7 +1304,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     LongDoubleService client = transport.getRpcStub(serviceId, LongDoubleService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       String result = client.processDouble(123456789L);
       assertEquals("Double: 1.23456789E8", result);
       return null;
@@ -1325,7 +1323,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
 
     CancellableService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       promiseRef.set(future.getPromise());
       // Never complete it
       return future.getPromise();
@@ -1341,7 +1339,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     CancellableService client = transport.getRpcStub(serviceId, CancellableService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       FlowPromise<String> promise = client.getCancellablePromise();
 
       // Wait a bit then close transport to trigger cancellation
@@ -1373,7 +1371,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
 
     ErrorService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       promiseRef.set(future.getPromise());
       return future.getPromise();
     };
@@ -1388,7 +1386,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     ErrorService client = transport.getRpcStub(serviceId, ErrorService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       FlowPromise<String> promise = client.getPromise();
 
       // Complete with an error that can't be serialized
@@ -1428,7 +1426,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     RemotePromiseService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       // Complete after delay
       startActor(() -> {
         await(Flow.delay(0.1));
@@ -1444,7 +1442,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     RemotePromiseService client = transport.getRpcStub(serviceId, RemotePromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // This should fail to connect
       try {
         client.getRemotePromise();
@@ -1469,7 +1467,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Connect and start a request
       var connection = await(networkTransport.connect(serverEndpoint));
 
@@ -1516,7 +1514,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     PromiseReturningService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       // Complete promise after connection is closed
       startActor(() -> {
         await(Flow.delay(0.3));
@@ -1531,7 +1529,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, PromiseReturningService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       EndpointId serviceId = new EndpointId("promise-service");
       transport.getEndpointResolver().registerRemoteEndpoint(serviceId, serverEndpoint);
       PromiseReturningService client = transport.getRpcStub(serviceId, PromiseReturningService.class);
@@ -1583,7 +1581,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     StreamErrorService client = transport.getRpcStub(serviceId, StreamErrorService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getStream();
 
       // Close stream with unserializable error
@@ -1633,7 +1631,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     FailingConnectionService client = transport.getRpcStub(serviceId, FailingConnectionService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // This should fail to connect
       try {
         client.getValue();
@@ -1659,7 +1657,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
 
       // Send a message with invalid type in header but valid structure
@@ -1694,16 +1692,16 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testMultiplePendingCallsWithConnectionError() {
     // Test that all pending calls are completed with error when connection fails
     interface SlowService {
-      FlowFuture<String> slowMethod1();
+      CompletableFuture<String> slowMethod1();
 
-      FlowFuture<String> slowMethod2();
+      CompletableFuture<String> slowMethod2();
 
-      FlowFuture<String> slowMethod3();
+      CompletableFuture<String> slowMethod3();
     }
 
     SlowService impl = new SlowService() {
       @Override
-      public FlowFuture<String> slowMethod1() {
+      public CompletableFuture<String> slowMethod1() {
         return startActor(() -> {
           await(Flow.delay(1.0));
           return "result1";
@@ -1711,7 +1709,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<String> slowMethod2() {
+      public CompletableFuture<String> slowMethod2() {
         return startActor(() -> {
           await(Flow.delay(1.0));
           return "result2";
@@ -1719,7 +1717,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<String> slowMethod3() {
+      public CompletableFuture<String> slowMethod3() {
         return startActor(() -> {
           await(Flow.delay(1.0));
           return "result3";
@@ -1737,11 +1735,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     SlowService client = transport.getRpcStub(serviceId, SlowService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Start multiple concurrent calls
-      FlowFuture<String> future1 = client.slowMethod1();
-      FlowFuture<String> future2 = client.slowMethod2();
-      FlowFuture<String> future3 = client.slowMethod3();
+      CompletableFuture<String> future1 = client.slowMethod1();
+      CompletableFuture<String> future2 = client.slowMethod2();
+      CompletableFuture<String> future3 = client.slowMethod3();
 
       // Close the network transport to trigger connection errors
       await(Flow.delay(0.1));
@@ -1804,7 +1802,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     ErrorStreamService client = transport.getRpcStub(serviceId, ErrorStreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> stream = client.getStream();
       List<String> values = new ArrayList<>();
       AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -1844,7 +1842,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     AtomicReference<FlowPromise<String>> callbackPromiseRef = new AtomicReference<>();
 
     CallbackService callbackImpl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       callbackPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
@@ -1878,7 +1876,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     BidirectionalService client = transport.getRpcStub(bidirectionalId, BidirectionalService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Start bidirectional communication
       client.startBidirectionalCommunication(callbackEndpointId);
 
@@ -1937,7 +1935,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     ExceptionThrowingService client = transport.getRpcStub(serviceId, ExceptionThrowingService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test checked exception
       try {
         client.throwChecked();
@@ -2006,7 +2004,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     NullReturningService client = transport.getRpcStub(serviceId, NullReturningService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test null string
       assertNull(client.getNullString());
 
@@ -2067,7 +2065,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     EdgeCaseService client = transport.getRpcStub(serviceId, EdgeCaseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test null argument
       assertEquals("Got: null", client.processNull(null));
 
@@ -2103,7 +2101,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     LocalEndpoint unreachableEndpoint = LocalEndpoint.localhost(19876);
 
     // Try to connect to an endpoint that's not listening
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         // This should trigger connection failure
         var connection = await(networkTransport.connect(unreachableEndpoint));
@@ -2130,7 +2128,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     AtomicReference<FlowPromise<String>> serverPromiseRef = new AtomicReference<>();
 
     DelayedPromiseService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       serverPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
@@ -2145,7 +2143,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     DelayedPromiseService client = transport.getRpcStub(serviceId, DelayedPromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Get the promise - this establishes a connection
       FlowPromise<String> clientPromise = client.getDelayedPromise();
 
@@ -2190,7 +2188,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
 
       // Send STREAM_DATA for a completely unknown stream ID
@@ -2226,7 +2224,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
 
       // Send PROMISE_COMPLETE for unknown promise
@@ -2298,7 +2296,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     logger.setLevel(java.util.logging.Level.INFO);
 
     try {
-      FlowFuture<Void> testFuture = startActor(() -> {
+      CompletableFuture<Void> testFuture = startActor(() -> {
         // Create a connection to the server
         var conn = await(networkTransport.connect(serverEndpoint));
 
@@ -2350,7 +2348,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     AtomicReference<EndpointId> clientEndpointRef = new AtomicReference<>();
 
     AsyncPromiseService impl = () -> {
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       serverPromiseRef.set(future.getPromise());
       return future.getPromise();
     };
@@ -2370,7 +2368,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     AsyncPromiseService client = clientTransport.getRpcStub(serviceId, AsyncPromiseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Get promise from server
       FlowPromise<String> clientPromise = client.getAsyncPromise();
 
@@ -2408,7 +2406,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
 
     // Clean up
-    FlowFuture<Void> cleanupFuture = transport.close();
+    CompletableFuture<Void> cleanupFuture = transport.close();
     pumpAndAdvanceTimeUntilDone(cleanupFuture);
   }
 
@@ -2420,7 +2418,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, TestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
 
       // First send a valid request to register pending call
@@ -2499,7 +2497,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     WideNumericService client = transport.getRpcStub(serviceId, WideNumericService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // These should work with numeric conversion
       assertEquals(42L, client.getByteValue());
       assertEquals(1234L, client.getShortValue());
@@ -2575,7 +2573,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     transport.registerServiceAndListen(endpointId, impl, NumericTestService.class, serverEndpoint);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       var connection = await(networkTransport.connect(serverEndpoint));
 
       // Test Long -> Byte conversions (lines 813-837)

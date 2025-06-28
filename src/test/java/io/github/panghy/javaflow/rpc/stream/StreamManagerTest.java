@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
 import org.junit.jupiter.api.BeforeEach;
@@ -134,7 +133,7 @@ public class StreamManagerTest {
     
     // Now let's manually check the stream to see if it received the value
     // We can use CompletableFuture to do this from outside Flow's actor model
-    FlowFuture<String> nextValueFuture = localStream.getFutureStream().nextAsync();
+    CompletableFuture<String> nextValueFuture = localStream.getFutureStream().nextAsync();
     String receivedValue = nextValueFuture.toCompletableFuture().getNow("no value received");
     
     // Verify the value was actually received

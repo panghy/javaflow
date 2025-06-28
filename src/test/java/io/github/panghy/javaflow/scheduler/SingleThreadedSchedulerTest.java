@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
-import jdk.internal.vm.Continuation;
+import java.util.concurrent.CompletableFuture;import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +56,7 @@ class SingleThreadedSchedulerTest {
 
     // Verify the scheduler is still working by scheduling a task
     try {
-      FlowFuture<String> future = scheduler.schedule(() -> "test");
+      CompletableFuture<String> future = scheduler.schedule(() -> "test");
       assertEquals("test", future.toCompletableFuture().get());
     } catch (Exception e) {
       throw new AssertionError("Scheduler should still work after multiple start calls", e);
@@ -148,7 +146,7 @@ class SingleThreadedSchedulerTest {
     Long taskId = 123L;
 
     // Create a future and get its promise
-    FlowFuture<Void> future = new FlowFuture<>();
+    CompletableFuture<Void> future = new CompletableFuture<>();
     FlowPromise<Void> promise = future.getPromise();
 
     // Add callbacks using whenComplete
@@ -270,7 +268,7 @@ class SingleThreadedSchedulerTest {
     AtomicBoolean taskRan = new AtomicBoolean(false);
 
     // Schedule a task that will throw an exception
-    FlowFuture<String> future = scheduler.schedule(() -> {
+    CompletableFuture<String> future = scheduler.schedule(() -> {
       taskRan.set(true);
       throw testException;
     });
@@ -295,7 +293,7 @@ class SingleThreadedSchedulerTest {
     AtomicReference<Thread> taskThread = new AtomicReference<>();
 
     // Schedule a task that will be interrupted
-    FlowFuture<String> future = scheduler.schedule(() -> {
+    CompletableFuture<String> future = scheduler.schedule(() -> {
       taskThread.set(Thread.currentThread());
       taskStarted.countDown();
       try {
@@ -363,7 +361,7 @@ class SingleThreadedSchedulerTest {
     taskRef.set(task);
 
     // Create a future and get its promise
-    FlowFuture<Void> future = new FlowFuture<>();
+    CompletableFuture<Void> future = new CompletableFuture<>();
     FlowPromise<Void> promise = future.getPromise();
 
     // Add a callback using whenComplete
@@ -518,7 +516,7 @@ class SingleThreadedSchedulerTest {
     try (SingleThreadedScheduler defaultScheduler = new SingleThreadedScheduler()) {
       defaultScheduler.start();
       assertNotNull(defaultScheduler);
-      FlowFuture<String> future = defaultScheduler.schedule(() -> "test-default");
+      CompletableFuture<String> future = defaultScheduler.schedule(() -> "test-default");
       assertEquals("test-default", future.toCompletableFuture().get());
     } catch (Exception e) {
       throw new AssertionError("Default constructor scheduler failed to run task", e);
@@ -547,7 +545,7 @@ class SingleThreadedSchedulerTest {
     try (SingleThreadedScheduler newScheduler = new SingleThreadedScheduler()) {
       newScheduler.start();
       // Verify new scheduler is operational
-      FlowFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
+      CompletableFuture<String> future = newScheduler.schedule(() -> "post-interrupt");
       assertEquals("post-interrupt", future.toCompletableFuture().get());
     }
   }
@@ -661,7 +659,7 @@ class SingleThreadedSchedulerTest {
           "Should have caught InterruptedException");
 
       // Verify the scheduler still works
-      FlowFuture<String> future = testScheduler.schedule(() -> "test works");
+      CompletableFuture<String> future = testScheduler.schedule(() -> "test works");
       assertEquals("test works", future.toCompletableFuture().get());
     }
   }
@@ -690,7 +688,7 @@ class SingleThreadedSchedulerTest {
     Thread.sleep(100);
 
     // Schedule a task to verify the scheduler is working
-    FlowFuture<String> future = testScheduler.schedule(() -> "initial task");
+    CompletableFuture<String> future = testScheduler.schedule(() -> "initial task");
     assertEquals("initial task", future.toCompletableFuture().get());
 
     // Set running to false, which should cause the scheduler loop to exit
@@ -703,7 +701,7 @@ class SingleThreadedSchedulerTest {
 
     // Simply verify that after closing, we can still schedule a task 
     // (which will restart the scheduler)
-    FlowFuture<String> newFuture = testScheduler.schedule(() -> "after close");
+    CompletableFuture<String> newFuture = testScheduler.schedule(() -> "after close");
     assertEquals("after close", newFuture.toCompletableFuture().get());
 
     // Final cleanup
@@ -772,7 +770,7 @@ class SingleThreadedSchedulerTest {
           "Queue should have been emptied");
 
       // Schedule another task to verify the scheduler still works
-      FlowFuture<String> future = testScheduler.schedule(() -> "after empty queue");
+      CompletableFuture<String> future = testScheduler.schedule(() -> "after empty queue");
       assertEquals("after empty queue", future.toCompletableFuture().get());
     } finally {
       testScheduler.close();
@@ -796,7 +794,7 @@ class SingleThreadedSchedulerTest {
     // Try to force the scheduler to process an empty queue
     // We'll do this by scheduling a task that completes very quickly
     CountDownLatch taskDone = new CountDownLatch(1);
-    FlowFuture<String> future = scheduler.schedule(() -> {
+    CompletableFuture<String> future = scheduler.schedule(() -> {
       taskDone.countDown();
       return "empty queue test";
     });
@@ -807,7 +805,7 @@ class SingleThreadedSchedulerTest {
 
     // Now the queue should be empty again, and we'll schedule one more task
     // to ensure the scheduler can still process tasks
-    FlowFuture<String> future2 = scheduler.schedule(() -> "after empty queue");
+    CompletableFuture<String> future2 = scheduler.schedule(() -> "after empty queue");
     assertEquals("after empty queue", future2.toCompletableFuture().get());
   }
 
@@ -830,7 +828,7 @@ class SingleThreadedSchedulerTest {
     readyTasks.add(exceptionTask);
 
     // Schedule another task to verify the scheduler recovered from the exception
-    FlowFuture<String> future = scheduler.schedule(() -> "after exception");
+    CompletableFuture<String> future = scheduler.schedule(() -> "after exception");
     assertEquals("after exception", future.toCompletableFuture().get());
 
     // Test the exception handling in the startTask method's run() block
@@ -841,7 +839,7 @@ class SingleThreadedSchedulerTest {
     readyTasks.add(exceptionTask2);
 
     // Verify the scheduler still works after an exception in task execution
-    FlowFuture<String> future2 = scheduler.schedule(() -> "after exception 2");
+    CompletableFuture<String> future2 = scheduler.schedule(() -> "after exception 2");
     assertEquals("after exception 2", future2.toCompletableFuture().get());
   }
 
@@ -892,7 +890,7 @@ class SingleThreadedSchedulerTest {
       assertTrue(taskCompleted.await(100, TimeUnit.MILLISECONDS), "Task should have completed");
 
       // Verify the scheduler is still functioning
-      FlowFuture<String> testFuture = testScheduler.schedule(() -> "final check");
+      CompletableFuture<String> testFuture = testScheduler.schedule(() -> "final check");
       assertEquals("final check", testFuture.toCompletableFuture().get());
     }
   }
@@ -1043,7 +1041,7 @@ class SingleThreadedSchedulerTest {
     AtomicBoolean gotCancellationException = new AtomicBoolean(false);
 
     // Schedule a task that will yield and can be cancelled
-    FlowFuture<String> future = scheduler.schedule(() -> {
+    CompletableFuture<String> future = scheduler.schedule(() -> {
       // Signal that the task has started
       taskStarted.countDown();
 

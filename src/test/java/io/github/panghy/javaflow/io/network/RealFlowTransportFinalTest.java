@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.AfterEach;
@@ -83,7 +81,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     });
 
     // Attempt to connect
-    FlowFuture<FlowConnection> connectFuture = transport.connect(
+    CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", testPort));
 
     // Wait for the server to accept and close
@@ -143,7 +141,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       LocalEndpoint endpoint = listener.getBoundEndpoint();
 
       // Get next connection (won't complete yet)
-      FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
+      CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
 
       // Trigger an error by closing the server channel
       testTransport.triggerAcceptError(endpoint);
@@ -183,7 +181,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
 
     if (stream != null) {
       // If we got a stream (should only happen if testPort wasn't actually bound)
-      FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
+      CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
 
       // Close the transport, which should close the stream
       transport.close();
@@ -210,7 +208,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         // Use reflection to break the channelGroup
         try {
           Field field = RealFlowTransport.class.getDeclaredField("channelGroup");
@@ -228,7 +226,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     ErrorOnShutdownTransport testTransport = new ErrorOnShutdownTransport();
 
     // Close the transport (should handle the error)
-    FlowFuture<Void> closeFuture = testTransport.close();
+    CompletableFuture<Void> closeFuture = testTransport.close();
 
     // Wait for the close future to complete
     try {
@@ -287,9 +285,9 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
         super();
       }
 
-      FlowFuture<FlowConnection> connectWithException() throws Exception {
+      CompletableFuture<FlowConnection> connectWithException() throws Exception {
         // Create a connect future with a handler that will fail in a specific way
-        FlowFuture<FlowConnection> result = new FlowFuture<>();
+        CompletableFuture<FlowConnection> result = new CompletableFuture<>();
         FlowPromise<FlowConnection> promise = result.getPromise();
 
         // Create a socket that will be closed during the connection process
@@ -353,7 +351,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     TestableConnectTransport testTransport = new TestableConnectTransport();
 
     try {
-      FlowFuture<FlowConnection> connectFuture = testTransport.connectWithException();
+      CompletableFuture<FlowConnection> connectFuture = testTransport.connectWithException();
 
       try {
         connectFuture.getNow();

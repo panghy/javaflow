@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.examples;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 import org.junit.jupiter.api.Test;
 
@@ -52,7 +51,7 @@ public class SingleThreadedActorExample {
     AtomicInteger processedCount = new AtomicInteger(0);
 
     // Generator actor - creates work and adds it to the queue
-    FlowFuture<Void> generator = Flow.startActor(() -> {
+    CompletableFuture<Void> generator = Flow.startActor(() -> {
       try {
         System.out.println("Generator starting");
 
@@ -74,10 +73,10 @@ public class SingleThreadedActorExample {
     });
 
     // Worker actors - process items from the queue
-    List<FlowFuture<Void>> workers = new ArrayList<>();
+    List<CompletableFuture<Void>> workers = new ArrayList<>();
     for (int w = 0; w < workerCount; w++) {
       final int workerId = w;
-      FlowFuture<Void> worker = Flow.startActor(() -> {
+      CompletableFuture<Void> worker = Flow.startActor(() -> {
         try {
           System.out.println("Worker " + workerId + " starting");
 
@@ -122,7 +121,7 @@ public class SingleThreadedActorExample {
     }
 
     // Logger actor - periodically logs progress
-    FlowFuture<Void> logger = Flow.startActor(() -> {
+    CompletableFuture<Void> logger = Flow.startActor(() -> {
       try {
         System.out.println("Logger starting");
 

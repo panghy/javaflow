@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -118,7 +117,7 @@ class TestSchedulerTest {
     // Schedule a task with 500ms delay
     Flow.scheduler().schedule(() -> {
       try {
-        FlowFuture<Void> delay = Flow.scheduler().scheduleDelay(0.5); // 500ms
+        CompletableFuture<Void> delay = Flow.scheduler().scheduleDelay(0.5); // 500ms
         Flow.scheduler().await(delay);
 
         counter.incrementAndGet();
@@ -213,7 +212,7 @@ class TestSchedulerTest {
     CountDownLatch latch = new CountDownLatch(3);
 
     // Schedule a flow that performs multiple delays
-    FlowFuture<Integer> flowFuture = Flow.scheduler().schedule(() -> {
+    CompletableFuture<Integer> flowFuture = Flow.scheduler().schedule(() -> {
       try {
         // First delay
         Flow.scheduler().await(Flow.scheduler().scheduleDelay(0.1));

@@ -1,9 +1,8 @@
 package io.github.panghy.javaflow.test;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateLongRunningOperation() throws ExecutionException {
     // Test normal completion
-    FlowFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(0.1, 0.02);
+    CompletableFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(0.1, 0.02);
     
     pumpAndAdvanceTimeUntilDone(operation);
     
@@ -45,7 +44,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateLongRunningOperationCancellation() {
     // Test cancellation
-    FlowFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(1.0, 0.1);
+    CompletableFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(1.0, 0.1);
     
     // Let it run for a bit
     pump();
@@ -66,7 +65,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateCpuIntensiveOperation() throws ExecutionException {
     // Test normal completion
-    FlowFuture<Integer> operation = CancellationTestUtils.createCpuIntensiveOperation(100, 10);
+    CompletableFuture<Integer> operation = CancellationTestUtils.createCpuIntensiveOperation(100, 10);
     
     pumpAndAdvanceTimeUntilDone(operation);
     
@@ -76,7 +75,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateCpuIntensiveOperationCancellation() {
     // Test cancellation
-    FlowFuture<Integer> operation = CancellationTestUtils.createCpuIntensiveOperation(1000, 50);
+    CompletableFuture<Integer> operation = CancellationTestUtils.createCpuIntensiveOperation(1000, 50);
     
     // Let it run for a bit
     pump();
@@ -98,7 +97,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
     PromiseStream<Integer> stream = CancellationTestUtils.createStreamingOperation(0.1);
     List<Integer> received = new ArrayList<>();
     
-    FlowFuture<Void> consumer = startActor(() -> {
+    CompletableFuture<Void> consumer = startActor(() -> {
       FutureStream<Integer> futureStream = stream.getFutureStream();
       while (!futureStream.isClosed()) {
         try {
@@ -132,7 +131,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateNestedOperation() throws ExecutionException {
     // Test normal completion
-    FlowFuture<String> operation = CancellationTestUtils.createNestedOperation(3, 0.1);
+    CompletableFuture<String> operation = CancellationTestUtils.createNestedOperation(3, 0.1);
     
     pumpAndAdvanceTimeUntilDone(operation);
     
@@ -142,7 +141,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   @Test
   void testCreateNestedOperationCancellation() {
     // Test cancellation propagation
-    FlowFuture<String> operation = CancellationTestUtils.createNestedOperation(5, 0.1);
+    CompletableFuture<String> operation = CancellationTestUtils.createNestedOperation(5, 0.1);
     
     // Let it run for a bit
     pump();
@@ -160,7 +159,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
 
   @Test
   void testMeasureCancellationLatency() throws ExecutionException {
-    FlowFuture<Double> latencyFuture = CancellationTestUtils.measureCancellationLatency(
+    CompletableFuture<Double> latencyFuture = CancellationTestUtils.measureCancellationLatency(
         () -> CancellationTestUtils.createLongRunningOperation(1.0, 0.01),
         0.1
     );
@@ -182,7 +181,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
     assertEquals(0, service.getCancellationCheckCount());
     
     // Start operation
-    FlowFuture<String> operation = service.longRunningOperation(0.5, 0.1);
+    CompletableFuture<String> operation = service.longRunningOperation(0.5, 0.1);
     
     // Let it run a bit
     pump();
@@ -209,7 +208,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   void testVerifyCancellationCleanup() {
     AtomicBoolean resourceCleaned = new AtomicBoolean(false);
     
-    FlowFuture<Void> verifyFuture = CancellationTestUtils.verifyCancellationCleanup(
+    CompletableFuture<Void> verifyFuture = CancellationTestUtils.verifyCancellationCleanup(
         () -> startActor(() -> {
           try {
             await(Flow.delay(1.0));
@@ -234,7 +233,7 @@ class CancellationTestUtilsTest extends AbstractFlowTest {
   void testConcurrentCancellation() throws ExecutionException {
     AtomicInteger createdCount = new AtomicInteger(0);
     
-    FlowFuture<Integer> testFuture = CancellationTestUtils.testConcurrentCancellation(
+    CompletableFuture<Integer> testFuture = CancellationTestUtils.testConcurrentCancellation(
         5,
         () -> {
           createdCount.incrementAndGet();

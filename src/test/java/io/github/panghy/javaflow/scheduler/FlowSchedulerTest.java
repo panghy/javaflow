@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,14 +31,14 @@ class FlowSchedulerTest {
 
   @Test
   void testScheduleTask() throws Exception {
-    FlowFuture<String> future = scheduler.schedule(() -> "hello");
+    CompletableFuture<String> future = scheduler.schedule(() -> "hello");
 
     assertEquals("hello", future.toCompletableFuture().get());
   }
 
   @Test
   void testScheduleTaskWithPriority() throws Exception {
-    FlowFuture<Integer> future = scheduler.schedule(() -> 42, TaskPriority.HIGH);
+    CompletableFuture<Integer> future = scheduler.schedule(() -> 42, TaskPriority.HIGH);
 
     assertEquals(42, future.toCompletableFuture().get());
   }
@@ -49,10 +48,10 @@ class FlowSchedulerTest {
     long start = System.currentTimeMillis();
 
     // First we need to create a flow task to establish a flow context
-    FlowFuture<Void> future = scheduler.schedule(() -> {
+    CompletableFuture<Void> future = scheduler.schedule(() -> {
       // Now we're in a flow context, so scheduleDelay is allowed
       try {
-        FlowFuture<Void> delayFuture = scheduler.scheduleDelay(0.1); // 100ms
+        CompletableFuture<Void> delayFuture = scheduler.scheduleDelay(0.1); // 100ms
         scheduler.await(delayFuture);
       } catch (Exception e) {
         fail("Delay failed: " + e.getMessage());
@@ -153,7 +152,7 @@ class FlowSchedulerTest {
     Object lock = new Object();
 
     // First task increments and yields
-    FlowFuture<Void> firstTask = scheduler.schedule(() -> {
+    CompletableFuture<Void> firstTask = scheduler.schedule(() -> {
       try {
         // First increment from task 1
         int val1 = counter.incrementAndGet();
@@ -188,7 +187,7 @@ class FlowSchedulerTest {
     Thread.sleep(50);
 
     // Second task also increments and yields
-    FlowFuture<Void> secondTask = scheduler.schedule(() -> {
+    CompletableFuture<Void> secondTask = scheduler.schedule(() -> {
       try {
         // First increment from task 2 (should be after task 1's first increment)
         int val1 = counter.incrementAndGet();
@@ -253,7 +252,7 @@ class FlowSchedulerTest {
     CountDownLatch resumeLatch = new CountDownLatch(3); // Signal when all tasks complete
 
     // Create tasks that yield in a specific order and signal via latches
-    FlowFuture<Void> task1 = scheduler.schedule(() -> {
+    CompletableFuture<Void> task1 = scheduler.schedule(() -> {
       executionOrder.add("task1-start");
       startLatch.countDown();
       // Block until all tasks have started
@@ -266,7 +265,7 @@ class FlowSchedulerTest {
       return null;
     });
 
-    FlowFuture<Void> task2 = scheduler.schedule(() -> {
+    CompletableFuture<Void> task2 = scheduler.schedule(() -> {
       executionOrder.add("task2-start");
       startLatch.countDown();
       // Block until all tasks have started
@@ -279,7 +278,7 @@ class FlowSchedulerTest {
       return null;
     });
 
-    FlowFuture<Void> task3 = scheduler.schedule(() -> {
+    CompletableFuture<Void> task3 = scheduler.schedule(() -> {
       executionOrder.add("task3-start");
       startLatch.countDown();
       // Block until all tasks have started
@@ -349,7 +348,7 @@ class FlowSchedulerTest {
     // Schedule three tasks that create delays
     scheduler.schedule(() -> {
       try {
-        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        CompletableFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
         scheduler.await(delay); // Wait for the delay to complete
 
         readyLatch.countDown(); // Signal that timer completed
@@ -364,7 +363,7 @@ class FlowSchedulerTest {
 
     scheduler.schedule(() -> {
       try {
-        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        CompletableFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
         scheduler.await(delay); // Wait for the delay to complete
 
         readyLatch.countDown(); // Signal that timer completed
@@ -379,7 +378,7 @@ class FlowSchedulerTest {
 
     scheduler.schedule(() -> {
       try {
-        FlowFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
+        CompletableFuture<Void> delay = scheduler.scheduleDelay(0.05); // 50ms
         scheduler.await(delay); // Wait for the delay to complete
 
         readyLatch.countDown(); // Signal that timer completed

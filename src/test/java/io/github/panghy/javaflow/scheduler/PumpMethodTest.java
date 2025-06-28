@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -140,7 +139,7 @@ class PumpMethodTest {
       
       try {
         // First yield
-        FlowFuture<Void> yieldFuture = scheduler.yield();
+        CompletableFuture<Void> yieldFuture = scheduler.yield();
         
         // Record that we're yielded and signal to pump again
         executionSteps.add("yielded");
@@ -152,7 +151,7 @@ class PumpMethodTest {
         executionSteps.add("resumed");
         
         // Second yield
-        FlowFuture<Void> secondYieldFuture = scheduler.yield();
+        CompletableFuture<Void> secondYieldFuture = scheduler.yield();
         
         // Record that we're yielded again
         executionSteps.add("yielded-again");
@@ -220,10 +219,10 @@ class PumpMethodTest {
     CountDownLatch cancelLatch = new CountDownLatch(1);
     
     // Schedule a task that yields and then can be cancelled
-    FlowFuture<Void> future = scheduler.schedule(() -> {
+    CompletableFuture<Void> future = scheduler.schedule(() -> {
       try {
         // Yield and mark that we yielded
-        FlowFuture<Void> yieldFuture = scheduler.yield();
+        CompletableFuture<Void> yieldFuture = scheduler.yield();
         yielded.set(true);
         yieldLatch.countDown();
         
@@ -277,7 +276,7 @@ class PumpMethodTest {
     AtomicBoolean exceptionThrown = new AtomicBoolean(false);
     
     // Schedule a task that throws an exception
-    FlowFuture<Void> future = scheduler.schedule(() -> {
+    CompletableFuture<Void> future = scheduler.schedule(() -> {
       exceptionThrown.set(true);
       throw new RuntimeException("Test exception");
     });

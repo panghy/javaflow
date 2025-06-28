@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +56,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     boolean testPassed = false;
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create the file with error parameters but directly assert the failure
-      FlowFuture<ByteBuffer> readFuture = file.read(0, 10);
+      CompletableFuture<ByteBuffer> readFuture = file.read(0, 10);
       pumpAndAdvanceTimeUntilDone(readFuture);
       
       try {
@@ -89,7 +88,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     boolean testPassed = false;
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create write future and wait for it to complete
-      FlowFuture<Void> writeFuture = file.write(0, writeBuffer);
+      CompletableFuture<Void> writeFuture = file.write(0, writeBuffer);
       pumpAndAdvanceTimeUntilDone(writeFuture);
       
       try {
@@ -118,7 +117,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     boolean testPassed = false;
     for (int attempt = 0; attempt < 5; attempt++) {
       // Create truncate future and wait for it to complete
-      FlowFuture<Void> truncateFuture = file.truncate(100);
+      CompletableFuture<Void> truncateFuture = file.truncate(100);
       pumpAndAdvanceTimeUntilDone(truncateFuture);
       
       try {
@@ -147,7 +146,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     params.setReadErrorProbability(0.0);
     
     // Test negative position
-    FlowFuture<ByteBuffer> negativePosReadFuture = file.read(-1, 10);
+    CompletableFuture<ByteBuffer> negativePosReadFuture = file.read(-1, 10);
     pumpAndAdvanceTimeUntilDone(negativePosReadFuture);
     
     ExecutionException exception1 = assertThrows(
@@ -158,7 +157,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     assertEquals("Position must be non-negative", exception1.getCause().getMessage());
     
     // Test zero length
-    FlowFuture<ByteBuffer> zeroLengthReadFuture = file.read(0, 0);
+    CompletableFuture<ByteBuffer> zeroLengthReadFuture = file.read(0, 0);
     pumpAndAdvanceTimeUntilDone(zeroLengthReadFuture);
     
     ExecutionException exception2 = assertThrows(
@@ -169,7 +168,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     assertEquals("Length must be positive", exception2.getCause().getMessage());
     
     // Test negative length
-    FlowFuture<ByteBuffer> negativeLengthReadFuture = file.read(0, -10);
+    CompletableFuture<ByteBuffer> negativeLengthReadFuture = file.read(0, -10);
     pumpAndAdvanceTimeUntilDone(negativeLengthReadFuture);
     
     ExecutionException exception3 = assertThrows(
@@ -189,7 +188,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     ByteBuffer writeBuffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Test negative position
-    FlowFuture<Void> negativePositionWriteFuture = file.write(-1, writeBuffer);
+    CompletableFuture<Void> negativePositionWriteFuture = file.write(-1, writeBuffer);
     pumpAndAdvanceTimeUntilDone(negativePositionWriteFuture);
     
     ExecutionException exception = assertThrows(
@@ -206,7 +205,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     params.setMetadataErrorProbability(0.0);
     
     // Test negative size
-    FlowFuture<Void> negativeSizeTruncateFuture = file.truncate(-1);
+    CompletableFuture<Void> negativeSizeTruncateFuture = file.truncate(-1);
     pumpAndAdvanceTimeUntilDone(negativeSizeTruncateFuture);
     
     ExecutionException exception = assertThrows(
@@ -223,7 +222,7 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     assertFalse(file.isClosed());
     
     // Close the file
-    FlowFuture<Void> closeFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> closeFuture = Flow.startActor(() -> {
       Flow.await(file.close());
       return null;
     });

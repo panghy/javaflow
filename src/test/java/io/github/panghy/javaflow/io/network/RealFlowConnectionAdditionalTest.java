@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -41,7 +40,7 @@ public class RealFlowConnectionAdditionalTest extends AbstractFlowTest {
     transport.listen(serverEndpoint);
     
     // Connect a client
-    FlowFuture<FlowConnection> connectFuture = transport.connect(
+    CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", port));
     FlowConnection connection = connectFuture.getNow();
     
@@ -49,7 +48,7 @@ public class RealFlowConnectionAdditionalTest extends AbstractFlowTest {
     transport.close().getNow();
     
     // Try to read from the connection after transport is closed
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
     
     try {
       receiveFuture.getNow();

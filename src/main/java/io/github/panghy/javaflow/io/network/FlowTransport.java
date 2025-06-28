@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Represents the transport layer for network communication in JavaFlow.
@@ -69,7 +69,7 @@ public interface FlowTransport {
    * @param endpoint The endpoint to connect to
    * @return A future that completes with the established connection
    */
-  FlowFuture<FlowConnection> connect(Endpoint endpoint);
+  CompletableFuture<FlowConnection> connect(Endpoint endpoint);
 
   /**
    * Starts listening for incoming connections on the specified local endpoint.
@@ -123,5 +123,5 @@ public interface FlowTransport {
    *
    * @return A future that completes when the transport is closed
    */
-  FlowFuture<Void> close();
+  CompletableFuture<Void> close();
 }
