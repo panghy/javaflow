@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -80,7 +79,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     }).when(mockChannel).write(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Call the method
-    FlowFuture<Void> result = file.write(0, testBuffer);
+    CompletableFuture<Void> result = file.write(0, testBuffer);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);
@@ -111,7 +110,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     }).when(mockChannel).write(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Call the method
-    FlowFuture<Void> result = file.write(0, testData);
+    CompletableFuture<Void> result = file.write(0, testData);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);
@@ -143,7 +142,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     }).when(mockChannel).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Call the method
-    FlowFuture<ByteBuffer> result = file.read(0, 10);
+    CompletableFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);
@@ -184,7 +183,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     }).when(mockChannel).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Call the method
-    FlowFuture<ByteBuffer> result = file.read(0, 10);
+    CompletableFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);
@@ -225,7 +224,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     
     // Call the method
     int requestSize = 10;
-    FlowFuture<ByteBuffer> result = file.read(0, requestSize);
+    CompletableFuture<ByteBuffer> result = file.read(0, requestSize);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);
@@ -253,7 +252,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     }).when(mockChannel).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Call the method
-    FlowFuture<ByteBuffer> result = file.read(0, 10);
+    CompletableFuture<ByteBuffer> result = file.read(0, 10);
     
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(result);

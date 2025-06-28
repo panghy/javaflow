@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.rpc;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 
@@ -63,7 +63,7 @@ import io.github.panghy.javaflow.io.network.LocalEndpoint;
  *
  * // Get an RPC stub for a service (automatically uses local optimization if available)
  * UserService userService = transport.getRpcStub(new EndpointId("user-service"), UserService.class);
- * FlowFuture<UserInfo> userFuture = userService.getUserById(123);
+ * CompletableFuture<UserInfo> userFuture = userService.getUserById(123);
  * UserInfo user = Flow.await(userFuture);
  *
  * // Register multiple physical endpoints for a remote service
@@ -132,7 +132,7 @@ public interface FlowRpcTransport {
    * UserService userService = transport.getRpcStub(serverEndpoint, UserService.class);
    *
    * // Use the service via the stub
-   * FlowFuture<User> userFuture = userService.getUserById(123);
+   * CompletableFuture<User> userFuture = userService.getUserById(123);
    * User user = Flow.await(userFuture);
    * }</pre>
    *
@@ -174,7 +174,7 @@ public interface FlowRpcTransport {
    *
    * @return A future that completes when the transport is closed
    */
-  FlowFuture<Void> close();
+  CompletableFuture<Void> close();
 
   /**
    * Gets the default instance of FlowRpcTransport.

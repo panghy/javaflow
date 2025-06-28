@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -47,7 +46,7 @@ class RealFlowFileSystemTest {
     Path testFile = tempDir.resolve("test-file.txt");
     Files.createFile(testFile);
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open the file
       FlowFile file = Flow.await(fileSystem.open(testFile, OpenOptions.READ));
       assertNotNull(file);
@@ -70,7 +69,7 @@ class RealFlowFileSystemTest {
     // Create a path that doesn't exist
     Path nonExistentFile = tempDir.resolve("non-existent.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Check existing file
       boolean existingFileExists = Flow.await(fileSystem.exists(testFile));
       assertTrue(existingFileExists);
@@ -91,7 +90,7 @@ class RealFlowFileSystemTest {
     // Path for new directory
     Path newDir = tempDir.resolve("new-directory");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory
       Flow.await(fileSystem.createDirectory(newDir));
       
@@ -111,7 +110,7 @@ class RealFlowFileSystemTest {
     // Path for nested directories
     Path nestedDir = tempDir.resolve("parent/child/grandchild");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create nested directories
       Flow.await(fileSystem.createDirectories(nestedDir));
       
@@ -134,7 +133,7 @@ class RealFlowFileSystemTest {
     Files.createFile(file1);
     Files.createFile(file2);
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // List directory contents
       List<Path> entries = Flow.await(fileSystem.list(tempDir));
       
@@ -158,7 +157,7 @@ class RealFlowFileSystemTest {
     Path targetFile = tempDir.resolve("target-file.txt");
     Files.createFile(sourceFile);
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Move file
       Flow.await(fileSystem.move(sourceFile, targetFile));
       
@@ -179,7 +178,7 @@ class RealFlowFileSystemTest {
     Path fileToDelete = tempDir.resolve("to-delete.txt");
     Files.createFile(fileToDelete);
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Verify file exists before deletion
       assertTrue(Files.exists(fileToDelete));
       
@@ -204,7 +203,7 @@ class RealFlowFileSystemTest {
     // Verify file doesn't exist before we try to delete it
     assertFalse(Files.exists(nonExistentFile), "Test file should not exist");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         // First verify that the file doesn't exist to ensure test conditions are correct
         assertFalse(Flow.await(fileSystem.exists(nonExistentFile)),
@@ -252,7 +251,7 @@ class RealFlowFileSystemTest {
     Path existingDir = Files.createDirectory(tempDir.resolve("existing_dir"));
     
     // 1. Test createDirectory with existing directory
-    FlowFuture<Void> createExistingDir = fileSystem.createDirectory(existingDir);
+    CompletableFuture<Void> createExistingDir = fileSystem.createDirectory(existingDir);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
@@ -263,7 +262,7 @@ class RealFlowFileSystemTest {
     
     // 2. Test list on a non-directory
     Path testFile = Files.createFile(tempDir.resolve("not_a_dir.txt"));
-    FlowFuture<List<Path>> listFile = fileSystem.list(testFile);
+    CompletableFuture<List<Path>> listFile = fileSystem.list(testFile);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
@@ -274,7 +273,7 @@ class RealFlowFileSystemTest {
     
     // 3. Test delete on non-existent file
     Path nonExistentFile = tempDir.resolve("does_not_exist.txt");
-    FlowFuture<Void> deleteNonExistent = fileSystem.delete(nonExistentFile);
+    CompletableFuture<Void> deleteNonExistent = fileSystem.delete(nonExistentFile);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
@@ -288,7 +287,7 @@ class RealFlowFileSystemTest {
     Files.createFile(fileInPath);
     Path dirThroughFile = fileInPath.resolve("dir");
     
-    FlowFuture<Void> createDirThroughFile = fileSystem.createDirectories(dirThroughFile);
+    CompletableFuture<Void> createDirThroughFile = fileSystem.createDirectories(dirThroughFile);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify it fails with appropriate exception
@@ -301,7 +300,7 @@ class RealFlowFileSystemTest {
     Path nonExistentSource = tempDir.resolve("non_existent_source.txt");
     Path moveTarget = tempDir.resolve("move_target.txt");
     
-    FlowFuture<Void> moveNonExistent = fileSystem.move(nonExistentSource, moveTarget);
+    CompletableFuture<Void> moveNonExistent = fileSystem.move(nonExistentSource, moveTarget);
     
     // Verify it fails with appropriate exception
     ExecutionException moveException = assertThrows(
@@ -315,7 +314,7 @@ class RealFlowFileSystemTest {
     Files.createFile(moveSource);
     Files.createFile(existingTarget);
     
-    FlowFuture<Void> moveToExisting = fileSystem.move(moveSource, existingTarget);
+    CompletableFuture<Void> moveToExisting = fileSystem.move(moveSource, existingTarget);
     
     // Verify it fails with appropriate exception
     ExecutionException moveException2 = assertThrows(
@@ -326,7 +325,7 @@ class RealFlowFileSystemTest {
     // 7. Test createDirectory with parent that doesn't exist
     Path deepDir = tempDir.resolve("non_existent_parent/deep_dir");
     
-    FlowFuture<Void> createDeepDir = fileSystem.createDirectory(deepDir);
+    CompletableFuture<Void> createDeepDir = fileSystem.createDirectory(deepDir);
     
     // Verify it fails with appropriate exception
     ExecutionException createDirException3 = assertThrows(
@@ -336,7 +335,7 @@ class RealFlowFileSystemTest {
     
     // 8. Test exists with null path (error cases)
     try {
-      FlowFuture<Boolean> existsNull = fileSystem.exists(null);
+      CompletableFuture<Boolean> existsNull = fileSystem.exists(null);
       
       try {
         existsNull.toCompletableFuture().get();

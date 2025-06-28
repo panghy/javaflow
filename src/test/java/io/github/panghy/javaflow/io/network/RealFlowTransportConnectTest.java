@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,7 +81,7 @@ public class RealFlowTransportConnectTest extends AbstractFlowTest {
           .thenReturn(mockChannel);
 
       // Call connect
-      FlowFuture<FlowConnection> connectFuture = transport.connect(
+      CompletableFuture<FlowConnection> connectFuture = transport.connect(
           new Endpoint("localhost", 12345));
 
       // Verify the exception is an IOException
@@ -119,7 +118,7 @@ public class RealFlowTransportConnectTest extends AbstractFlowTest {
           .thenThrow(new IOException(SIMULATED_ERROR_MESSAGE));
 
       // Call connect
-      FlowFuture<FlowConnection> connectFuture = transport.connect(
+      CompletableFuture<FlowConnection> connectFuture = transport.connect(
           new Endpoint("localhost", 12345));
 
       // Verify the exception is an IOException

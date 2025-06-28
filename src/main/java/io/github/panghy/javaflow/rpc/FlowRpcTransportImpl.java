@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
@@ -303,7 +302,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       // Close all listening endpoints
       for (FlowStream<FlowConnection> stream : listeningEndpoints.values()) {
@@ -314,7 +313,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       // Close the connection manager
       return connectionManager.close();
     }
-    return FlowFuture.completed(null);
+    return CompletableFuture.completedFuture(null);
   }
 
   /**
@@ -410,9 +409,9 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     /**
      * Registers a pending call and starts the message reader if needed.
      */
-    FlowFuture<Object> registerCall(UUID messageId, TypeDescription returnType) {
-      FlowFuture<Object> future = new FlowFuture<>();
-      pendingCalls.put(messageId, new PendingCall(future.getPromise(), returnType));
+    CompletableFuture<Object> registerCall(UUID messageId, TypeDescription returnType) {
+      CompletableFuture<Object> future = new CompletableFuture<>();
+      pendingCalls.put(messageId, new PendingCall(future, returnType));
 
       // Start the message reader actor if not already started
       if (readerStarted.compareAndSet(false, true)) {
@@ -670,23 +669,18 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
 
         // Check if this argument is a UUID that represents a promise or stream
         if (arg instanceof UUID id && promiseIds != null && promiseIds.contains(id)) {
-          if (FlowPromise.class.isAssignableFrom(paramType)) {
-            // Create a local promise that tracks the remote promise
-            debug(LOGGER, "Creating local promise for remote UUID: " + id);
-            TypeDescription promiseType = new TypeDescription(paramType);
-            processed[i] = promiseTracker.createLocalPromiseForRemote(id, sourceEndpoint, promiseType);
-          } else if (PromiseStream.class.isAssignableFrom(paramType)) {
+          if (PromiseStream.class.isAssignableFrom(paramType)) {
             // Create a local stream that tracks the remote stream
             debug(LOGGER, "Creating local stream for remote UUID: " + id);
             TypeDescription streamType = new TypeDescription(paramType);
             processed[i] = promiseTracker.createLocalStreamForRemote(id, sourceEndpoint, streamType);
-          } else if (FlowFuture.class.isAssignableFrom(paramType)) {
+          } else if (CompletableFuture.class.isAssignableFrom(paramType)) {
             // Create a local future that tracks the remote promise
             debug(LOGGER, "Creating local future for remote UUID: " + id);
             TypeDescription futureType = new TypeDescription(paramType);
-            FlowPromise<?> promise = promiseTracker.createLocalPromiseForRemote(id, sourceEndpoint, futureType);
-            // Get the future from the promise
-            processed[i] = promise.getFuture();
+            CompletableFuture<?> promise = promiseTracker.createLocalPromiseForRemote(id, sourceEndpoint, futureType);
+            // The promise is already a CompletableFuture
+            processed[i] = promise;
           } else {
             // Regular UUID argument
             processed[i] = arg;
@@ -766,28 +760,27 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
           // Handle special return types
           debug(LOGGER, "Handling result of type: " + resultType.getTypeName());
           switch (result) {
-            case FlowPromise<?> flowPromise -> {
-              // For FlowPromise, check if it's already completed
+            case CompletableFuture<?> flowPromise -> {
+              // For CompletableFuture, check if it's already completed
               @SuppressWarnings("unchecked")
-              FlowPromise<Object> promise = (FlowPromise<Object>) flowPromise;
-              FlowFuture<Object> future = promise.getFuture();
+              CompletableFuture<Object> future = (CompletableFuture<Object>) flowPromise;
 
               if (future.isDone()) {
                 // If already completed, send the value directly
-                debug(LOGGER, "FlowPromise is already done");
+                debug(LOGGER, "CompletableFuture is already done");
                 try {
                   Object value = await(future);
-                  debug(LOGGER, "FlowPromise value: " + value);
+                  debug(LOGGER, "CompletableFuture value: " + value);
                   payload = FlowSerialization.serialize(value);
                 } catch (Exception e) {
-                  // Promise completed exceptionally
-                  debug(LOGGER, "FlowPromise completed exceptionally: " + e);
+                  // Future completed exceptionally
+                  debug(LOGGER, "CompletableFuture completed exceptionally: " + e);
                   sendErrorResponse(messageId, e);
                   return;
                 }
               } else {
                 UUID promiseId = promiseTracker.registerOutgoingPromise(
-                    promise, connection.getRemoteEndpoint(), returnTypeDesc.getTypeArguments()[0]);
+                    future, connection.getRemoteEndpoint(), returnTypeDesc.getTypeArguments()[0]);
                 payload = FlowSerialization.serialize(promiseId);
 
                 // Set up completion handler for when the promise completes
@@ -829,45 +822,6 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
                   futureStream,
                   connection.getRemoteEndpoint(),
                   returnTypeDesc.getTypeArguments()[0]);
-            }
-            case FlowFuture<?> flowFuture -> {
-              // For FlowFuture, we need to handle it specially
-              debug(LOGGER, "Handling FlowFuture result");
-              @SuppressWarnings("unchecked")
-              FlowFuture<Object> future = (FlowFuture<Object>) flowFuture;
-
-              if (future.isDone()) {
-                // If already completed, send the value directly
-                debug(LOGGER, "FlowFuture is already done");
-                try {
-                  Object value = await(future);
-                  debug(LOGGER, "FlowFuture value: " + value);
-                  payload = FlowSerialization.serialize(value);
-                } catch (Exception e) {
-                  // Future completed exceptionally
-                  debug(LOGGER, "FlowFuture completed exceptionally: " + e);
-                  sendErrorResponse(messageId, e);
-                  return;
-                }
-              } else {
-                // If not completed, treat it as a promise
-                UUID promiseId = promiseTracker.registerOutgoingPromise(
-                    future.getPromise(),
-                    connection.getRemoteEndpoint(),
-                    returnTypeDesc.getTypeArguments()[0]);
-                payload = FlowSerialization.serialize(promiseId);
-
-                // Set up completion handler for when the future completes
-                future.whenComplete((res, err) -> {
-                  if (err != null) {
-                    debug(LOGGER, "Future result " + promiseId + " completed with error: " + err);
-                    promiseTracker.sendErrorToEndpoint(connection.getRemoteEndpoint(), promiseId, err);
-                  } else {
-                    debug(LOGGER, "Future result " + promiseId + " completed with result: " + res);
-                    promiseTracker.sendResultToEndpoint(connection.getRemoteEndpoint(), promiseId, res);
-                  }
-                });
-              }
             }
             default -> {
               // Regular result
@@ -938,13 +892,14 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
         return null;
       }
 
-      // Handle FlowPromise return types
-      if (FlowPromise.class.isAssignableFrom(rawReturnType)) {
-        // For FlowPromise, we expect either:
-        // 1. A direct value if the promise was already completed
-        // 2. A UUID if the promise is still pending (treated as a promise)
 
-        debug(LOGGER, "mapResponse: Handling FlowPromise return type");
+      // Handle CompletableFuture return types
+      if (CompletableFuture.class.isAssignableFrom(rawReturnType)) {
+        // For CompletableFuture, we expect either:
+        // 1. A direct value if the future was already completed
+        // 2. A UUID if the future is still pending (treated as a promise)
+
+        debug(LOGGER, "mapResponse: Handling CompletableFuture return type");
 
         // Try to deserialize as UUID first
         try {
@@ -957,9 +912,10 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
             elementType = returnType.getTypeArguments()[0];
           }
           Endpoint sourceEndpoint = connection.getRemoteEndpoint();
-          FlowPromise<Object> localPromise = promiseTracker.createLocalPromiseForRemote(
+          CompletableFuture<Object> localPromise = promiseTracker.createLocalPromiseForRemote(
               promiseId, sourceEndpoint, elementType, false);
-          debug(LOGGER, "mapResponse: Created local promise for remote UUID, returning promise");
+          debug(LOGGER, "mapResponse: Created local promise for remote UUID, returning future");
+          // Return the CompletableFuture directly
           return localPromise;
         } catch (Exception e) {
           // Not a UUID, must be a direct value
@@ -971,7 +927,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
               if (valueType instanceof Class<?>) {
                 valueClass = (Class<?>) valueType;
               }
-              debug(LOGGER, "mapResponse: Value class for FlowPromise<T> is: " + valueClass.getName());
+              debug(LOGGER, "mapResponse: Value class for CompletableFuture<T> is: " + valueClass.getName());
             } catch (ClassNotFoundException ex) {
               // Use Object.class as fallback
               debug(LOGGER, "mapResponse: Could not determine value class, using Object.class");
@@ -981,59 +937,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
               responseMessage.getPayload(), valueClass);
           debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " +
                         (value != null ? value.getClass().getName() : "null") + ")");
-          FlowFuture<Object> resultFuture = new FlowFuture<>();
-          resultFuture.getPromise().complete(value);
-          return resultFuture.getPromise();
-        }
-      }
-
-      // Handle FlowFuture return types
-      if (FlowFuture.class.isAssignableFrom(rawReturnType)) {
-        // For FlowFuture, we expect either:
-        // 1. A direct value if the future was already completed
-        // 2. A UUID if the future is still pending (treated as a promise)
-
-        debug(LOGGER, "mapResponse: Handling FlowFuture return type");
-
-        // Try to deserialize as UUID first
-        try {
-          UUID promiseId = FlowSerialization.deserialize(
-              responseMessage.getPayload(), UUID.class);
-          debug(LOGGER, "mapResponse: Deserialized UUID: " + promiseId);
-          // It's a promise ID, create a local promise
-          TypeDescription elementType = new TypeDescription(Object.class);
-          if (returnType.getTypeArguments().length > 0) {
-            elementType = returnType.getTypeArguments()[0];
-          }
-          Endpoint sourceEndpoint = connection.getRemoteEndpoint();
-          FlowPromise<Object> localPromise = promiseTracker.createLocalPromiseForRemote(
-              promiseId, sourceEndpoint, elementType, false);
-          debug(LOGGER, "mapResponse: Created local promise for remote UUID, returning future");
-          // Return the future associated with the promise
-          return localPromise.getFuture();
-        } catch (Exception e) {
-          // Not a UUID, must be a direct value
-          debug(LOGGER, "mapResponse: Not a UUID, deserializing as direct value. Error was: " + e);
-          Class<?> valueClass = Object.class;
-          if (returnType.getTypeArguments().length > 0) {
-            try {
-              Type valueType = returnType.getTypeArguments()[0].toType();
-              if (valueType instanceof Class<?>) {
-                valueClass = (Class<?>) valueType;
-              }
-              debug(LOGGER, "mapResponse: Value class for FlowFuture<T> is: " + valueClass.getName());
-            } catch (ClassNotFoundException ex) {
-              // Use Object.class as fallback
-              debug(LOGGER, "mapResponse: Could not determine value class, using Object.class");
-            }
-          }
-          Object value = FlowSerialization.deserialize(
-              responseMessage.getPayload(), valueClass);
-          debug(LOGGER, "mapResponse: Deserialized value: " + value + " (type: " +
-                        (value != null ? value.getClass().getName() : "null") + ")");
-          FlowFuture<Object> resultFuture = new FlowFuture<>();
-          resultFuture.getPromise().complete(value);
-          return resultFuture;
+          return CompletableFuture.completedFuture(value);
         }
       }
 
@@ -1061,7 +965,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     }
 
 
-    private record PendingCall(FlowPromise<Object> promise, TypeDescription returnType) {
+    private record PendingCall(CompletableFuture<Object> promise, TypeDescription returnType) {
     }
   }
 
@@ -1124,7 +1028,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       String methodId = buildMethodId(method);
 
       // Get a connection to the remote endpoint
-      FlowFuture<FlowConnection> connectionFuture;
+      CompletableFuture<FlowConnection> connectionFuture;
       if (physicalEndpoint != null) {
         // Direct connection to specific endpoint
         connectionFuture = connectionManager.getConnectionToEndpoint(physicalEndpoint);
@@ -1137,7 +1041,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       Class<?> returnType = method.getReturnType();
       boolean isVoidMethod = returnType == void.class || returnType == Void.class;
 
-      FlowFuture<Object> responseFuture = connectionFuture.flatMap(connection -> {
+      CompletableFuture<Object> responseFuture = connectionFuture.thenCompose(connection -> {
         // Get the actual target endpoint from the connection
         Endpoint targetEndpoint = connection.getRemoteEndpoint();
 
@@ -1167,22 +1071,22 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
 
         // Register this call before sending to avoid race conditions
         TypeDescription returnTypeDesc = TypeDescription.fromType(method.getGenericReturnType());
-        FlowFuture<Object> callFuture = handler.registerCall(messageId, returnTypeDesc);
+        CompletableFuture<Object> callFuture = handler.registerCall(messageId, returnTypeDesc);
 
         // Send the request
         ByteBuffer serializedMessage = requestMessage.serialize();
-        FlowFuture<Void> sendF = connection.send(serializedMessage);
+        CompletableFuture<Void> sendF = connection.send(serializedMessage);
 
         // Void methods return a completed future after sending
         if (returnType == void.class || returnType == Void.class) {
           try {
-            return sendF.map($ -> null);
+            return sendF.thenApply($ -> null);
           } catch (Exception e) {
             throw new RpcException(RpcException.ErrorCode.INVOCATION_ERROR,
                 "RPC invocation failed for method: " + method.getName(), e);
           }
         }
-        return sendF.flatMap(v -> callFuture);
+        return sendF.thenCompose(v -> callFuture);
       });
 
       // Apply timeout for non-void unary RPC calls (not for streams or void methods)
@@ -1195,18 +1099,18 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
             configuration.getUnaryRpcTimeoutMs());
       }
 
-      // If the method returns a FlowFuture, return the future directly
-      if (FlowFuture.class.isAssignableFrom(returnType)) {
-        // Handle potential nested FlowFuture from mapResponse
-        return responseFuture.flatMap(result -> {
-          if (result instanceof FlowFuture) {
-            // Flatten nested FlowFuture
+      // If the method returns a CompletableFuture, return the future directly
+      if (CompletableFuture.class.isAssignableFrom(returnType)) {
+        // Handle potential nested CompletableFuture from mapResponse
+        return responseFuture.thenCompose(result -> {
+          if (result instanceof CompletableFuture) {
+            // Flatten nested CompletableFuture
             @SuppressWarnings("unchecked")
-            FlowFuture<Object> nestedFuture = (FlowFuture<Object>) result;
+            CompletableFuture<Object> nestedFuture = (CompletableFuture<Object>) result;
             return nestedFuture;
           } else {
             // Return completed future with the direct result
-            return FlowFuture.completed(result);
+            return CompletableFuture.completedFuture(result);
           }
         });
       }
@@ -1308,18 +1212,18 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       for (int i = 0; i < args.length; i++) {
         Object arg = args[i];
 
-        if (arg instanceof FlowPromise<?> promise) {
+        if (arg instanceof CompletableFuture<?> promise) {
           // Extract the generic type from the method parameter
           TypeDescription promiseType = extractTypeFromMethodParameter(genericParameterTypes[i]);
           UUID promiseId = promiseTracker.registerOutgoingPromise(
               promise, targetEndpoint, promiseType);
           promiseIds.add(promiseId);
           processed[i] = promiseId;
-        } else if (arg instanceof FlowFuture<?> future) {
+        } else if (arg instanceof CompletableFuture<?> future) {
           // Extract the generic type from the method parameter
           TypeDescription promiseType = extractTypeFromMethodParameter(genericParameterTypes[i]);
           UUID promiseId = promiseTracker.registerOutgoingPromise(
-              future.getPromise(), targetEndpoint, promiseType);
+              future, targetEndpoint, promiseType);
           promiseIds.add(promiseId);
           processed[i] = promiseId;
         } else if (arg instanceof FutureStream<?> futureStream) {
@@ -1387,8 +1291,8 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
     private TypeDescription extractTypeFromMethodParameter(Type parameterType) {
       if (parameterType instanceof ParameterizedType paramType) {
         Type rawType = paramType.getRawType();
-        if (rawType == FlowPromise.class || rawType == PromiseStream.class ||
-            rawType == FutureStream.class || rawType == FlowFuture.class) {
+        if (rawType == CompletableFuture.class || rawType == PromiseStream.class ||
+            rawType == FutureStream.class) {
           Type[] typeArgs = paramType.getActualTypeArguments();
           if (typeArgs.length > 0) {
             return TypeDescription.fromType(typeArgs[0]);
@@ -1577,7 +1481,7 @@ public class FlowRpcTransportImpl implements FlowRpcTransport, RemotePromiseTrac
       existingConnection.send(serializedMessage);
     } else {
       // No existing connection, try to establish one
-      FlowFuture<FlowConnection> connectionFuture = connectionManager.getConnectionToEndpoint(destination);
+      CompletableFuture<FlowConnection> connectionFuture = connectionManager.getConnectionToEndpoint(destination);
       connectionFuture.whenComplete((connection, error) -> {
         if (error == null && connection != null) {
           debug(LOGGER, "Got new connection to " + destination + ", sending message");

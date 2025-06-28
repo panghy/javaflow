@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -87,7 +86,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     List<String> receivedValues = new ArrayList<>();
 
     // Get the stream from the stub (this needs to be in an actor)
-    FlowFuture<PromiseStream<String>> streamFuture = startActor(() -> stub.streamData());
+    CompletableFuture<PromiseStream<String>> streamFuture = startActor(() -> stub.streamData());
 
     // Wait for the stream future to complete (this needs time advancement for connection establishment)
     pumpAndAdvanceTimeUntilDone(streamFuture);
@@ -114,7 +113,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     }
 
     // Use forEach to start processing the stream
-    FlowFuture<Void> forEachFuture = stream.getFutureStream().forEach(value -> {
+    CompletableFuture<Void> forEachFuture = stream.getFutureStream().forEach(value -> {
       System.out.println("Received value: " + value);
       receivedValues.add(value);
     });
@@ -138,7 +137,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
 
     // Create a separate test to verify the timeout works by making a direct hasNextAsync call
     // that should fail with timeout exception after the stream is timed out
-    FlowFuture<Boolean> hasNextFuture = startActor(() -> {
+    CompletableFuture<Boolean> hasNextFuture = startActor(() -> {
       // Try to get the next value - this should fail with timeout exception
       return Flow.await(stream.getFutureStream().hasNextAsync());
     });
@@ -229,12 +228,12 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     List<Integer> receivedValues = new ArrayList<>();
 
     // Create a future that will execute the stream operation inside a flow task
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Get the stream from the stub
       PromiseStream<Integer> stream = stub.streamNumbers();
 
       // Process the stream - should complete without timeout
-      FlowFuture<Void> forEachFuture = stream.getFutureStream().forEach(receivedValues::add);
+      CompletableFuture<Void> forEachFuture = stream.getFutureStream().forEach(receivedValues::add);
 
       // Wait for all values to be received
       await(forEachFuture);

@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.examples;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.FlowRpcTransport;
@@ -32,11 +31,11 @@ public class RaceConditionBugExample extends AbstractFlowTest {
 
   // Service interface for a distributed counter
   public interface CounterService {
-    FlowFuture<Integer> getValue();
+    CompletableFuture<Integer> getValue();
 
-    FlowFuture<Void> increment();
+    CompletableFuture<Void> increment();
 
-    FlowFuture<Integer> getAndIncrement();
+    CompletableFuture<Integer> getAndIncrement();
 
     void reset();
   }
@@ -46,8 +45,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     protected int counter = 0;
 
     @Override
-    public FlowFuture<Integer> getValue() {
-      FlowFuture<Integer> future = new FlowFuture<>();
+    public CompletableFuture<Integer> getValue() {
+      CompletableFuture<Integer> future = new CompletableFuture<>();
       // Simulate some async work
       startActor(() -> {
         // Add a small delay to simulate network/processing
@@ -59,8 +58,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> increment() {
-      FlowFuture<Void> future = new FlowFuture<>();
+    public CompletableFuture<Void> increment() {
+      CompletableFuture<Void> future = new CompletableFuture<>();
       // BUG: This implementation has a race condition!
       // It reads, modifies, and writes in separate steps
       startActor(() -> {
@@ -80,8 +79,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Integer> getAndIncrement() {
-      FlowFuture<Integer> future = new FlowFuture<>();
+    public CompletableFuture<Integer> getAndIncrement() {
+      CompletableFuture<Integer> future = new CompletableFuture<>();
       startActor(() -> {
         int oldValue = counter;
         await(increment());
@@ -102,8 +101,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     private final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
-    public FlowFuture<Integer> getValue() {
-      FlowFuture<Integer> future = new FlowFuture<>();
+    public CompletableFuture<Integer> getValue() {
+      CompletableFuture<Integer> future = new CompletableFuture<>();
       startActor(() -> {
         await(delay(0.001));
         future.getPromise().complete(counter.get());
@@ -113,8 +112,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> increment() {
-      FlowFuture<Void> future = new FlowFuture<>();
+    public CompletableFuture<Void> increment() {
+      CompletableFuture<Void> future = new CompletableFuture<>();
       startActor(() -> {
         // Atomic increment - no race condition
         await(delay(0.002));
@@ -126,8 +125,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Integer> getAndIncrement() {
-      FlowFuture<Integer> future = new FlowFuture<>();
+    public CompletableFuture<Integer> getAndIncrement() {
+      CompletableFuture<Integer> future = new CompletableFuture<>();
       startActor(() -> {
         await(delay(0.002));
         int oldValue = counter.getAndIncrement();
@@ -189,21 +188,21 @@ public class RaceConditionBugExample extends AbstractFlowTest {
       CounterService client3 = transport.getRpcStub(serviceId, CounterService.class);
 
       // Run concurrent increments
-      FlowFuture<Void> client1Future = startActor(() -> {
+      CompletableFuture<Void> client1Future = startActor(() -> {
         for (int i = 0; i < 5; i++) {
           await(client1.increment());
         }
         return null;
       });
 
-      FlowFuture<Void> client2Future = startActor(() -> {
+      CompletableFuture<Void> client2Future = startActor(() -> {
         for (int i = 0; i < 5; i++) {
           await(client2.increment());
         }
         return null;
       });
 
-      FlowFuture<Void> client3Future = startActor(() -> {
+      CompletableFuture<Void> client3Future = startActor(() -> {
         for (int i = 0; i < 5; i++) {
           await(client3.increment());
         }
@@ -214,7 +213,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
       pumpAndAdvanceTimeUntilDone(client1Future, client2Future, client3Future);
 
       // Check final value
-      FlowFuture<Integer> finalValueFuture = client1.getValue();
+      CompletableFuture<Integer> finalValueFuture = client1.getValue();
       pumpAndAdvanceTimeUntilDone(finalValueFuture);
       int finalValue = finalValueFuture.getNow();
 
@@ -259,7 +258,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     CounterService client = transport.getRpcStub(serviceId, CounterService.class);
 
     // Run the same scenario
-    List<FlowFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (int clientNum = 1; clientNum <= 3; clientNum++) {
       final int num = clientNum;
       futures.add(startActor(() -> {
@@ -275,7 +274,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
 
     pumpAndAdvanceTimeUntilDone(futures.toArray(new FlowFuture[0]));
 
-    FlowFuture<Integer> finalValueFuture = client.getValue();
+    CompletableFuture<Integer> finalValueFuture = client.getValue();
     pumpAndAdvanceTimeUntilDone(finalValueFuture);
     int finalValue = finalValueFuture.getNow();
 
@@ -315,7 +314,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
       CounterService client3 = transport.getRpcStub(serviceId, CounterService.class);
 
       // Run concurrent increments
-      List<FlowFuture<Void>> futures = new ArrayList<>();
+      List<CompletableFuture<Void>> futures = new ArrayList<>();
       futures.add(startActor(() -> {
         for (int i = 0; i < 5; i++) {
           await(client1.increment());
@@ -340,7 +339,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
       pumpAndAdvanceTimeUntilDone(futures.toArray(new FlowFuture[0]));
 
       // Check final value
-      FlowFuture<Integer> finalValueFuture = client1.getValue();
+      CompletableFuture<Integer> finalValueFuture = client1.getValue();
       pumpAndAdvanceTimeUntilDone(finalValueFuture);
       int finalValue = finalValueFuture.getNow();
 
@@ -370,8 +369,8 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     // Create a custom buggy service that logs operations
     class DebuggingCounterService extends BuggyCounterService {
       @Override
-      public FlowFuture<Void> increment() {
-        FlowFuture<Void> future = new FlowFuture<>();
+      public CompletableFuture<Void> increment() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         startActor(() -> {
           System.out.println(Thread.currentThread().getName() +
                              " - Reading counter value: " + counter);
@@ -409,14 +408,14 @@ public class RaceConditionBugExample extends AbstractFlowTest {
     // Run just two concurrent increments to see the race condition clearly
     System.out.println("\n=== Starting debug scenario with seed " + problematicSeed + " ===");
 
-    FlowFuture<Void> increment1 = startActor(() -> {
+    CompletableFuture<Void> increment1 = startActor(() -> {
       System.out.println("Actor 1: Starting increment");
       await(client.increment());
       System.out.println("Actor 1: Increment complete");
       return null;
     });
 
-    FlowFuture<Void> increment2 = startActor(() -> {
+    CompletableFuture<Void> increment2 = startActor(() -> {
       System.out.println("Actor 2: Starting increment");
       await(client.increment());
       System.out.println("Actor 2: Increment complete");
@@ -425,7 +424,7 @@ public class RaceConditionBugExample extends AbstractFlowTest {
 
     pumpAndAdvanceTimeUntilDone(increment1, increment2);
 
-    FlowFuture<Integer> finalValueFuture = client.getValue();
+    CompletableFuture<Integer> finalValueFuture = client.getValue();
     pumpAndAdvanceTimeUntilDone(finalValueFuture);
     int finalValue = finalValueFuture.getNow();
 

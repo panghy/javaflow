@@ -1,9 +1,8 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -69,10 +68,10 @@ public class RemoteCancellationTest extends AbstractFlowTest {
 
   // Test interface for remote cancellation testing
   public interface CancellableService {
-    FlowFuture<String> longRunningOperation(double delaySeconds);
-    FlowFuture<String> cooperativeCancellableOperation();
+    CompletableFuture<String> longRunningOperation(double delaySeconds);
+    CompletableFuture<String> cooperativeCancellableOperation();
     PromiseStream<Integer> streamingOperation();
-    FlowFuture<String> nestedOperation();
+    CompletableFuture<String> nestedOperation();
   }
 
   // Implementation of the test service
@@ -82,7 +81,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     private final AtomicInteger streamItemsSent = new AtomicInteger(0);
 
     @Override
-    public FlowFuture<String> longRunningOperation(double delaySeconds) {
+    public CompletableFuture<String> longRunningOperation(double delaySeconds) {
       return startActor(() -> {
         await(Flow.delay(delaySeconds));
         return "completed";
@@ -90,7 +89,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> cooperativeCancellableOperation() {
+    public CompletableFuture<String> cooperativeCancellableOperation() {
       return startActor(() -> {
         cooperativeOpStarted.set(true);
         try {
@@ -135,10 +134,10 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> nestedOperation() {
+    public CompletableFuture<String> nestedOperation() {
       return startActor(() -> {
         // Start a nested operation
-        FlowFuture<String> nested = startActor(() -> {
+        CompletableFuture<String> nested = startActor(() -> {
           await(Flow.delay(1.0)); // 1 second delay
           return "nested result";
         });
@@ -172,7 +171,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start a long-running operation
-    FlowFuture<String> future = client.longRunningOperation(1.0); // 1 second
+    CompletableFuture<String> future = client.longRunningOperation(1.0); // 1 second
 
     // Let it start
     pump();
@@ -203,7 +202,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start cooperative cancellable operation
-    FlowFuture<String> future = client.cooperativeCancellableOperation();
+    CompletableFuture<String> future = client.cooperativeCancellableOperation();
     
     // Let the operation start on the server - need multiple pump cycles
     // to ensure the RPC is sent, received, and the operation actually starts
@@ -251,7 +250,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     AtomicBoolean streamClosed = new AtomicBoolean(false);
 
     // Start streaming operation and consume stream
-    FlowFuture<Void> consumerFuture = startActor(() -> {
+    CompletableFuture<Void> consumerFuture = startActor(() -> {
       // Start streaming operation
       PromiseStream<Integer> stream = client.streamingOperation();
       FutureStream<Integer> futureStream = stream.getFutureStream();
@@ -316,7 +315,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start nested operation
-    FlowFuture<String> future = client.nestedOperation();
+    CompletableFuture<String> future = client.nestedOperation();
 
     // Let it start
     pump();
@@ -371,7 +370,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId2, CancellableService.class);
 
     // Start operation
-    FlowFuture<String> future = client.longRunningOperation(2.0); // 2 seconds
+    CompletableFuture<String> future = client.longRunningOperation(2.0); // 2 seconds
 
     // Let it start with network delays
     pump();
@@ -405,9 +404,9 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start multiple operations
-    FlowFuture<String> future1 = client.longRunningOperation(1.0);
-    FlowFuture<String> future2 = client.longRunningOperation(2.0);
-    FlowFuture<String> future3 = client.longRunningOperation(3.0);
+    CompletableFuture<String> future1 = client.longRunningOperation(1.0);
+    CompletableFuture<String> future2 = client.longRunningOperation(2.0);
+    CompletableFuture<String> future3 = client.longRunningOperation(3.0);
 
     // Let them start
     pump();
@@ -442,7 +441,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start operation and immediately try to await it
-    FlowFuture<String> remoteFuture = client.longRunningOperation(1.0);
+    CompletableFuture<String> remoteFuture = client.longRunningOperation(1.0);
     
     AtomicReference<Exception> caughtException = new AtomicReference<>();
     startActor(() -> {
@@ -481,7 +480,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
         serviceId, CancellableService.class);
 
     // Start operation - this will try to establish connection
-    FlowFuture<String> future = client.longRunningOperation(1.0);
+    CompletableFuture<String> future = client.longRunningOperation(1.0);
 
     // Cancel before connection is established
     future.cancel();

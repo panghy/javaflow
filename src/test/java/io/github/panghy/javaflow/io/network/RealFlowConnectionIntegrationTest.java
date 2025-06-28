@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
 import org.junit.jupiter.api.AfterEach;
@@ -118,11 +117,11 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     String testMessage = "Hello, server!";
     ByteBuffer sendBuffer = ByteBuffer.wrap(testMessage.getBytes());
 
-    FlowFuture<Void> sendFuture = clientConnection.send(sendBuffer);
+    CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
     sendFuture.getNow();
 
     // Receive on server side
-    FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
     receiveFuture.getNow();
 
     assertFalse(receiveFuture.isCompletedExceptionally());
@@ -142,14 +141,14 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   @Test
   void testUseAfterClose() throws Exception {
     // Close the connection
-    FlowFuture<Void> closeFuture = clientConnection.close();
+    CompletableFuture<Void> closeFuture = clientConnection.close();
     closeFuture.getNow();
     // Verify it reports as closed
     assertFalse(clientConnection.isOpen());
 
     // Try to send, should fail
     ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-    FlowFuture<Void> sendFuture = clientConnection.send(data);
+    CompletableFuture<Void> sendFuture = clientConnection.send(data);
     try {
       sendFuture.getNow();
       fail("Expected ExecutionException");
@@ -159,7 +158,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     }
 
     // Try to receive, should fail
-    FlowFuture<ByteBuffer> receiveFuture = clientConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = clientConnection.receive(1024);
 
     try {
       receiveFuture.getNow();
@@ -177,7 +176,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   void testReceiveStream() throws Exception {
     // Get the receive stream
     FlowStream<ByteBuffer> receiveStream = serverConnection.receiveStream();
-    FlowFuture<ByteBuffer> firstReceiveFuture = receiveStream.nextAsync();
+    CompletableFuture<ByteBuffer> firstReceiveFuture = receiveStream.nextAsync();
 
     // Send first message
     String message1 = "First message";
@@ -190,7 +189,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     assertEquals(message1, new String(bytes1));
 
     // Get next future from stream
-    FlowFuture<ByteBuffer> secondReceiveFuture = receiveStream.nextAsync();
+    CompletableFuture<ByteBuffer> secondReceiveFuture = receiveStream.nextAsync();
 
     // Send second message
     String message2 = "Second message";
@@ -210,7 +209,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   void testCloseConnectionClosesStream() {
     // Get receive stream
     FlowStream<ByteBuffer> receiveStream = serverConnection.receiveStream();
-    FlowFuture<ByteBuffer> receiveFuture = receiveStream.nextAsync();
+    CompletableFuture<ByteBuffer> receiveFuture = receiveStream.nextAsync();
 
     // Close the client side (should close the server side too)
     clientConnection.close();
@@ -236,7 +235,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     ByteBuffer sendBuffer = ByteBuffer.wrap(largeData);
 
     // Send the large data
-    FlowFuture<Void> sendFuture = clientConnection.send(sendBuffer);
+    CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
     sendFuture.getNow();
 
     // Receive the data in chunks
@@ -244,7 +243,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
 
     // Keep receiving until we get all the data
     while (combinedBuffer.position() < largeData.length) {
-      FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+      CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
 
       ByteBuffer chunk = receiveFuture.getNow();
       combinedBuffer.put(chunk);
@@ -264,11 +263,11 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   @Test
   void testMultipleClose() throws Exception {
     // Close the connection
-    FlowFuture<Void> firstCloseFuture = clientConnection.close();
+    CompletableFuture<Void> firstCloseFuture = clientConnection.close();
     firstCloseFuture.getNow();
 
     // Close again
-    FlowFuture<Void> secondCloseFuture = clientConnection.close();
+    CompletableFuture<Void> secondCloseFuture = clientConnection.close();
     secondCloseFuture.getNow();
 
     // Both should complete normally
@@ -285,7 +284,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   @Test
   void testCloseFuture() throws Exception {
     // Get the close future
-    FlowFuture<Void> closeFuture = clientConnection.closeFuture();
+    CompletableFuture<Void> closeFuture = clientConnection.closeFuture();
 
     // It should not be completed yet
     assertFalse(closeFuture.isDone());
@@ -309,7 +308,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
 
     // Now try to send, which should trigger the error handler
     ByteBuffer buffer = ByteBuffer.wrap("This will fail".getBytes());
-    FlowFuture<Void> sendFuture = clientConnection.send(buffer);
+    CompletableFuture<Void> sendFuture = clientConnection.send(buffer);
 
     try {
       sendFuture.getNow();
@@ -337,7 +336,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     ByteBuffer largeBuffer = ByteBuffer.wrap(largeData);
 
     // Send the large buffer from client to server
-    FlowFuture<Void> sendFuture = clientConnection.send(largeBuffer);
+    CompletableFuture<Void> sendFuture = clientConnection.send(largeBuffer);
     sendFuture.toCompletableFuture().whenComplete((result, error) -> {
       if (error == null) {
         System.out.println("Send completed successfully");
@@ -407,7 +406,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
   @Test
   void testReadCompletionHandlerError() throws Exception {
     // Start a read
-    FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
 
     // Break the client channel by closing it
     clientChannel.close();
@@ -454,7 +453,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     int boundPort = listener.getPort();
 
     // Connect client with a timeout
-    FlowFuture<FlowConnection> connectFuture = transport.connect(new Endpoint("localhost", boundPort));
+    CompletableFuture<FlowConnection> connectFuture = transport.connect(new Endpoint("localhost", boundPort));
 
     // Use a CountDownLatch to wait for completion with a timeout
     CountDownLatch connectLatch = new CountDownLatch(1);
@@ -486,7 +485,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     }
 
     // Accept server connection with timeout
-    FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
+    CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
 
     // Use a CountDownLatch to wait for server acceptance with a timeout
     CountDownLatch acceptLatch = new CountDownLatch(1);
@@ -545,7 +544,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     // First, send some data to establish that the connection works
     String testMessage = "Test message";
     ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes());
-    FlowFuture<Void> sendFuture = clientConnection.send(buffer);
+    CompletableFuture<Void> sendFuture = clientConnection.send(buffer);
 
     // Wait for send to complete with timeout
     CountDownLatch sendLatch = new CountDownLatch(1);
@@ -567,7 +566,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     }
 
     // Read from the server side to verify connection
-    FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
 
     // Wait for receive to complete with timeout
     CountDownLatch receiveLatch = new CountDownLatch(1);
@@ -622,7 +621,7 @@ public class RealFlowConnectionIntegrationTest extends AbstractFlowTest {
     Thread.sleep(100);
 
     // Now try to read from the closed channel - this should trigger the failed path
-    FlowFuture<ByteBuffer> errorReceiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> errorReceiveFuture = serverConnection.receive(1024);
 
     // Wait for the receive operation to complete or timeout
     CountDownLatch errorReceiveLatch = new CountDownLatch(1);

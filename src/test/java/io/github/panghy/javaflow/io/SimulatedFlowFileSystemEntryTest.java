@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -124,7 +123,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testDirectoriesMap() throws Exception {
     // Create a directory structure
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directories
       Flow.await(fileSystem.createDirectory(Paths.get("/dir1")));
       Flow.await(fileSystem.createDirectory(Paths.get("/dir1/subdir")));
@@ -164,7 +163,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
    */
   @Test
   void testNormalize() throws Exception {
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directories with different path formats
       Path path1 = Paths.get("/dir1");
       Path path2 = Paths.get("dir2");     // No leading slash
@@ -201,7 +200,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testParentPathLogic() throws Exception {
     // Test adding a file to a directory
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory
       Flow.await(fileSystem.createDirectory(Paths.get("/parent")));
       
@@ -246,7 +245,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testCreateDirectoryWithoutParent() throws Exception {
     // Try to create directory without parent
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       Path path = Paths.get("/nonexistent/dir");
       
       try {
@@ -272,7 +271,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testFileDirectoryNameCollision() throws Exception {
     // Create a file and then try to create a directory with the same name
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       Path path = Paths.get("/collision");
       
       // Create file first

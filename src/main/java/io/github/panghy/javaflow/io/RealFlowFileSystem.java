@@ -1,13 +1,11 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
-
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A real implementation of FlowFileSystem that interacts with the actual filesystem.
@@ -16,74 +14,69 @@ import java.util.List;
 public class RealFlowFileSystem implements FlowFileSystem {
 
   @Override
-  public FlowFuture<FlowFile> open(Path path, OpenOptions... options) {
+  public CompletableFuture<FlowFile> open(Path path, OpenOptions... options) {
     return RealFlowFile.open(path, options);
   }
 
   @Override
-  public FlowFuture<Void> delete(Path path) {
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+  public CompletableFuture<Void> delete(Path path) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       Files.delete(path);
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Boolean> exists(Path path) {
-    FlowFuture<Boolean> result = new FlowFuture<>();
-    FlowPromise<Boolean> promise = result.getPromise();
+  public CompletableFuture<Boolean> exists(Path path) {
+    CompletableFuture<Boolean> result = new CompletableFuture<>();
 
     try {
       boolean exists = Files.exists(path);
-      promise.complete(exists);
+      result.complete(exists);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Void> createDirectory(Path path) {
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+  public CompletableFuture<Void> createDirectory(Path path) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       Files.createDirectory(path);
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Void> createDirectories(Path path) {
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+  public CompletableFuture<Void> createDirectories(Path path) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       Files.createDirectories(path);
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<List<Path>> list(Path directory) {
-    FlowFuture<List<Path>> result = new FlowFuture<>();
-    FlowPromise<List<Path>> promise = result.getPromise();
+  public CompletableFuture<List<Path>> list(Path directory) {
+    CompletableFuture<List<Path>> result = new CompletableFuture<>();
 
     try {
       List<Path> paths = new ArrayList<>();
@@ -92,24 +85,23 @@ public class RealFlowFileSystem implements FlowFileSystem {
           paths.add(entry);
         }
       }
-      promise.complete(paths);
+      result.complete(paths);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Void> move(Path source, Path target) {
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+  public CompletableFuture<Void> move(Path source, Path target) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       Files.move(source, target);
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;

@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
@@ -19,8 +18,8 @@ class FlowDelayTest extends AbstractFlowTest {
   void testBasicDelay() {
     // Create a simple delay within an actor context
     double delaySeconds = 0.5;
-    FlowFuture<Boolean> actorFuture = Flow.startActor(() -> {
-      FlowFuture<Void> delayFuture = Flow.delay(delaySeconds);
+    CompletableFuture<Boolean> actorFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> delayFuture = Flow.delay(delaySeconds);
       // Check initial state within actor context
       assertFalse(delayFuture.isDone(), "Delay should not be done immediately");
       return true;
@@ -31,9 +30,9 @@ class FlowDelayTest extends AbstractFlowTest {
     assertTrue(actorFuture.isDone(), "Actor should complete immediately");
     
     // Create another actor to test delay completion
-    FlowFuture<Boolean> delayTestFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> delayTestFuture = Flow.startActor(() -> {
       // Create a delay in actor context
-      FlowFuture<Void> delayFuture = Flow.delay(delaySeconds);
+      CompletableFuture<Void> delayFuture = Flow.delay(delaySeconds);
       
       // Print debug info
       System.out.println("Current time before advancing: " + currentTimeSeconds() + "s");

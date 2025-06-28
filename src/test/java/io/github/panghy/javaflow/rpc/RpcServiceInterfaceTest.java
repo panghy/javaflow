@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
-import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,17 +21,17 @@ public class RpcServiceInterfaceTest {
   private static class TestService implements RpcServiceInterface {
     public final PromiseStream<Pair<String, FlowPromise<String>>> echo = new PromiseStream<>();
 
-    public FlowFuture<String> echoAsync(String message) {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> echoAsync(String message) {
+      CompletableFuture<String> future = new CompletableFuture<>();
       echo.send(new Pair<>(message, future.getPromise()));
       return future;
     }
 
     // Override onClose for testing
-    private final FlowPromise<Void> closePromise = new FlowFuture<Void>().getPromise();
+    private final FlowPromise<Void> closePromise = new CompletableFuture<Void>().getPromise();
 
     @Override
-    public FlowFuture<Void> onClose() {
+    public CompletableFuture<Void> onClose() {
       return closePromise.getFuture();
     }
 
@@ -56,7 +54,7 @@ public class RpcServiceInterfaceTest {
     TestService service = new TestService();
 
     // Call ready and verify it completes immediately
-    FlowFuture<Void> readyFuture = service.ready();
+    CompletableFuture<Void> readyFuture = service.ready();
 
     assertNotNull(readyFuture);
     assertTrue(readyFuture.isCompleted());
@@ -67,7 +65,7 @@ public class RpcServiceInterfaceTest {
     TestService service = new TestService();
 
     // Get the onClose future
-    FlowFuture<Void> closeFuture = service.onClose();
+    CompletableFuture<Void> closeFuture = service.onClose();
 
     // Verify it's not completed initially
     assertNotNull(closeFuture);
@@ -86,7 +84,7 @@ public class RpcServiceInterfaceTest {
 
     // Mock the stream behavior directly instead of using forEach 
     String testMessage = "Hello";
-    FlowFuture<String> future = service.echoAsync(testMessage);
+    CompletableFuture<String> future = service.echoAsync(testMessage);
 
     // Complete the future manually 
     future.complete("Echo: " + testMessage);

@@ -1,9 +1,9 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The central scheduler for JavaFlow.
@@ -87,7 +87,7 @@ public class FlowScheduler implements AutoCloseable {
    * @param <T>  The return type of the task
    * @return A future that will be completed with the task's result
    */
-  public <T> FlowFuture<T> schedule(Callable<T> task) {
+  public <T> CompletableFuture<T> schedule(Callable<T> task) {
     return delegate.schedule(task);
   }
 
@@ -100,7 +100,7 @@ public class FlowScheduler implements AutoCloseable {
    * @return A future that will be completed with the task's result
    * @throws IllegalArgumentException if the priority is negative.
    */
-  public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
+  public <T> CompletableFuture<T> schedule(Callable<T> task, int priority) {
     return delegate.schedule(task, priority);
   }
 
@@ -117,7 +117,7 @@ public class FlowScheduler implements AutoCloseable {
    * @return A future that completes after the delay
    * @throws IllegalStateException if called outside a flow task
    */
-  public FlowFuture<Void> scheduleDelay(double seconds) {
+  public CompletableFuture<Void> scheduleDelay(double seconds) {
     return delegate.scheduleDelay(seconds);
   }
 
@@ -130,7 +130,7 @@ public class FlowScheduler implements AutoCloseable {
    * @return A future that completes after the delay
    * @throws IllegalStateException if called outside a flow task
    */
-  public FlowFuture<Void> scheduleDelay(double seconds, int priority) {
+  public CompletableFuture<Void> scheduleDelay(double seconds, int priority) {
     return delegate.scheduleDelay(seconds, priority);
   }
 
@@ -180,7 +180,7 @@ public class FlowScheduler implements AutoCloseable {
    *
    * @return A future that completes when the actor is resumed
    */
-  public FlowFuture<Void> yield() {
+  public CompletableFuture<Void> yield() {
     return delegate.yield();
   }
 
@@ -191,7 +191,7 @@ public class FlowScheduler implements AutoCloseable {
    * @return A future that completes when the actor is resumed
    * @throws IllegalArgumentException if the priority is negative.
    */
-  public FlowFuture<Void> yield(int priority) {
+  public CompletableFuture<Void> yield(int priority) {
     return delegate.yield(priority);
   }
 
@@ -242,7 +242,7 @@ public class FlowScheduler implements AutoCloseable {
    * @param <T>    The type of the future value
    * @return The value of the completed future
    */
-  public <T> T await(FlowFuture<T> future) throws Exception {
+  public <T> T await(CompletableFuture<T> future) throws Exception {
     return delegate.await(future);
   }
 

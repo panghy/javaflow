@@ -1,9 +1,9 @@
 package io.github.panghy.javaflow.io;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -23,42 +23,42 @@ class FlowFutureUtilTest extends AbstractFlowTest {
   @Test
   void testThenApply() throws Exception {
     // Create a completed future
-    FlowFuture<String> future = FlowFuture.completed("test");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("test");
 
     // Apply a function
     Function<String, Integer> mapper = String::length;
-    FlowFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
+    CompletableFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
 
     // Run scheduler using pumpUntilDone
     pumpAndAdvanceTimeUntilDone(mappedFuture);
 
     // Verify result
-    assertEquals(4, mappedFuture.getNow());
+    assertEquals(4, mappedFuture.getNow(null));
   }
 
   @Test
   void testThenApplyWithException() throws Exception {
     // Create a failed future
     RuntimeException exception = new RuntimeException("Test exception");
-    FlowFuture<String> future = FlowFuture.failed(exception);
+    CompletableFuture<String> future = CompletableFuture.failedFuture(exception);
 
     // Apply a function
     Function<String, Integer> mapper = String::length;
-    FlowFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
+    CompletableFuture<Integer> mappedFuture = FlowFutureUtil.thenApply(future, mapper);
 
     // Run scheduler using pumpUntilDone
     pumpAndAdvanceTimeUntilDone(mappedFuture);
 
     // Verify exception propagation
     assertTrue(mappedFuture.isCompletedExceptionally());
-    ExecutionException ex = assertThrows(ExecutionException.class, mappedFuture::getNow);
+    ExecutionException ex = assertThrows(ExecutionException.class, () -> mappedFuture.get());
     assertEquals(exception, ex.getCause());
   }
 
   @Test
   void testDelayThenApply() throws Exception {
     // Create a completed future
-    FlowFuture<String> future = FlowFuture.completed("test");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("test");
 
     // Current time
     double startTime = testScheduler.getSimulatedScheduler().getClock().currentTimeSeconds();
@@ -67,7 +67,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     double delay = 0.5; // 500ms
 
     // We need to wrap the delayThenApply call in an actor because it uses Flow.delay internally
-    FlowFuture<Integer> resultFuture = startActor(() -> await(delayThenApply(future, delay, String::length)));
+    CompletableFuture<Integer> resultFuture = startActor(() -> await(delayThenApply(future, delay, String::length)));
 
     // Run part of the delay
     testScheduler.advanceTime(delay / 2);
@@ -79,7 +79,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
 
     // Verify result
     assertTrue(resultFuture.isDone());
-    assertEquals(4, resultFuture.getNow());
+    assertEquals(4, resultFuture.getNow(null));
 
     // Verify delay
     double endTime = testScheduler.getSimulatedScheduler().getClock().currentTimeSeconds();
@@ -90,13 +90,13 @@ class FlowFutureUtilTest extends AbstractFlowTest {
   void testDelayThenApplyWithSourceError() throws Exception {
     // Create a failed future
     RuntimeException exception = new RuntimeException("Source error");
-    FlowFuture<String> future = FlowFuture.failed(exception);
+    CompletableFuture<String> future = CompletableFuture.failedFuture(exception);
 
     // Apply with delay
     double delay = 0.5; // 500ms
 
     // We need to wrap the delayThenApply call in an actor
-    FlowFuture<Integer> resultFuture = startActor(() -> {
+    CompletableFuture<Integer> resultFuture = startActor(() -> {
       try {
         return await(delayThenApply(future, delay, String::length));
       } catch (Exception e) {
@@ -109,19 +109,19 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Should get our sentinel value because of the expected exception
-    assertEquals(-1, resultFuture.getNow());
+    assertEquals(-1, resultFuture.getNow(null));
   }
 
   @Test
   void testDelayThenApplyWithMapperError() throws Exception {
     // Create a completed future
-    FlowFuture<String> future = FlowFuture.completed("test");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("test");
 
     double delay = 0.5; // 500ms
 
     // We need to wrap the delayThenApply call in an actor
-    FlowFuture<Boolean> resultFuture = startActor(() -> {
-      FlowFuture<Integer> mappedFuture = delayThenApply(future, delay, s -> {
+    CompletableFuture<Boolean> resultFuture = startActor(() -> {
+      CompletableFuture<Integer> mappedFuture = delayThenApply(future, delay, s -> {
         throw new RuntimeException("Mapper error");
       });
 
@@ -140,7 +140,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(resultFuture);
 
     // Should be true from our exception handler
-    assertTrue(resultFuture.getNow());
+    assertTrue(resultFuture.getNow(null));
   }
 
   // Let's skip this test for now as it's proving difficult to make work
@@ -152,15 +152,15 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     // to properly handle the flow scheduling
     
     // Create a completed future
-    FlowFuture<String> future = FlowFuture.completed("test");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("test");
     
     // Negative delay to trigger error
     double delay = -0.1;
     
     // Wrap in an actor to properly set up the scheduler
-    FlowFuture<Boolean> resultFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> resultFuture = Flow.startActor(() -> {
       try {
-        FlowFuture<String> delayedFuture = FlowFutureUtil.delay(future, delay);
+        CompletableFuture<String> delayedFuture = FlowFutureUtil.delay(future, delay);
         Flow.await(delayedFuture);
         return false; // Should not reach here
       } catch (Exception e) {
@@ -173,22 +173,22 @@ class FlowFutureUtilTest extends AbstractFlowTest {
     pumpUntilDone(resultFuture);
     
     // Should have caught the expected exception
-    assertTrue(resultFuture.getNow());
+    assertTrue(resultFuture.getNow(null));
   }
   */
 
   @Test
   void testDelay() throws Exception {
     // Create a completed future
-    FlowFuture<String> future = FlowFuture.completed("test");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("test");
 
     // Current time
     double startTime = testScheduler.getSimulatedScheduler().getClock().currentTimeSeconds();
 
     // We need to wrap the delay call in an actor because it uses Flow.delay internally
     double delay = 0.5; // 500ms
-    FlowFuture<String> resultFuture = startActor(() -> {
-      FlowFuture<String> delayedFuture = FlowFutureUtil.delay(future, delay);
+    CompletableFuture<String> resultFuture = startActor(() -> {
+      CompletableFuture<String> delayedFuture = FlowFutureUtil.delay(future, delay);
       return await(delayedFuture);
     });
 
@@ -202,7 +202,7 @@ class FlowFutureUtilTest extends AbstractFlowTest {
 
     // Verify result
     assertTrue(resultFuture.isDone());
-    assertEquals("test", resultFuture.getNow());
+    assertEquals("test", resultFuture.getNow(null));
 
     // Verify delay
     double endTime = testScheduler.getSimulatedScheduler().getClock().currentTimeSeconds();

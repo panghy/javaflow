@@ -1,6 +1,5 @@
 package io.github.panghy.javaflow;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.SimulatedClock;
@@ -9,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,14 +39,14 @@ class FlowTimerTest {
       long start = System.currentTimeMillis();
 
       // Create a flow task that creates a delay of 100ms
-      FlowFuture<Void> delayFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> delayFuture = Flow.startActor(() -> {
         // Now inside a flow task, we can use delay operations
         Flow.await(Flow.delay(0.1));
         return null;
       });
 
       // Wait for the delay to complete
-      delayFuture.toCompletableFuture().get();
+      delayFuture.get();
 
       // Verify that at least 100ms has passed
       long elapsed = System.currentTimeMillis() - start;
@@ -101,12 +101,12 @@ class FlowTimerTest {
     @Test
     void testCancelDelay() throws Exception {
       AtomicBoolean executed = new AtomicBoolean(false);
-      AtomicReference<FlowFuture<Void>> delayFutureRef = new AtomicReference<>();
+      AtomicReference<CompletableFuture<Void>> delayFutureRef = new AtomicReference<>();
 
       // Create a task that will issue a delay
       Flow.startActor(() -> {
         // Create a delay inside the flow task
-        FlowFuture<Void> delayFuture = delay(1.0);
+        CompletableFuture<Void> delayFuture = delay(1.0);
 
         // Store the delayFuture so we can cancel it from outside
         delayFutureRef.set(delayFuture);
@@ -130,11 +130,11 @@ class FlowTimerTest {
 
       // Make sure we have a delay future to cancel
       Thread.sleep(50);
-      FlowFuture<Void> delayFuture = delayFutureRef.get();
+      CompletableFuture<Void> delayFuture = delayFutureRef.get();
       assertNotNull(delayFuture, "Delay future should be created");
 
       // Cancel the delay
-      boolean cancelled = delayFuture.cancel();
+      boolean cancelled = delayFuture.cancel(true);
       assertTrue(cancelled, "Delay should be cancellable");
 
       // Wait a bit to ensure the delay doesn't fire
@@ -176,12 +176,12 @@ class FlowTimerTest {
       ((SimulatedClock) Flow.getClock()).reset();
 
       AtomicBoolean completed = new AtomicBoolean(false);
-      AtomicReference<FlowFuture<Void>> delayFutureRef = new AtomicReference<>();
+      AtomicReference<CompletableFuture<Void>> delayFutureRef = new AtomicReference<>();
 
       // Create a flow task that will create a delay for 1 second in simulated time
-      FlowFuture<Void> taskFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> taskFuture = Flow.startActor(() -> {
         // Create a delay inside a flow task
-        FlowFuture<Void> delayFuture = delay(1.0);
+        CompletableFuture<Void> delayFuture = delay(1.0);
         delayFutureRef.set(delayFuture);
 
         delayFuture.whenComplete((v, e) -> completed.set(true));
@@ -201,7 +201,7 @@ class FlowTimerTest {
       pump();
 
       // Get the delay future for verification
-      FlowFuture<Void> delayFuture = delayFutureRef.get();
+      CompletableFuture<Void> delayFuture = delayFutureRef.get();
       assertNotNull(delayFuture, "Delay future should have been created");
 
       // Verify the state before advancing time
@@ -314,12 +314,12 @@ class FlowTimerTest {
     @Test
     void testCancelSimulatedDelay() {
       AtomicBoolean completed = new AtomicBoolean(false);
-      AtomicReference<FlowFuture<Void>> delayFutureRef = new AtomicReference<>();
+      AtomicReference<CompletableFuture<Void>> delayFutureRef = new AtomicReference<>();
 
       // Create a flow task that will create a delay
       Flow.startActor(() -> {
         // Create a delay inside a flow task
-        FlowFuture<Void> delayFuture = delay(1.0);
+        CompletableFuture<Void> delayFuture = delay(1.0);
 
         // Store it for access from outside the flow task
         delayFutureRef.set(delayFuture);
@@ -338,11 +338,11 @@ class FlowTimerTest {
       testScheduler.pump();
 
       // Get the delay future
-      FlowFuture<Void> delayFuture = delayFutureRef.get();
+      CompletableFuture<Void> delayFuture = delayFutureRef.get();
       assertNotNull(delayFuture, "Delay future should be created");
 
       // Cancel the delay
-      boolean cancelled = delayFuture.cancel();
+      boolean cancelled = delayFuture.cancel(true);
       assertTrue(cancelled, "Delay should be cancellable");
 
       // Make sure we pump once to ensure cancellation propagates
@@ -397,27 +397,27 @@ class FlowTimerTest {
 
       System.out.println("*** Creating nested delays test task");
       // Create a task with nested delays
-      FlowFuture<Void> future = Flow.startActor(() -> {
+      CompletableFuture<Void> future = Flow.startActor(() -> {
         System.out.println("*** Starting nested delays actor at time: " + Flow.now() + "ms");
 
         try {
           // First delay
           System.out.println("*** Before first delay (1.0s)");
-          FlowFuture<Void> delay1 = Flow.delay(1.0);
+          CompletableFuture<Void> delay1 = Flow.delay(1.0);
           System.out.println("*** Created first delay future: " + delay1);
           Flow.await(delay1);
           System.out.println("*** After first delay, time: " + Flow.now() + "ms");
 
           // Second nested delay
           System.out.println("*** Before second delay (0.5s)");
-          FlowFuture<Void> delay2 = Flow.delay(0.5);
+          CompletableFuture<Void> delay2 = Flow.delay(0.5);
           System.out.println("*** Created second delay future: " + delay2);
           Flow.await(delay2);
           System.out.println("*** After second delay, time: " + Flow.now() + "ms");
 
           // Third nested delay
           System.out.println("*** Before third delay (0.25s)");
-          FlowFuture<Void> delay3 = Flow.delay(0.25);
+          CompletableFuture<Void> delay3 = Flow.delay(0.25);
           System.out.println("*** Created third delay future: " + delay3);
           Flow.await(delay3);
           System.out.println("*** After third delay, time: " + Flow.now() + "ms");
@@ -507,23 +507,24 @@ class FlowTimerTest {
       CountDownLatch slowLatch = new CountDownLatch(1);
 
       // Create two futures, where the first will complete before the second
-      FlowFuture<String> fastFuture = Flow.startActor(() -> {
+      CompletableFuture<String> fastFuture = Flow.startActor(() -> {
         Thread.sleep(50);
         fastLatch.countDown();
         return "fast";
       });
 
-      FlowFuture<String> slowFuture = Flow.startActor(() -> {
+      CompletableFuture<String> slowFuture = Flow.startActor(() -> {
         Thread.sleep(500);
         slowLatch.countDown();
         return "slow";
       });
 
       // Create a combined future that completes when either completes
-      FlowFuture<Void> combinedFuture = fastFuture.or(slowFuture);
+      CompletableFuture<Void> combinedFuture = CompletableFuture.anyOf(fastFuture, slowFuture)
+          .thenApply(v -> null);
 
       // Wait for the combined future to complete
-      combinedFuture.toCompletableFuture().get(1, TimeUnit.SECONDS);
+      combinedFuture.get(1, TimeUnit.SECONDS);
 
       // Verify the fast future completed
       assertTrue(fastLatch.await(0, TimeUnit.MILLISECONDS), "Fast task should have completed");
@@ -539,22 +540,23 @@ class FlowTimerTest {
     @Test
     void testOrWithException() throws Exception {
       // Create a future that fails
-      FlowFuture<String> failingFuture = Flow.startActor(() -> {
+      CompletableFuture<String> failingFuture = Flow.startActor(() -> {
         throw new RuntimeException("test error");
       });
 
       // Create a future that succeeds, but slowly
-      FlowFuture<String> slowFuture = Flow.startActor(() -> {
+      CompletableFuture<String> slowFuture = Flow.startActor(() -> {
         Thread.sleep(500);
         return "slow";
       });
 
       // Create a combined future
-      FlowFuture<Void> combinedFuture = failingFuture.or(slowFuture);
+      CompletableFuture<Void> combinedFuture = CompletableFuture.anyOf(failingFuture, slowFuture)
+          .thenApply(v -> null);
 
       // The combined future should complete exceptionally
       ExecutionException exception = assertThrows(ExecutionException.class,
-          () -> combinedFuture.toCompletableFuture().get(1, TimeUnit.SECONDS));
+          () -> combinedFuture.get(1, TimeUnit.SECONDS));
 
       assertTrue(exception.getCause() instanceof RuntimeException,
           "Exception should be the RuntimeException from the failing future");
@@ -567,7 +569,7 @@ class FlowTimerTest {
           "Combined future should be completed exceptionally");
 
       // Cancel the slow future to avoid waiting
-      slowFuture.cancel();
+      slowFuture.cancel(true);
     }
   }
 
@@ -579,7 +581,7 @@ class FlowTimerTest {
 
     @Test
     void testAllOf() throws Exception {
-      List<FlowFuture<Integer>> futures = new ArrayList<>();
+      List<CompletableFuture<Integer>> futures = new ArrayList<>();
 
       // Create 5 futures with different completion times
       for (int i = 0; i < 5; i++) {
@@ -591,8 +593,14 @@ class FlowTimerTest {
       }
 
       // Wait for all futures to complete
-      FlowFuture<List<Integer>> combinedFuture = FlowFuture.allOf(futures);
-      List<Integer> results = combinedFuture.toCompletableFuture().get(1, TimeUnit.SECONDS);
+      CompletableFuture<Void> allOf = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+      allOf.get(1, TimeUnit.SECONDS);
+      
+      // Collect results
+      List<Integer> results = new ArrayList<>();
+      for (CompletableFuture<Integer> f : futures) {
+        results.add(f.getNow(null));
+      }
 
       // Verify the results are in the correct order
       assertEquals(5, results.size(), "Should have 5 results");
@@ -604,32 +612,32 @@ class FlowTimerTest {
     @Test
     void testAllOfWithEmptyList() throws Exception {
       // Test with an empty list
-      FlowFuture<List<Integer>> emptyFuture = FlowFuture.allOf(new ArrayList<>());
-      List<Integer> results = emptyFuture.toCompletableFuture().get(1, TimeUnit.SECONDS);
+      CompletableFuture<Void> emptyFuture = CompletableFuture.allOf();
+      emptyFuture.get(1, TimeUnit.SECONDS);
 
-      assertTrue(results.isEmpty(), "Result list should be empty");
+      assertTrue(emptyFuture.isDone(), "Future should be complete");
     }
 
     @Test
     void testAllOfWithException() {
-      List<FlowFuture<Integer>> futures = new ArrayList<>();
+      List<CompletableFuture<Integer>> futures = new ArrayList<>();
 
       // Add some normal futures
-      futures.add(FlowFuture.completed(1));
-      futures.add(FlowFuture.completed(2));
+      futures.add(CompletableFuture.completedFuture(1));
+      futures.add(CompletableFuture.completedFuture(2));
 
       // Add a failing future
-      futures.add(FlowFuture.failed(new RuntimeException("test error")));
+      futures.add(CompletableFuture.failedFuture(new RuntimeException("test error")));
 
       // Add more normal futures
-      futures.add(FlowFuture.completed(4));
-      futures.add(FlowFuture.completed(5));
+      futures.add(CompletableFuture.completedFuture(4));
+      futures.add(CompletableFuture.completedFuture(5));
 
       // The combined future should fail
-      FlowFuture<List<Integer>> combinedFuture = FlowFuture.allOf(futures);
+      CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 
       ExecutionException exception = assertThrows(ExecutionException.class,
-          () -> combinedFuture.toCompletableFuture().get(1, TimeUnit.SECONDS));
+          () -> combinedFuture.get(1, TimeUnit.SECONDS));
 
       assertTrue(exception.getCause() instanceof RuntimeException,
           "Exception should be from the failing future");
@@ -642,7 +650,7 @@ class FlowTimerTest {
       // Create a direct scheduler instance for better control
       FlowScheduler scheduler = new FlowScheduler(false, FlowClock.createSimulatedClock());
 
-      List<FlowFuture<String>> futures = new ArrayList<>();
+      List<CompletableFuture<String>> futures = new ArrayList<>();
 
       // Set up atomic flags to track execution
       AtomicBoolean firstTaskStarted = new AtomicBoolean(false);
@@ -681,7 +689,7 @@ class FlowTimerTest {
       }));
 
       // Create the anyOf future
-      FlowFuture<String> anyFuture = FlowFuture.anyOf(futures);
+      CompletableFuture<Object> anyFuture = CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
 
       // Pump several times to get tasks running
       scheduler.pump();
@@ -709,23 +717,23 @@ class FlowTimerTest {
       assertFalse(anyFuture.isCompletedExceptionally(), "AnyOf future should not be completed with exception");
 
       // The result should be from the second task
-      assertEquals("second", anyFuture.getNow(), "Result should be from the fastest future");
+      assertEquals("second", anyFuture.getNow(null), "Result should be from the fastest future");
     }
 
     @Test
     void testAnyOfAllFail() {
-      List<FlowFuture<String>> futures = new ArrayList<>();
+      List<CompletableFuture<String>> futures = new ArrayList<>();
 
       // Add three failing futures
-      futures.add(FlowFuture.failed(new RuntimeException("error 1")));
-      futures.add(FlowFuture.failed(new RuntimeException("error 2")));
-      futures.add(FlowFuture.failed(new RuntimeException("error 3")));
+      futures.add(CompletableFuture.failedFuture(new RuntimeException("error 1")));
+      futures.add(CompletableFuture.failedFuture(new RuntimeException("error 2")));
+      futures.add(CompletableFuture.failedFuture(new RuntimeException("error 3")));
 
       // The anyOf should fail
-      FlowFuture<String> anyFuture = FlowFuture.anyOf(futures);
+      CompletableFuture<Object> anyFuture = CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
 
       ExecutionException exception = assertThrows(ExecutionException.class,
-          () -> anyFuture.toCompletableFuture().get(1, TimeUnit.SECONDS));
+          () -> anyFuture.get(1, TimeUnit.SECONDS));
 
       assertTrue(exception.getCause() instanceof RuntimeException,
           "Exception should be from one of the failing futures");
@@ -733,9 +741,9 @@ class FlowTimerTest {
 
     @Test
     void testAnyOfEmpty() {
-      // anyOf with empty list should throw IllegalArgumentException
+      // anyOf with empty array should throw IllegalArgumentException
       assertThrows(IllegalArgumentException.class,
-          () -> FlowFuture.anyOf(new ArrayList<>()));
+          () -> CompletableFuture.anyOf());
     }
   }
 }

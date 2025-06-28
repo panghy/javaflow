@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -41,7 +40,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     final ByteBuffer writeBuffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap all file operations in an actor to properly handle Flow.delay internally used by SimulatedFlowFile
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Write data to file
       Flow.await(file.write(0, writeBuffer));
       
@@ -75,7 +74,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     final int partialLength = 10;
     
     // Wrap all file operations in an actor to properly handle Flow.delay internally used by SimulatedFlowFile
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Write data to file
       Flow.await(file.write(0, writeBuffer));
       
@@ -101,7 +100,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     final ByteBuffer writeBuffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap all file operations in an actor
-    FlowFuture<Integer> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Integer> testFuture = Flow.startActor(() -> {
       // Write data to file
       Flow.await(file.write(0, writeBuffer));
       
@@ -126,7 +125,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     final int truncateSize = 10;
     
     // Wrap all file operations in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Write data to file
       Flow.await(file.write(0, writeBuffer));
       
@@ -171,7 +170,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     ByteBuffer appendBuffer = ByteBuffer.wrap(appendData.getBytes(StandardCharsets.UTF_8));
     
     // Wrap all file operations in an actor
-    FlowFuture<String> testFuture = Flow.startActor(() -> {
+    CompletableFuture<String> testFuture = Flow.startActor(() -> {
       // Write initial data
       Flow.await(file.write(0, initialBuffer));
       
@@ -197,7 +196,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testSync() throws Exception {
     // Wrap the sync operation in an actor
-    FlowFuture<Boolean> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> testFuture = Flow.startActor(() -> {
       // Sync should complete successfully
       Flow.await(file.sync());
       return true; // If we get here, it worked
@@ -213,7 +212,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testClose() throws Exception {
     // First action: close the file
-    FlowFuture<Boolean> closeFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> closeFuture = Flow.startActor(() -> {
       Flow.await(file.close());
       return true; // If we get here, it worked
     });
@@ -224,7 +223,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertTrue(file.isClosed(), "File should be marked as closed");
 
     // Second action: try to read from the closed file
-    FlowFuture<Boolean> readFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> readFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.read(0, 10));
         return false; // Should not reach here
@@ -242,7 +241,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testWriteAfterClose() throws Exception {
     // Setup: write some data then close the file
-    FlowFuture<Void> setupFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> setupFuture = Flow.startActor(() -> {
       String testData = "Test data";
       ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
       Flow.await(file.write(0, buffer));
@@ -254,7 +253,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to write to the closed file
-    FlowFuture<String> writeFuture = Flow.startActor(() -> {
+    CompletableFuture<String> writeFuture = Flow.startActor(() -> {
       try {
         ByteBuffer buffer = ByteBuffer.wrap("More data".getBytes(StandardCharsets.UTF_8));
         Flow.await(file.write(0, buffer));
@@ -271,7 +270,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testTruncateAfterClose() throws Exception {
     // Setup: write some data then close the file
-    FlowFuture<Void> setupFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> setupFuture = Flow.startActor(() -> {
       String testData = "Test data for truncation";
       ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
       Flow.await(file.write(0, buffer));
@@ -283,7 +282,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to truncate the closed file
-    FlowFuture<String> truncateFuture = Flow.startActor(() -> {
+    CompletableFuture<String> truncateFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.truncate(5));
         return "Truncate succeeded unexpectedly";
@@ -299,7 +298,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testSyncAfterClose() throws Exception {
     // Setup: close the file
-    FlowFuture<Void> setupFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> setupFuture = Flow.startActor(() -> {
       Flow.await(file.close());
       return null;
     });
@@ -308,7 +307,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to sync the closed file
-    FlowFuture<String> syncFuture = Flow.startActor(() -> {
+    CompletableFuture<String> syncFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.sync());
         return "Sync succeeded unexpectedly";
@@ -324,7 +323,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testSizeAfterClose() throws Exception {
     // Setup: write some data then close the file
-    FlowFuture<Void> setupFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> setupFuture = Flow.startActor(() -> {
       String testData = "Test data for size check";
       ByteBuffer buffer = ByteBuffer.wrap(testData.getBytes(StandardCharsets.UTF_8));
       Flow.await(file.write(0, buffer));
@@ -336,7 +335,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertTrue(file.isClosed(), "File should be marked as closed");
     
     // Test: attempt to get size of the closed file
-    FlowFuture<String> sizeFuture = Flow.startActor(() -> {
+    CompletableFuture<String> sizeFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.size());
         return "Size operation succeeded unexpectedly";
@@ -352,7 +351,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
   @Test
   void testMultipleClose() throws Exception {
     // Test closing a file multiple times (should be idempotent)
-    FlowFuture<Boolean> multipleFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> multipleFuture = Flow.startActor(() -> {
       // First close
       Flow.await(file.close());
       assertTrue(file.isClosed(), "File should be marked as closed after first close");
@@ -387,7 +386,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     ByteBuffer testBuffer = ByteBuffer.wrap("test".getBytes());
     
     // Test negative position for read
-    FlowFuture<Class<?>> readFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> readFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.read(-1, 10));
         return null; // Should not reach here
@@ -399,7 +398,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertEquals(IllegalArgumentException.class, readFuture.getNow());
     
     // Test zero length for read
-    FlowFuture<Class<?>> zeroLengthFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> zeroLengthFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.read(0, 0));
         return null; // Should not reach here
@@ -411,7 +410,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertEquals(IllegalArgumentException.class, zeroLengthFuture.getNow());
     
     // Test negative position for write
-    FlowFuture<Class<?>> writeFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> writeFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.write(-1, testBuffer));
         return null; // Should not reach here
@@ -423,7 +422,7 @@ class SimulatedFlowFileTest extends AbstractFlowTest {
     assertEquals(IllegalArgumentException.class, writeFuture.getNow());
     
     // Test negative size for truncate
-    FlowFuture<Class<?>> truncateFuture = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> truncateFuture = Flow.startActor(() -> {
       try {
         Flow.await(file.truncate(-1));
         return null; // Should not reach here

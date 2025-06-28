@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.ArrayList;
@@ -52,11 +52,11 @@ public class ActorSchedulingBenchmark {
     );
 
     // Launch actors for each priority level
-    List<FlowFuture<Void>> actors = new ArrayList<>(TOTAL_ACTORS);
+    List<CompletableFuture<Void>> actors = new ArrayList<>(TOTAL_ACTORS);
     PRIORITY_DISTRIBUTION.forEach((priority, percentage) -> {
       int actorCount = TOTAL_ACTORS * percentage / 100;
       for (int i = 0; i < actorCount; i++) {
-        FlowFuture<Void> actor = Flow.startActor(() -> {
+        CompletableFuture<Void> actor = Flow.startActor(() -> {
           // No need to signal startup
 
           // Run until interrupted

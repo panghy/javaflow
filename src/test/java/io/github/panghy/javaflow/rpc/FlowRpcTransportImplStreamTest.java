@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -205,7 +204,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test string stream
       PromiseStream<String> stringStream = client.getStringStream();
       List<String> stringValues = new ArrayList<>();
@@ -259,7 +258,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> errorStream = client.getErrorStream();
       List<String> values = new ArrayList<>();
       AtomicBoolean errorReceived = new AtomicBoolean(false);
@@ -309,7 +308,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Create a stream to pass as argument
       PromiseStream<String> inputStream = new PromiseStream<>();
       inputStream.send("Hello");
@@ -354,7 +353,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Create a stream to pass as argument
       PromiseStream<String> promiseStream = new PromiseStream<>();
       promiseStream.send("Input1");
@@ -394,7 +393,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     ComplexStreamService client = transport.getRpcStub(serviceId, ComplexStreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test list stream
       PromiseStream<List<String>> listStream = client.getListStream();
       List<List<String>> lists = new ArrayList<>();
@@ -443,7 +442,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       PromiseStream<String> delayedStream = client.getDelayedStream();
       List<String> values = new ArrayList<>();
       AtomicInteger valueCount = new AtomicInteger(0);
@@ -483,7 +482,7 @@ public class FlowRpcTransportImplStreamTest extends AbstractFlowTest {
 
     StreamService client = transport.getRpcStub(serviceId, StreamService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Get multiple streams simultaneously
       PromiseStream<String> stream1 = client.getStringStream();
       PromiseStream<Integer> stream2 = client.getNumberStream();

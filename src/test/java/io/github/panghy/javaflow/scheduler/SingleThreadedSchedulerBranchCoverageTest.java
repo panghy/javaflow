@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -52,9 +51,9 @@ public class SingleThreadedSchedulerBranchCoverageTest {
     SimulationContext.setCurrent(context);
     
     // Schedule multiple tasks to ensure we have choices for random selection
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1, 50);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2, 50);
-    FlowFuture<Integer> f3 = scheduler.schedule(() -> 3, 50);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1, 50);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2, 50);
+    CompletableFuture<Integer> f3 = scheduler.schedule(() -> 3, 50);
     
     // Pump once to get tasks into ready queue
     scheduler.pump();

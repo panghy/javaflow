@@ -1,7 +1,5 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -20,9 +18,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -158,9 +156,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
   private final boolean enableCarrierThread;
 
   /**
-   * Map to store promises for yield operations
+   * Map to store futures for yield operations
    */
-  private final Map<Long, FlowPromise<Void>> yieldPromises = new HashMap<>();
+  private final Map<Long, CompletableFuture<Void>> yieldFutures = new HashMap<>();
 
   /**
    * The clock used by this scheduler for timing operations
@@ -304,7 +302,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param task Task to execute
    * @return Future for the task's result
    */
-  public <T> FlowFuture<T> schedule(Callable<T> task) {
+  public <T> CompletableFuture<T> schedule(Callable<T> task) {
     return schedule(task, TaskPriority.DEFAULT);
   }
 
@@ -315,11 +313,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param priority Priority level
    * @return Future for the task's result
    */
-  public <T> FlowFuture<T> schedule(Callable<T> task, int priority) {
+  public <T> CompletableFuture<T> schedule(Callable<T> task, int priority) {
     // Check if scheduler is in drain mode
     if (draining.get() || !running.get()) {
-      FlowFuture<T> future = new FlowFuture<>();
-      future.getPromise().completeExceptionally(
+      CompletableFuture<T> future = new CompletableFuture<>();
+      future.completeExceptionally(
           new IllegalStateException("Cannot schedule new tasks while scheduler is shutting down"));
       return future;
     }
@@ -327,18 +325,17 @@ public class SingleThreadedScheduler implements AutoCloseable {
     // Create and schedule the task
     long taskId = taskIdCounter.incrementAndGet();
 
-    // Create a future/promise pair for the result
-    FlowFuture<T> future = new FlowFuture<>();
-    FlowPromise<T> promise = future.getPromise();
+    // Create a future for the result
+    CompletableFuture<T> future = new CompletableFuture<>();
 
     // Create a task wrapper that completes the promise
     Callable<T> wrappedTask = () -> {
       try {
         T result = task.call();
-        promise.complete(result);
+        future.complete(result);
         return result;
       } catch (Throwable t) {
-        promise.completeExceptionally(t);
+        future.completeExceptionally(t);
         throw t;
       }
     };
@@ -378,7 +375,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (currentTask != null) {
       currentTask.addChild(flowTask);
     }
-    promise.getFuture().whenComplete(($, t) -> {
+    future.whenComplete(($, t) -> {
       if (t instanceof CancellationException) {
         flowTask.cancel();
       }
@@ -405,7 +402,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param seconds Delay in seconds
    * @return Future that completes after the delay
    */
-  public FlowFuture<Void> scheduleDelay(double seconds) {
+  public CompletableFuture<Void> scheduleDelay(double seconds) {
     return scheduleDelay(seconds, TaskPriority.LOW);
   }
 
@@ -416,11 +413,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param priority Priority of the task
    * @return Future that completes after the delay
    */
-  public FlowFuture<Void> scheduleDelay(double seconds, int priority) {
+  public CompletableFuture<Void> scheduleDelay(double seconds, int priority) {
     // Check if scheduler is in drain mode
     if (draining.get() || !running.get()) {
-      FlowFuture<Void> future = new FlowFuture<>();
-      future.getPromise().completeExceptionally(
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(
           new CancellationException("Cannot schedule timers while scheduler is shutting down"));
       return future;
     }
@@ -440,15 +437,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
       throw new IllegalStateException("scheduleDelay called for unknown task");
     }
 
-    // Create a future/promise pair for the result
-    FlowFuture<Void> future = new FlowFuture<>();
-    FlowPromise<Void> promise = future.getPromise();
+    // Create a future for the result
+    CompletableFuture<Void> future = new CompletableFuture<>();
 
     // Convert to milliseconds
     long delayMs = (long) (seconds * 1000);
 
     // Schedule the timer task
-    scheduleTimerTask(delayMs, promise, priority, currentTask);
+    scheduleTimerTask(delayMs, future, priority, currentTask);
 
     return future;
   }
@@ -461,7 +457,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param priority   Priority of the task
    * @param parentTask Parent task if any
    */
-  private void scheduleTimerTask(long delayMs, FlowPromise<Void> promise, int priority,
+  private void scheduleTimerTask(long delayMs, CompletableFuture<Void> future, int priority,
                                  Task parentTask) {
     // Generate a unique timer ID
     final long timerId = timerIdCounter.incrementAndGet();
@@ -476,7 +472,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
         () -> {
         },  // Empty runnable - we just need to complete the promise
         priority,
-        promise,
+        future,
         parentTask
     );
 
@@ -485,7 +481,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // Check if the parent task is already cancelled
       if (parentTask != null && parentTask.isCancelled()) {
         // If the parent is already cancelled, immediately fail the promise
-        promise.completeExceptionally(new java.util.concurrent.CancellationException(
+        future.completeExceptionally(new java.util.concurrent.CancellationException(
             "Parent task is already cancelled"));
         return;
       }
@@ -536,8 +532,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
           parentTask.unregisterTimerTask(timerId);
         }
 
-        // Complete the promise exceptionally
-        task.getPromise().completeExceptionally(new CancellationException("Timer cancelled"));
+        // Complete the future exceptionally
+        task.getFuture().completeExceptionally(new CancellationException("Timer cancelled"));
 
       }
     } finally {
@@ -606,7 +602,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    *
    * @return Future that completes when task resumes
    */
-  public FlowFuture<Void> yield() {
+  public CompletableFuture<Void> yield() {
     return this.yield(null); // Maintain the same priority
   }
 
@@ -615,11 +611,11 @@ public class SingleThreadedScheduler implements AutoCloseable {
    *
    * @return Future that completes when task resumes
    */
-  public FlowFuture<Void> yield(Integer priority) {
+  public CompletableFuture<Void> yield(Integer priority) {
     // Check if scheduler is in drain mode
     if (draining.get() || !running.get()) {
-      FlowFuture<Void> future = new FlowFuture<>();
-      future.getPromise().completeExceptionally(
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(
           new CancellationException("Cannot yield while scheduler is shutting down"));
       return future;
     }
@@ -634,15 +630,14 @@ public class SingleThreadedScheduler implements AutoCloseable {
       throw new IllegalStateException("yield called for unknown task");
     }
 
-    // Create future/promise for resumption
-    FlowFuture<Void> future = new FlowFuture<>();
-    FlowPromise<Void> promise = future.getPromise();
+    // Create future for resumption
+    CompletableFuture<Void> future = new CompletableFuture<>();
 
-    // Store promise to be completed when task is resumed
-    yieldPromises.put(task.getId(), promise);
+    // Store future to be completed when task is resumed
+    yieldFutures.put(task.getId(), future);
 
     schedule(() -> {
-      promise.complete(null);
+      future.complete(null);
       return null;
     }, priority == null ? task.getOriginalPriority() : priority);
 
@@ -672,9 +667,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
       task.setEffectivePriority(task.getOriginalPriority());
 
       // Complete the promise associated with the yield operation
-      FlowPromise<Void> promise = yieldPromises.remove(taskId);
-      if (promise != null) {
-        promise.complete(null);
+      CompletableFuture<Void> future = yieldFutures.remove(taskId);
+      if (future != null) {
+        future.complete(null);
       }
 
       try {
@@ -691,7 +686,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
         taskToContinuation.remove(taskId);
         taskToScope.remove(taskId);
         idToTask.remove(taskId);
-        yieldPromises.remove(taskId);
+        yieldFutures.remove(taskId);
         if (task.isCancelled()) {
           debug(LOGGER, "Task " + taskId + " cancelled, cleaning up");
         } else {
@@ -802,9 +797,8 @@ public class SingleThreadedScheduler implements AutoCloseable {
             SimulationConfiguration config = SimulationContext.currentConfiguration();
             if (config != null && config.getInterTaskDelayMs() > 0) {
               // Schedule the task to run after the delay using the clock
-              FlowFuture<Void> delayFuture = new FlowFuture<>();
-              FlowPromise<Void> delayPromise = delayFuture.getPromise();
-              scheduleTimerTask((long) config.getInterTaskDelayMs(), delayPromise,
+              CompletableFuture<Void> delayFuture = new CompletableFuture<>();
+              scheduleTimerTask((long) config.getInterTaskDelayMs(), delayFuture,
                   task.getPriority(), task);
 
               // When the timer fires, re-add the task to ready queue
@@ -908,7 +902,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       taskToContinuation.remove(task.getId());
       taskToScope.remove(task.getId());
       idToTask.remove(task.getId());
-      yieldPromises.remove(task.getId());
+      yieldFutures.remove(task.getId());
       debug(LOGGER, "Task " + task.getId() + " completed");
       task.setState(Task.TaskState.COMPLETED);
     }
@@ -920,7 +914,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
    * @param future The future to wait for
    * @param <T>    The type of the future value
    */
-  public <T> T await(FlowFuture<T> future) throws Exception {
+  public <T> T await(CompletableFuture<T> future) throws Exception {
     // Check if scheduler is in drain mode
     if (draining.get()) {
       throw new CancellationException("Cannot await futures while scheduler is shutting down");
@@ -965,9 +959,13 @@ public class SingleThreadedScheduler implements AutoCloseable {
     if (task.isCancelled()) {
       throw new CancellationException("task cancelled");
     } else if (future.isCompletedExceptionally()) {
-      throw new ExecutionException(future.getException());
+      try {
+        return future.getNow(null);
+      } catch (Exception e) {
+        throw e;
+      }
     }
-    return future.getNow();
+    return future.getNow(null);
   }
 
   /**
@@ -1051,9 +1049,9 @@ public class SingleThreadedScheduler implements AutoCloseable {
       // wake up and run their cleanup code (but not yield or delay, etc.)
 
       // If the task is yielding, we will complete its promise exceptionally.
-      FlowPromise<Void> promise = yieldPromises.remove(taskId);
-      if (promise != null) {
-        promise.completeExceptionally(new CancellationException());
+      CompletableFuture<Void> future = yieldFutures.remove(taskId);
+      if (future != null) {
+        future.completeExceptionally(new CancellationException());
       }
     } finally {
       taskLock.unlock();
@@ -1160,7 +1158,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     taskToContinuation.clear();
     taskToScope.clear();
     idToTask.clear();
-    yieldPromises.clear();
+    yieldFutures.clear();
     timerTasks.clear();
     timerIdToTask.clear();
 
@@ -1186,7 +1184,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
     taskLock.lock();
     try {
       // Complete all yield promises with cancellation exceptions
-      for (Map.Entry<Long, FlowPromise<Void>> entry : yieldPromises.entrySet()) {
+      for (Map.Entry<Long, CompletableFuture<Void>> entry : yieldFutures.entrySet()) {
         debug(LOGGER, "Cancelling yield promise for task " + entry.getKey() + " due to scheduler drain");
         entry.getValue().completeExceptionally(
             new CancellationException("Scheduler is draining while waiting for yield"));
@@ -1196,7 +1194,7 @@ public class SingleThreadedScheduler implements AutoCloseable {
       for (Map.Entry<Long, TimerTask> entry : timerIdToTask.entrySet()) {
         debug(LOGGER, "Cancelling timer task " + entry.getKey() + " due to scheduler drain");
         TimerTask task = entry.getValue();
-        task.getPromise().completeExceptionally(
+        task.getFuture().completeExceptionally(
             new CancellationException("Scheduler is draining while waiting for timer"));
       }
 

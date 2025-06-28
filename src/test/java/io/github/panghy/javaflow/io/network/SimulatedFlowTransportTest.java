@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
 
@@ -55,10 +54,10 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     FlowStream<FlowConnection> connectionStream = transport.listen(serverEndpoint);
     
     // Client connects to server
-    FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> clientConnectionFuture = transport.connect(serverEndpoint);
     
     // Server accepts connection
-    FlowFuture<FlowConnection> serverConnectionFuture = connectionStream.nextAsync();
+    CompletableFuture<FlowConnection> serverConnectionFuture = connectionStream.nextAsync();
     
     // Wait for both to complete
     pumpAndAdvanceTimeUntilDone(clientConnectionFuture, serverConnectionFuture);
@@ -76,7 +75,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     clientConnection.send(createBuffer(testMessage));
     
     // Receive on server
-    FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     // Verify the message
@@ -108,7 +107,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
       errorTransport.listen(serverEndpoint);
       
       // Connect and verify connection works
-      FlowFuture<FlowConnection> clientConnectionFuture = errorTransport.connect(serverEndpoint);
+      CompletableFuture<FlowConnection> clientConnectionFuture = errorTransport.connect(serverEndpoint);
       pumpAndAdvanceTimeUntilDone(clientConnectionFuture);
       FlowConnection clientConnection = Flow.await(clientConnectionFuture);
       
@@ -117,7 +116,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
       assertTrue(clientConnection.isOpen());
       
       // But sending should fail with 100% probability
-      FlowFuture<Void> sendFuture = clientConnection.send(createBuffer("This should fail"));
+      CompletableFuture<Void> sendFuture = clientConnection.send(createBuffer("This should fail"));
       pumpAndAdvanceTimeUntilDone(sendFuture);
       
       // Verify send failed
@@ -136,7 +135,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
       errorParams.setSendErrorProbability(0.0);
       
       // This should now succeed
-      FlowFuture<Void> successSendFuture = clientConnection.send(createBuffer("This should succeed"));
+      CompletableFuture<Void> successSendFuture = clientConnection.send(createBuffer("This should succeed"));
       pumpAndAdvanceTimeUntilDone(successSendFuture);
       
       // Verify it succeeded
@@ -158,8 +157,8 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     FlowStream<FlowConnection> connectionStream = transport.listen(serverEndpoint);
     
     // Client connects to server
-    FlowFuture<FlowConnection> clientConnectionFuture = transport.connect(serverEndpoint);
-    FlowFuture<FlowConnection> serverConnectionFuture = connectionStream.nextAsync();
+    CompletableFuture<FlowConnection> clientConnectionFuture = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> serverConnectionFuture = connectionStream.nextAsync();
     
     // Wait for connections to be established
     pumpAndAdvanceTimeUntilDone(clientConnectionFuture, serverConnectionFuture);
@@ -171,10 +170,10 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     
     // Send multiple messages from client to server
     String[] messages = {"Message 1", "Message 2", "Message 3"};
-    List<FlowFuture<Void>> sendFutures = new ArrayList<>();
+    List<CompletableFuture<Void>> sendFutures = new ArrayList<>();
     
     for (String message : messages) {
-      FlowFuture<Void> sendFuture = clientConnection.send(createBuffer(message));
+      CompletableFuture<Void> sendFuture = clientConnection.send(createBuffer(message));
       sendFutures.add(sendFuture);
       // Advance time a bit between sends
       advanceTime(0.01);
@@ -183,7 +182,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     // Receive messages from the stream
     List<String> receivedMessages = new ArrayList<>();
     for (int i = 0; i < messages.length; i++) {
-      FlowFuture<ByteBuffer> receiveFuture = receiveStream.nextAsync();
+      CompletableFuture<ByteBuffer> receiveFuture = receiveStream.nextAsync();
       pumpAndAdvanceTimeUntilDone(receiveFuture);
       ByteBuffer data = Flow.await(receiveFuture);
       receivedMessages.add(bufferToString(data));
@@ -222,7 +221,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
       // Try to connect multiple times - at least one should fail
       boolean connectErrorOccurred = false;
       for (int i = 0; i < 5 && !connectErrorOccurred; i++) {
-        FlowFuture<FlowConnection> connectFuture = errorTransport.connect(serverEndpoint);
+        CompletableFuture<FlowConnection> connectFuture = errorTransport.connect(serverEndpoint);
         pumpAndAdvanceTimeUntilDone(connectFuture);
         if (connectFuture.isCompletedExceptionally()) {
           connectErrorOccurred = true;
@@ -248,7 +247,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
         // Try to send multiple times - at least one should fail
         boolean sendErrorOccurred = false;
         for (int i = 0; i < 5 && !sendErrorOccurred; i++) {
-          FlowFuture<Void> sendFuture = clientConnection.send(createBuffer("Test message"));
+          CompletableFuture<Void> sendFuture = clientConnection.send(createBuffer("Test message"));
           pumpAndAdvanceTimeUntilDone(sendFuture);
           if (sendFuture.isCompletedExceptionally()) {
             sendErrorOccurred = true;
@@ -266,7 +265,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
             clientConnection.send(createBuffer("Test message")).toCompletableFuture().get(1, TimeUnit.SECONDS);
             
             // Try to receive
-            FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+            CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
             pumpAndAdvanceTimeUntilDone(receiveFuture);
             if (receiveFuture.isCompletedExceptionally()) {
               receiveErrorOccurred = true;
@@ -305,7 +304,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     assertTrue(serverConnection.isOpen());
     
     // Close the transport
-    FlowFuture<Void> closeFuture = transport.close();
+    CompletableFuture<Void> closeFuture = transport.close();
     pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Verify connections are closed when transport is closed
@@ -319,7 +318,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     // Try to listen
     try {
       FlowStream<FlowConnection> newStream = transport.listen(serverEndpoint);
-      FlowFuture<FlowConnection> nextFuture = newStream.nextAsync();
+      CompletableFuture<FlowConnection> nextFuture = newStream.nextAsync();
       pumpAndAdvanceTimeUntilDone(nextFuture);
       if (nextFuture.isCompletedExceptionally()) {
         listenFailed.set(true);
@@ -330,7 +329,7 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     
     // Try to connect
     try {
-      FlowFuture<FlowConnection> connectFuture = transport.connect(serverEndpoint);
+      CompletableFuture<FlowConnection> connectFuture = transport.connect(serverEndpoint);
       pumpAndAdvanceTimeUntilDone(connectFuture);
       if (connectFuture.isCompletedExceptionally()) {
         connectFailed.set(true);
@@ -359,8 +358,8 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     assertEquals(serverEndpoint, clientConnection.getRemoteEndpoint());
     
     // Test the closeFuture() method
-    FlowFuture<Void> clientCloseFuture = clientConnection.closeFuture();
-    FlowFuture<Void> serverCloseFuture = serverConnection.closeFuture();
+    CompletableFuture<Void> clientCloseFuture = clientConnection.closeFuture();
+    CompletableFuture<Void> serverCloseFuture = serverConnection.closeFuture();
     
     assertFalse(clientCloseFuture.isDone());
     assertFalse(serverCloseFuture.isDone());
@@ -378,11 +377,11 @@ public class SimulatedFlowTransportTest extends AbstractNetworkTest {
     assertFalse(serverConnection.isOpen());
     
     // Verify operations on closed connections fail
-    FlowFuture<Void> sendFuture = clientConnection.send(createBuffer("Should fail"));
+    CompletableFuture<Void> sendFuture = clientConnection.send(createBuffer("Should fail"));
     pumpAndAdvanceTimeUntilDone(sendFuture);
     assertTrue(sendFuture.isCompletedExceptionally());
     
-    FlowFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     assertTrue(receiveFuture.isCompletedExceptionally());
   }

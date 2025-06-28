@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.simulation.FlowRandom;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.RandomSource;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
@@ -113,14 +112,14 @@ public class SingleThreadedSchedulerRandomTaskSelectionTest {
     FlowRandom.initialize(controlledSource);
     
     // Schedule multiple tasks with different priorities to ensure varied selection
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> {
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> {
       // This task will execute and create more work
-      FlowFuture<Integer> f4 = scheduler.schedule(() -> 4);
-      FlowFuture<Integer> f5 = scheduler.schedule(() -> 5);
+      CompletableFuture<Integer> f4 = scheduler.schedule(() -> 4);
+      CompletableFuture<Integer> f5 = scheduler.schedule(() -> 5);
       return 1;
     });
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2);
-    FlowFuture<Integer> f3 = scheduler.schedule(() -> 3);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2);
+    CompletableFuture<Integer> f3 = scheduler.schedule(() -> 3);
     
     // First pump - should trigger random selection (first nextDouble returns 0.3)
     scheduler.pump();
@@ -189,8 +188,8 @@ public class SingleThreadedSchedulerRandomTaskSelectionTest {
     SimulationContext.setCurrent(context);
     
     // Schedule tasks
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2);
     
     // Pump - should use priority selection and log it
     scheduler.pump();
@@ -204,8 +203,8 @@ public class SingleThreadedSchedulerRandomTaskSelectionTest {
   @Test
   public void testNoRandomSelectionWithoutConfig() {
     // Don't set any simulation context - should use default priority selection
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2);
     
     // Pump
     scheduler.pump();

@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
 import org.junit.jupiter.api.AfterEach;
@@ -62,20 +61,20 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     ByteBuffer writeBuffer = StandardCharsets.UTF_8.encode(originalData);
     
     // Open file for writing
-    FlowFuture<FlowFile> openFuture = Flow.startActor(() -> {
+    CompletableFuture<FlowFile> openFuture = Flow.startActor(() -> {
       return Flow.await(fileSystem.open(testFile, OpenOptions.CREATE, OpenOptions.WRITE));
     });
     pumpAndAdvanceTimeUntilDone(openFuture);
     FlowFile file = openFuture.getNow();
     
     // Write data
-    FlowFuture<Void> writeFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> writeFuture = Flow.startActor(() -> {
       return Flow.await(file.write(0, writeBuffer));
     });
     pumpAndAdvanceTimeUntilDone(writeFuture);
     
     // Close and reopen for reading
-    FlowFuture<Void> closeFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> closeFuture = Flow.startActor(() -> {
       return Flow.await(file.close());
     });
     pumpAndAdvanceTimeUntilDone(closeFuture);
@@ -86,13 +85,13 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     
     // Read data multiple times to observe corruption
     for (int i = 0; i < 20; i++) {
-      FlowFuture<FlowFile> readOpenFuture = Flow.startActor(() -> {
+      CompletableFuture<FlowFile> readOpenFuture = Flow.startActor(() -> {
         return Flow.await(fileSystem.open(testFile, OpenOptions.READ));
       });
       pumpAndAdvanceTimeUntilDone(readOpenFuture);
       FlowFile readFile = readOpenFuture.getNow();
       
-      FlowFuture<ByteBuffer> readFuture = Flow.startActor(() -> {
+      CompletableFuture<ByteBuffer> readFuture = Flow.startActor(() -> {
         return Flow.await(readFile.read(0, originalData.getBytes().length));
       });
       pumpAndAdvanceTimeUntilDone(readFuture);
@@ -105,7 +104,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
         corruptedReads.incrementAndGet();
       }
       
-      FlowFuture<Void> readCloseFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> readCloseFuture = Flow.startActor(() -> {
         return Flow.await(readFile.close());
       });
       pumpAndAdvanceTimeUntilDone(readCloseFuture);
@@ -139,7 +138,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
       final int fileNum = i;
       Path testFile = Paths.get("/file" + fileNum + ".txt");
       
-      FlowFuture<Void> writeFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> writeFuture = Flow.startActor(() -> {
         try {
           FlowFile file = Flow.await(fileSystem.open(testFile, 
               OpenOptions.CREATE, OpenOptions.WRITE));
@@ -193,7 +192,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     for (int i = 0; i < 30; i++) {
       Path testFile = Paths.get("/metadata" + i + ".txt");
       
-      FlowFuture<Void> openFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> openFuture = Flow.startActor(() -> {
         try {
           FlowFile file = Flow.await(fileSystem.open(testFile, 
               OpenOptions.CREATE, OpenOptions.WRITE));
@@ -213,7 +212,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     Path testFile = Paths.get("/test.txt");
     FlowFile file = null;
     for (int attempt = 0; attempt < 10 && file == null; attempt++) {
-      FlowFuture<FlowFile> createFuture = Flow.startActor(() -> {
+      CompletableFuture<FlowFile> createFuture = Flow.startActor(() -> {
         try {
           return Flow.await(fileSystem.open(testFile, OpenOptions.CREATE, OpenOptions.WRITE));
         } catch (IOException e) {
@@ -232,7 +231,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
       String testData = "Test data for error simulation";
       ByteBuffer writeBuffer = StandardCharsets.UTF_8.encode(testData);
       FlowFile finalFile = file;
-      FlowFuture<Void> initialWriteFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> initialWriteFuture = Flow.startActor(() -> {
         try {
           return Flow.await(finalFile.write(0, writeBuffer));
         } catch (IOException e) {
@@ -241,7 +240,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
       });
       pumpAndAdvanceTimeUntilDone(initialWriteFuture);
       
-      FlowFuture<Void> closeFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> closeFuture = Flow.startActor(() -> {
         return Flow.await(finalFile.close());
       });
       pumpAndAdvanceTimeUntilDone(closeFuture);
@@ -250,7 +249,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     // Test write operations
     for (int i = 0; i < 20; i++) {
       final int writeNum = i;
-      FlowFuture<Void> writeFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> writeFuture = Flow.startActor(() -> {
         try {
           FlowFile writeFile = Flow.await(fileSystem.open(testFile, OpenOptions.WRITE));
           ByteBuffer buffer = StandardCharsets.UTF_8.encode("Write " + writeNum);
@@ -271,7 +270,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     
     // Test read operations
     for (int i = 0; i < 20; i++) {
-      FlowFuture<Void> readFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> readFuture = Flow.startActor(() -> {
         try {
           FlowFile readFile = Flow.await(fileSystem.open(testFile, OpenOptions.READ));
           Flow.await(readFile.read(0, 100));
@@ -315,7 +314,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     // Create a simple test file
     Path testFile = Paths.get("/config-test.txt");
     
-    FlowFuture<Void> testFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> testFuture = Flow.startActor(() -> {
       FlowFile file = Flow.await(fileSystem.open(testFile, 
           OpenOptions.CREATE, OpenOptions.WRITE));
       
@@ -331,7 +330,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     
     // Verify the file was created (unless there was an error)
     if (!testFuture.isCompletedExceptionally()) {
-      FlowFuture<Boolean> existsFuture = Flow.startActor(() -> {
+      CompletableFuture<Boolean> existsFuture = Flow.startActor(() -> {
         return Flow.await(fileSystem.exists(testFile));
       });
       pumpAndAdvanceTimeUntilDone(existsFuture);
@@ -362,7 +361,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     // Measure write time
     double startTime = currentTimeSeconds();
     
-    FlowFuture<Void> writeFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> writeFuture = Flow.startActor(() -> {
       FlowFile file = Flow.await(fileSystem.open(largeFile, 
           OpenOptions.CREATE, OpenOptions.WRITE));
       Flow.await(file.write(0, writeBuffer));
@@ -381,7 +380,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
     // Measure read time
     startTime = currentTimeSeconds();
     
-    FlowFuture<ByteBuffer> readFuture = Flow.startActor(() -> {
+    CompletableFuture<ByteBuffer> readFuture = Flow.startActor(() -> {
       FlowFile file = Flow.await(fileSystem.open(largeFile, OpenOptions.READ));
       ByteBuffer result = Flow.await(file.read(0, fileSize));
       Flow.await(file.close());

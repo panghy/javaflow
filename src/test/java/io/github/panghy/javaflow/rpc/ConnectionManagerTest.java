@@ -2,7 +2,6 @@ package io.github.panghy.javaflow.rpc;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.FlowConnection;
@@ -169,8 +168,8 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     FlowStream<FlowConnection> serverStream = transport.listen(endpoint);
 
     // Server starts accepting and client starts connecting in parallel
-    FlowFuture<FlowConnection> serverConnectionFuture = serverStream.nextAsync();
-    FlowFuture<FlowConnection> clientConnectionFuture = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> serverConnectionFuture = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> clientConnectionFuture = manager.getConnection(endpointId);
 
     // Wait for both to complete
     pumpAndAdvanceTimeUntilDone(serverConnectionFuture, clientConnectionFuture);
@@ -184,7 +183,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
   public void testGetConnectionWithUnknownEndpoint() {
     EndpointId unknownId = new EndpointId("unknown");
 
-    FlowFuture<FlowConnection> future = manager.getConnection(unknownId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(unknownId);
     pumpAndAdvanceTimeUntilDone(future);
 
     Throwable error = future.getException();
@@ -202,12 +201,12 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     transport.listen(endpoint);
 
     // Get first connection
-    FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
     // Get second connection - should return the same one
-    FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
 
@@ -229,7 +228,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       private final SimulatedFlowTransport delegate = new SimulatedFlowTransport();
 
       @Override
-      public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+      public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
         int attempt = connectAttempts.incrementAndGet();
         if (attempt <= 2) {
           return FlowFuture.failed(new RuntimeException("Connection failed"));
@@ -245,14 +244,14 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         return delegate.close();
       }
     };
 
     ConnectionManager retryManager = new ConnectionManager(mockTransport, testResolver);
 
-    FlowFuture<FlowConnection> future = retryManager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = retryManager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
 
     FlowConnection connection = future.getNow();
@@ -270,7 +269,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     FlowTransport failingTransport = new FlowTransport() {
       @Override
-      public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+      public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
         return FlowFuture.failed(new RuntimeException("Connection always fails"));
       }
 
@@ -280,7 +279,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         return FlowFuture.completed(null);
       }
     };
@@ -291,7 +290,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
         .build();
     ConnectionManager failingManager = new ConnectionManager(failingTransport, testResolver, config);
 
-    FlowFuture<FlowConnection> future = failingManager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = failingManager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
 
     assertThat(future.getException()).isInstanceOf(RpcConnectionException.class)
@@ -309,7 +308,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     transport.listen(endpoint);
 
     // Get connection
-    FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
@@ -317,7 +316,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     manager.releaseConnection(endpoint, conn1);
 
     // Get connection again - should get pooled connection
-    FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
@@ -334,14 +333,14 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
     transport.listen(endpoint);
 
-    FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
     FlowConnection connection = future.getNow();
     assertTrue(connection.isOpen());
 
     // Close the manager
-    FlowFuture<Void> closeFuture = manager.close();
+    CompletableFuture<Void> closeFuture = manager.close();
     pumpAndAdvanceTimeUntilDone(closeFuture);
 
     // Connection should be closed
@@ -367,20 +366,20 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     transport.listen(endpoint);
 
     // Get initial connection
-    FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
     FlowConnection conn1 = future.getNow();
 
     // Close the connection to simulate failure
-    FlowFuture<Void> closeF = conn1.close();
+    CompletableFuture<Void> closeF = conn1.close();
     pumpAndAdvanceTimeUntilDone(closeF);
 
     // Allow time for monitoring to detect failure and reconnect
     pump();
 
     // Get connection again - should trigger new connection since old one failed
-    FlowFuture<FlowConnection> future2 = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future2);
     FlowConnection conn2 = future2.getNow();
 
@@ -401,10 +400,10 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       private final SimulatedFlowTransport delegate = new SimulatedFlowTransport();
 
       @Override
-      public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+      public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
         delegate.listen((LocalEndpoint) endpoint);
 
-        FlowFuture<FlowConnection> future = new FlowFuture<>();
+        CompletableFuture<FlowConnection> future = new CompletableFuture<>();
         startActor(() -> {
           while (!allowConnect.get()) {
             await(Flow.delay(0.1));
@@ -422,7 +421,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         return delegate.close();
       }
     };
@@ -483,9 +482,9 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Use a blocking transport that never completes
     FlowTransport blockingTransport = new FlowTransport() {
       @Override
-      public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+      public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
         // Return a future that never completes
-        return new FlowFuture<>();
+        return new CompletableFuture<>();
       }
 
       @Override
@@ -494,7 +493,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         return FlowFuture.completed(null);
       }
     };
@@ -502,7 +501,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     ConnectionManager blockingManager = new ConnectionManager(blockingTransport, testResolver);
 
     // Start a connection request
-    FlowFuture<FlowConnection> future1 = blockingManager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future1 = blockingManager.getConnection(endpointId);
 
     // Pump to let actor start
     testScheduler.pump();
@@ -526,7 +525,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     transport.listen(endpoint);
 
     // Get a connection
-    FlowFuture<FlowConnection> future = manager.getConnection(endpointId);
+    CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
     FlowConnection connection = future.getNow();
@@ -546,12 +545,12 @@ public class ConnectionManagerTest extends AbstractFlowTest {
   @Test
   public void testMultipleCloseOperations() {
     // First close
-    FlowFuture<Void> close1 = manager.close();
+    CompletableFuture<Void> close1 = manager.close();
     pumpAndAdvanceTimeUntilDone();
     assertTrue(close1.isDone());
 
     // Second close - should complete immediately
-    FlowFuture<Void> close2 = manager.close();
+    CompletableFuture<Void> close2 = manager.close();
     assertTrue(close2.isDone());
   }
 }

@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -50,7 +49,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     Path dirPath = Paths.get("/test");
     
     // Start an actor to create a directory
-    FlowFuture<Void> dirFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> dirFuture = Flow.startActor(() -> {
       return Flow.await(fileSystem.createDirectory(dirPath));
     });
     
@@ -68,7 +67,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       createdFiles.add(filePath);
       
       // Create a file
-      FlowFuture<Void> createFuture = Flow.startActor(() -> {
+      CompletableFuture<Void> createFuture = Flow.startActor(() -> {
         FlowFile file = Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE));
         
         // Write some data
@@ -101,7 +100,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     
     // Debug the files to see if they exist
     for (Path filePath : files) {
-      FlowFuture<Boolean> existsFuture = Flow.startActor(() -> {
+      CompletableFuture<Boolean> existsFuture = Flow.startActor(() -> {
         boolean exists = Flow.await(fileSystem.exists(filePath));
         System.out.println("File " + filePath + " exists: " + exists);
         return exists;
@@ -115,7 +114,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     for (Path filePath : files) {
       System.out.println("\n==== Processing file: " + filePath + " ====");
       
-      FlowFuture<Void> future = Flow.startActor(() -> {
+      CompletableFuture<Void> future = Flow.startActor(() -> {
         try {
           System.out.println("Starting to process file: " + filePath);
           
@@ -178,7 +177,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     // Test how file errors propagate through actors
     Path nonExistentFile = Paths.get("/nonexistent/file.txt");
     
-    FlowFuture<Void> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       try {
         FlowFile file = Flow.await(fileSystem.open(nonExistentFile, OpenOptions.READ));
         Flow.await(file.read(0, 10));
@@ -196,7 +195,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     future.getNow(); // Should not throw
     
     // Test that errors propagate properly if not caught
-    FlowFuture<Void> unhandledFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> unhandledFuture = Flow.startActor(() -> {
       // This will fail because the parent directory doesn't exist
       FlowFile file = Flow.await(fileSystem.open(nonExistentFile, OpenOptions.READ));
       return null;
@@ -219,7 +218,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     Path filePath = Paths.get("/test/cancellation.txt");
     
     // Create parent directory
-    FlowFuture<Void> dirFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> dirFuture = Flow.startActor(() -> {
       return Flow.await(fileSystem.createDirectory(Paths.get("/test")));
     });
     
@@ -227,7 +226,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     dirFuture.getNow();
     
     // Start an actor to perform a long file operation
-    FlowFuture<Void> opFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> opFuture = Flow.startActor(() -> {
       // Create and open file
       FlowFile file = Flow.await(fileSystem.open(filePath, OpenOptions.CREATE, OpenOptions.WRITE));
       

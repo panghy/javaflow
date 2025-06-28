@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,9 +39,8 @@ public class RealFlowFile implements FlowFile {
    * @param options The options to open the file with
    * @return A future that completes with a RealFlowFile
    */
-  public static FlowFuture<FlowFile> open(Path path, OpenOptions... options) {
-    FlowFuture<FlowFile> result = new FlowFuture<>();
-    FlowPromise<FlowFile> promise = result.getPromise();
+  public static CompletableFuture<FlowFile> open(Path path, OpenOptions... options) {
+    CompletableFuture<FlowFile> result = new CompletableFuture<>();
 
     try {
       // Convert to StandardOpenOption
@@ -56,22 +54,21 @@ public class RealFlowFile implements FlowFile {
       RealFlowFile file = new RealFlowFile(channel, path);
 
       // Complete the promise
-      promise.complete(file);
+      result.complete(file);
     } catch (IOException e) {
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<ByteBuffer> read(long position, int length) {
+  public CompletableFuture<ByteBuffer> read(long position, int length) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
-    FlowFuture<ByteBuffer> result = new FlowFuture<>();
-    FlowPromise<ByteBuffer> promise = result.getPromise();
+    CompletableFuture<ByteBuffer> result = new CompletableFuture<>();
 
     // Allocate a buffer for the read
     ByteBuffer buffer = ByteBuffer.allocate(length);
@@ -83,24 +80,24 @@ public class RealFlowFile implements FlowFile {
         if (bytesRead < 0) {
           // End of file
           attachment.flip();
-          promise.complete(attachment);
+          result.complete(attachment);
         } else if (bytesRead < length) {
           // Partial read, adjust the buffer size
           attachment.flip();
-          ByteBuffer result = ByteBuffer.allocate(bytesRead);
-          result.put(attachment);
-          result.flip();
-          promise.complete(result);
+          ByteBuffer partialResult = ByteBuffer.allocate(bytesRead);
+          partialResult.put(attachment);
+          partialResult.flip();
+          result.complete(partialResult);
         } else {
           // Full read
           attachment.flip();
-          promise.complete(attachment);
+          result.complete(attachment);
         }
       }
 
       @Override
       public void failed(Throwable exc, ByteBuffer attachment) {
-        promise.completeExceptionally(exc);
+        result.completeExceptionally(exc);
       }
     });
 
@@ -108,13 +105,12 @@ public class RealFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> write(long position, ByteBuffer data) {
+  public CompletableFuture<Void> write(long position, ByteBuffer data) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     // Get a duplicate of the buffer to avoid position changes affecting the caller
     ByteBuffer bufferToWrite = data.duplicate();
@@ -128,13 +124,13 @@ public class RealFlowFile implements FlowFile {
           channel.write(bufferToWrite, position + bytesWritten, null, this);
         } else {
           // All bytes written
-          promise.complete(null);
+          result.complete(null);
         }
       }
 
       @Override
       public void failed(Throwable exc, Void attachment) {
-        promise.completeExceptionally(exc);
+        result.completeExceptionally(exc);
       }
     });
 
@@ -142,55 +138,52 @@ public class RealFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> sync() {
+  public CompletableFuture<Void> sync() {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       // Force all updates to be written to the file
       channel.force(true);
 
       // Complete the promise
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
       // Complete the promise exceptionally
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Void> truncate(long size) {
+  public CompletableFuture<Void> truncate(long size) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     try {
       // Truncate the file
       channel.truncate(size);
 
       // Complete the promise
-      promise.complete(null);
+      result.complete(null);
     } catch (Exception e) {
       // Complete the promise exceptionally
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Void> close() {
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+  public CompletableFuture<Void> close() {
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     // Only close once
     if (closed.compareAndSet(false, true)) {
@@ -199,37 +192,36 @@ public class RealFlowFile implements FlowFile {
         channel.close();
 
         // Complete the promise
-        promise.complete(null);
+        result.complete(null);
       } catch (Exception e) {
         // Complete the promise exceptionally
-        promise.completeExceptionally(e);
+        result.completeExceptionally(e);
       }
     } else {
       // Already closed
-      promise.complete(null);
+      result.complete(null);
     }
 
     return result;
   }
 
   @Override
-  public FlowFuture<Long> size() {
+  public CompletableFuture<Long> size() {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
-    FlowFuture<Long> result = new FlowFuture<>();
-    FlowPromise<Long> promise = result.getPromise();
+    CompletableFuture<Long> result = new CompletableFuture<>();
 
     try {
       // Get the file size
       long size = channel.size();
 
       // Complete the promise
-      promise.complete(size);
+      result.complete(size);
     } catch (Exception e) {
       // Complete the promise exceptionally
-      promise.completeExceptionally(e);
+      result.completeExceptionally(e);
     }
 
     return result;

@@ -2,7 +2,7 @@ package io.github.panghy.javaflow.test;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,7 +28,7 @@ public class CancellationTestUtils {
    * @param checkIntervalSeconds How often to check for cancellation
    * @return A future that completes with the actual run time or throws FlowCancellationException
    */
-  public static FlowFuture<Double> createLongRunningOperation(
+  public static CompletableFuture<Double> createLongRunningOperation(
       double durationSeconds, double checkIntervalSeconds) {
     return startActor(() -> {
       double startTime = Flow.nowSeconds();
@@ -54,7 +54,7 @@ public class CancellationTestUtils {
    * @param yieldInterval How often to yield (every N iterations)
    * @return A future that completes with the number of iterations completed
    */
-  public static FlowFuture<Integer> createCpuIntensiveOperation(
+  public static CompletableFuture<Integer> createCpuIntensiveOperation(
       int iterations, int yieldInterval) {
     return startActor(() -> {
       int completed = 0;
@@ -120,14 +120,14 @@ public class CancellationTestUtils {
    * @param delayPerLevel Delay at each level in seconds
    * @return A future that completes when all nested operations complete
    */
-  public static FlowFuture<String> createNestedOperation(int depth, double delayPerLevel) {
+  public static CompletableFuture<String> createNestedOperation(int depth, double delayPerLevel) {
     return startActor(() -> {
       if (depth <= 0) {
         return "leaf";
       }
       
       // Start child operation
-      FlowFuture<String> childFuture = createNestedOperation(depth - 1, delayPerLevel);
+      CompletableFuture<String> childFuture = createNestedOperation(depth - 1, delayPerLevel);
       
       // Do some work at this level
       await(Flow.delay(delayPerLevel));
@@ -149,14 +149,14 @@ public class CancellationTestUtils {
    * @param cancelAfterSeconds When to cancel the operation
    * @return The cancellation latency in seconds
    */
-  public static FlowFuture<Double> measureCancellationLatency(
-      Supplier<FlowFuture<?>> operation, double cancelAfterSeconds) {
+  public static CompletableFuture<Double> measureCancellationLatency(
+      Supplier<CompletableFuture<?>> operation, double cancelAfterSeconds) {
     return startActor(() -> {
       AtomicLong cancelTime = new AtomicLong(-1);
       AtomicLong detectionTime = new AtomicLong(-1);
       
       // Start the operation
-      FlowFuture<?> future = operation.get();
+      CompletableFuture<?> future = operation.get();
       
       // Schedule cancellation
       startActor(() -> {
@@ -198,7 +198,7 @@ public class CancellationTestUtils {
      * @param checkIntervalSeconds How often to check for cancellation
      * @return Result string or throws FlowCancellationException
      */
-    public FlowFuture<String> longRunningOperation(
+    public CompletableFuture<String> longRunningOperation(
         double durationSeconds, double checkIntervalSeconds) {
       return startActor(() -> {
         started.set(true);
@@ -258,13 +258,13 @@ public class CancellationTestUtils {
    * @param cleanupChecker Function that returns true if cleanup was performed
    * @return Future that completes successfully if cleanup was verified
    */
-  public static FlowFuture<Void> verifyCancellationCleanup(
-      Supplier<FlowFuture<?>> operation, 
+  public static CompletableFuture<Void> verifyCancellationCleanup(
+      Supplier<CompletableFuture<?>> operation, 
       double cancelAfter,
       Supplier<Boolean> cleanupChecker) {
     return startActor(() -> {
       // Start the operation
-      FlowFuture<?> future = operation.get();
+      CompletableFuture<?> future = operation.get();
       
       // Cancel after delay
       await(Flow.delay(cancelAfter));
@@ -291,26 +291,26 @@ public class CancellationTestUtils {
    * @param cancelAfter When to cancel all operations
    * @return Future that completes when all operations have been cancelled
    */
-  public static FlowFuture<Integer> testConcurrentCancellation(
+  public static CompletableFuture<Integer> testConcurrentCancellation(
       int operationCount,
-      Supplier<FlowFuture<?>> operationSupplier,
+      Supplier<CompletableFuture<?>> operationSupplier,
       double cancelAfter) {
     return startActor(() -> {
       // Start all operations
-      FlowFuture<?>[] futures = new FlowFuture<?>[operationCount];
+      CompletableFuture<?>[] futures = new CompletableFuture<?>[operationCount];
       for (int i = 0; i < operationCount; i++) {
         futures[i] = operationSupplier.get();
       }
       
       // Cancel all after delay
       await(Flow.delay(cancelAfter));
-      for (FlowFuture<?> future : futures) {
+      for (CompletableFuture<?> future : futures) {
         future.cancel();
       }
       
       // Count how many were successfully cancelled
       int cancelledCount = 0;
-      for (FlowFuture<?> future : futures) {
+      for (CompletableFuture<?> future : futures) {
         try {
           await(future);
         } catch (FlowCancellationException e) {

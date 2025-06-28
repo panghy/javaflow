@@ -1,11 +1,10 @@
 package io.github.panghy.javaflow.rpc.serialization;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -155,9 +154,8 @@ public class FlowSerialization {
     }
     
     // Special handling for system types
-    if (FlowPromise.class.isAssignableFrom(type) || 
-        PromiseStream.class.isAssignableFrom(type) ||
-        FlowFuture.class.isAssignableFrom(type)) {
+    if (CompletableFuture.class.isAssignableFrom(type) || 
+        PromiseStream.class.isAssignableFrom(type)) {
       // System types need special handling by the RPC transport layer
       // If we're here, it means we're trying to serialize a system type directly,
       // which is not supported as they require contextual information

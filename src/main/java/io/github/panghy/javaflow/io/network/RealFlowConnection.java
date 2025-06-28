@@ -1,7 +1,5 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 
@@ -9,6 +7,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -60,7 +59,7 @@ public class RealFlowConnection implements FlowConnection {
   private final Endpoint localEndpoint;
   private final Endpoint remoteEndpoint;
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private final FlowPromise<Void> closePromise;
+  private final CompletableFuture<Void> closePromise;
   private final PromiseStream<ByteBuffer> receivePromiseStream = new PromiseStream<>();
 
   // For holding partial buffers when a receive() call doesn't consume an entire buffer
@@ -90,23 +89,21 @@ public class RealFlowConnection implements FlowConnection {
     this.localEndpoint = localEndpoint;
     this.remoteEndpoint = remoteEndpoint;
 
-    FlowFuture<Void> closeFuture = new FlowFuture<>();
-    this.closePromise = closeFuture.getPromise();
+    this.closePromise = new CompletableFuture<>();
 
     // No automatic reading - only read when requested
   }
 
   @Override
-  public FlowFuture<Void> send(ByteBuffer data) {
+  public CompletableFuture<Void> send(ByteBuffer data) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Connection is closed"));
+      return CompletableFuture.failedFuture(new IOException("Connection is closed"));
     }
 
-    FlowFuture<Void> result = new FlowFuture<>();
-    FlowPromise<Void> promise = result.getPromise();
+    CompletableFuture<Void> result = new CompletableFuture<>();
 
     // Large direct buffer - write in chunks to avoid excessive direct memory usage
-    writeInChunks(data, promise);
+    writeInChunks(data, result);
 
     return result;
   }
@@ -114,7 +111,7 @@ public class RealFlowConnection implements FlowConnection {
   /**
    * Writes a large buffer in chunks to avoid exhausting direct buffer memory.
    */
-  private void writeInChunks(ByteBuffer data, FlowPromise<Void> promise) {
+  private void writeInChunks(ByteBuffer data, CompletableFuture<Void> promise) {
     // Save the original position and limit
     int originalPosition = data.position();
     int originalLimit = data.limit();
@@ -201,19 +198,18 @@ public class RealFlowConnection implements FlowConnection {
   }
 
   @Override
-  public FlowFuture<ByteBuffer> receive(int maxBytes) {
+  public CompletableFuture<ByteBuffer> receive(int maxBytes) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Connection is closed"));
+      return CompletableFuture.failedFuture(new IOException("Connection is closed"));
     }
 
     // Make sure maxBytes is a positive value
     if (maxBytes <= 0) {
-      return FlowFuture.failed(new IllegalArgumentException("maxBytes must be positive"));
+      return CompletableFuture.failedFuture(new IllegalArgumentException("maxBytes must be positive"));
     }
 
     // Create the result future
-    FlowFuture<ByteBuffer> resultFuture = new FlowFuture<>();
-    FlowPromise<ByteBuffer> resultPromise = resultFuture.getPromise();
+    CompletableFuture<ByteBuffer> resultFuture = new CompletableFuture<>();
 
     // First, check if we have a pending buffer from a previous read
     boolean hasPendingData = false;
@@ -264,15 +260,15 @@ public class RealFlowConnection implements FlowConnection {
 
     // If we have pending data, complete with the result
     if (hasPendingData) {
-      resultPromise.complete(result);
+      resultFuture.complete(result);
       return resultFuture;
     }
 
     // Wait for data from the stream
-    FlowFuture<ByteBuffer> nextBufferFuture = receivePromiseStream.getFutureStream().nextAsync();
+    CompletableFuture<ByteBuffer> nextBufferFuture = receivePromiseStream.getFutureStream().nextAsync();
     nextBufferFuture.whenComplete((buffer, ex) -> {
       if (ex != null) {
-        resultPromise.completeExceptionally(ex);
+        resultFuture.completeExceptionally(ex);
         return;
       }
 
@@ -303,15 +299,15 @@ public class RealFlowConnection implements FlowConnection {
             }
           }
 
-          resultPromise.complete(limitedBuffer);
+          resultFuture.complete(limitedBuffer);
         } catch (Exception e) {
           // Restore the buffer's limit if there was an exception
           buffer.limit(originalLimit);
-          resultPromise.completeExceptionally(e);
+          resultFuture.completeExceptionally(e);
         }
       } else {
         // If buffer is smaller than or equal to maxBytes, return it as is
-        resultPromise.complete(buffer);
+        resultFuture.complete(buffer);
       }
     });
 
@@ -320,7 +316,7 @@ public class RealFlowConnection implements FlowConnection {
       try {
         performRead();
       } catch (Exception e) {
-        resultPromise.completeExceptionally(e);
+        resultFuture.completeExceptionally(e);
         readInProgress.set(false);
         close();
       }
@@ -336,7 +332,7 @@ public class RealFlowConnection implements FlowConnection {
       private final FlowStream<ByteBuffer> delegate = receivePromiseStream.getFutureStream();
 
       @Override
-      public FlowFuture<ByteBuffer> nextAsync() {
+      public CompletableFuture<ByteBuffer> nextAsync() {
         // Try to start a read if not already in progress
         if (readInProgress.compareAndSet(false, true)) {
           performRead();
@@ -345,12 +341,12 @@ public class RealFlowConnection implements FlowConnection {
       }
 
       @Override
-      public FlowFuture<Boolean> hasNextAsync() {
+      public CompletableFuture<Boolean> hasNextAsync() {
         return delegate.hasNextAsync();
       }
 
       @Override
-      public FlowFuture<Void> closeExceptionally(Throwable exception) {
+      public CompletableFuture<Void> closeExceptionally(Throwable exception) {
         return delegate.closeExceptionally(exception);
       }
 
@@ -370,17 +366,17 @@ public class RealFlowConnection implements FlowConnection {
       }
 
       @Override
-      public FlowFuture<Void> forEach(Consumer<? super ByteBuffer> action) {
+      public CompletableFuture<Void> forEach(Consumer<? super ByteBuffer> action) {
         return delegate.forEach(action);
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         return delegate.close();
       }
 
       @Override
-      public FlowFuture<Void> onClose() {
+      public CompletableFuture<Void> onClose() {
         return delegate.onClose();
       }
     };
@@ -402,20 +398,12 @@ public class RealFlowConnection implements FlowConnection {
   }
 
   @Override
-  public FlowFuture<Void> closeFuture() {
-    FlowFuture<Void> result = new FlowFuture<>();
-    closePromise.getFuture().whenComplete((v, ex) -> {
-      if (ex != null) {
-        result.getPromise().completeExceptionally(ex);
-      } else {
-        result.getPromise().complete(null);
-      }
-    });
-    return result;
+  public CompletableFuture<Void> closeFuture() {
+    return closePromise;
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       try {
         // Close the channel
@@ -436,7 +424,7 @@ public class RealFlowConnection implements FlowConnection {
       }
     }
 
-    return closePromise.getFuture();
+    return closePromise;
   }
 
   /**
@@ -470,7 +458,7 @@ public class RealFlowConnection implements FlowConnection {
           // If someone is waiting on the receiveStream or has called receive(), 
           // automatically start another read
           if (!receivePromiseStream.getFutureStream().isClosed() &&
-              !receivePromiseStream.nextPromisesEmpty()) {
+              !receivePromiseStream.nextFuturesEmpty()) {
             if (readInProgress.compareAndSet(false, true)) {
               performRead();
             }

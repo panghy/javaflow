@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -50,7 +50,7 @@ public abstract class AbstractNetworkTest extends AbstractFlowTest {
    * @return The result of the future
    * @throws Exception If the future does not complete or completes with an exception
    */
-  protected <T> T awaitFuture(FlowFuture<T> future, boolean simulated, long timeout, TimeUnit unit) 
+  protected <T> T awaitFuture(CompletableFuture<T> future, boolean simulated, long timeout, TimeUnit unit) 
       throws Exception {
     if (simulated) {
       pumpAndAdvanceTimeUntilDone(future);
@@ -73,7 +73,7 @@ public abstract class AbstractNetworkTest extends AbstractFlowTest {
    * @return The result of the future
    * @throws Exception If the future does not complete or completes with an exception
    */
-  protected <T> T awaitFuture(FlowFuture<T> future, boolean simulated) throws Exception {
+  protected <T> T awaitFuture(CompletableFuture<T> future, boolean simulated) throws Exception {
     return awaitFuture(future, simulated, 5, TimeUnit.SECONDS);
   }
 

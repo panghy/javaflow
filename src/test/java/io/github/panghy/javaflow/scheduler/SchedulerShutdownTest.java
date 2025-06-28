@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +56,7 @@ class SchedulerShutdownTest {
         yieldReached.set(true);
         
         // Now yield and wait for completion or cancellation
-        FlowFuture<Void> yieldFuture = scheduler.yield();
+        CompletableFuture<Void> yieldFuture = scheduler.yield();
         try {
           scheduler.await(yieldFuture);
           // If we get here, the yield succeeded (shouldn't happen)
@@ -115,7 +114,7 @@ class SchedulerShutdownTest {
     scheduler.schedule(() -> {
       try {
         // Schedule a delay of 10 seconds
-        FlowFuture<Void> delayFuture = scheduler.scheduleDelay(10000);
+        CompletableFuture<Void> delayFuture = scheduler.scheduleDelay(10000);
         
         // Signal that we're waiting on the timer
         timerWaitStarted.set(true);
@@ -186,7 +185,7 @@ class SchedulerShutdownTest {
     scheduler.drain();
     
     // Now try to schedule a new task
-    FlowFuture<String> future = scheduler.schedule(() -> "test");
+    CompletableFuture<String> future = scheduler.schedule(() -> "test");
     
     // The future should complete exceptionally
     assertTrue(future.isCompletedExceptionally(), "Future should be completed exceptionally");

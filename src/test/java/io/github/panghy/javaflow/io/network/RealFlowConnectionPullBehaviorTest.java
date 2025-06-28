@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -148,7 +147,7 @@ public class RealFlowConnectionPullBehaviorTest extends AbstractFlowTest {
     assertEquals(0, readCount.get());
 
     // Request to receive data - this should trigger a read
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     // Verify a read was triggered
     assertEquals(1, readCount.get());

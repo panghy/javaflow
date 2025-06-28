@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.FlowConnection;
 import io.github.panghy.javaflow.io.network.FlowTransport;
@@ -65,15 +64,15 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
     when(mockConnection.isOpen()).thenReturn(true);
     when(mockConnection.send(any())).thenReturn(FlowFuture.completed(null));
     // Never complete the receive - simulating a slow/hung server
-    FlowFuture<ByteBuffer> neverCompletingFuture = new FlowFuture<>();
+    CompletableFuture<ByteBuffer> neverCompletingFuture = new CompletableFuture<>();
     when(mockConnection.receive(anyInt())).thenReturn(neverCompletingFuture);
-    when(mockConnection.closeFuture()).thenReturn(new FlowFuture<>());
+    when(mockConnection.closeFuture()).thenReturn(new CompletableFuture<>());
     when(mockTransport.connect(any())).thenReturn(FlowFuture.completed(mockConnection));
 
     // Get a remote stub and call the slow method
     TestService stub = rpcTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<String> resultFuture = startActor(() -> {
+    CompletableFuture<String> resultFuture = startActor(() -> {
       return stub.slowMethod();
     });
 
@@ -158,7 +157,7 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
     rpcTransport = new FlowRpcTransportImpl(mockTransport, config);
 
     // Set up mock transport to never complete connection
-    FlowFuture<FlowConnection> neverCompletingFuture = new FlowFuture<>();
+    CompletableFuture<FlowConnection> neverCompletingFuture = new CompletableFuture<>();
     when(mockTransport.connect(any())).thenReturn(neverCompletingFuture);
 
     // Create a test service interface
@@ -173,7 +172,7 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
     // Get a stub and try to call a method
     TestService stub = rpcTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<String> resultFuture = startActor(stub::testMethod);
+    CompletableFuture<String> resultFuture = startActor(stub::testMethod);
 
     // Advance time past connection timeout
     pumpAndAdvanceTimeUntilDone(resultFuture);

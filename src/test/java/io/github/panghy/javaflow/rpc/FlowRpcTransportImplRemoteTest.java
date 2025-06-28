@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.FlowConnection;
@@ -104,7 +102,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     void voidMethod();
 
-    FlowFuture<String> asyncMethod(String input);
+    CompletableFuture<String> asyncMethod(String input);
   }
 
   public interface ServiceWithPromise {
@@ -143,8 +141,8 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> asyncMethod(String input) {
-      FlowFuture<String> future = new FlowFuture<>();
+    public CompletableFuture<String> asyncMethod(String input) {
+      CompletableFuture<String> future = new CompletableFuture<>();
       future.getPromise().complete("Async: " + input);
       return future;
     }
@@ -192,13 +190,13 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
     // Test echo method
-    FlowFuture<String> echoF = startActor(() -> remoteService.echo("Hello"));
+    CompletableFuture<String> echoF = startActor(() -> remoteService.echo("Hello"));
     pumpAndAdvanceTimeUntilDone(echoF);
     String echoResult = echoF.getNow();
     assertEquals("Echo: Hello", echoResult);
 
     // Test add method
-    FlowFuture<Integer> addResultF = startActor(() -> remoteService.add(10, 20));
+    CompletableFuture<Integer> addResultF = startActor(() -> remoteService.add(10, 20));
     pumpAndAdvanceTimeUntilDone(addResultF);
     int addResult = addResultF.getNow();
     assertEquals(30, addResult);
@@ -212,7 +210,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Void> voidF = startActor(() -> {
+    CompletableFuture<Void> voidF = startActor(() -> {
       remoteService.voidMethod();
       return null;
     });
@@ -229,8 +227,8 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     ServiceWithPromise remoteService = clientTransport.getRpcStub(serviceId, ServiceWithPromise.class);
 
-    FlowFuture<String> resultF = startActor(() -> {
-      FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> resultF = startActor(() -> {
+      CompletableFuture<String> future = new CompletableFuture<>();
       FlowPromise<String> promise = future.getPromise();
 
       remoteService.processWithCallback("test input", promise);
@@ -251,9 +249,9 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     ServiceWithMultipleArgs remoteService = clientTransport.getRpcStub(serviceId, ServiceWithMultipleArgs.class);
 
-    FlowFuture<List<Object>> resultF = startActor(() -> {
-      FlowFuture<String> future1 = new FlowFuture<>();
-      FlowFuture<Integer> future2 = new FlowFuture<>();
+    CompletableFuture<List<Object>> resultF = startActor(() -> {
+      CompletableFuture<String> future1 = new CompletableFuture<>();
+      CompletableFuture<Integer> future2 = new CompletableFuture<>();
 
       remoteService.multiplePromises(future1.getPromise(), future2.getPromise());
 
@@ -276,7 +274,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<String> echoF = startActor(() -> remoteService.echo(null));
+    CompletableFuture<String> echoF = startActor(() -> remoteService.echo(null));
     pumpAndAdvanceTimeUntilDone(echoF);
     String result = echoF.getNow();
     assertEquals("Echo: null", result);
@@ -290,7 +288,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     ServiceWithMultipleArgs remoteService = clientTransport.getRpcStub(serviceId, ServiceWithMultipleArgs.class);
 
-    FlowFuture<String> concatF = startActor(() -> remoteService.concat("Hello", " ", "World"));
+    CompletableFuture<String> concatF = startActor(() -> remoteService.concat("Hello", " ", "World"));
     pumpAndAdvanceTimeUntilDone(concatF);
     String result = concatF.getNow();
     assertEquals("Hello World", result);
@@ -328,7 +326,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<String> echoF = startActor(() -> remoteService.echo("test"));
+    CompletableFuture<String> echoF = startActor(() -> remoteService.echo("test"));
     
     // Wait a bit for the response to arrive
     pump();
@@ -373,7 +371,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     TestService remoteService = clientTransport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Exception> errorF = startActor(() -> {
+    CompletableFuture<Exception> errorF = startActor(() -> {
       try {
         remoteService.echo("test");
         return null;
@@ -415,8 +413,8 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     ServiceWithPromise remoteService = clientTransport.getRpcStub(serviceId, ServiceWithPromise.class);
 
-    FlowFuture<List<Object>> resultF = startActor(() -> {
-      FlowFuture<Integer> future = new FlowFuture<>();
+    CompletableFuture<List<Object>> resultF = startActor(() -> {
+      CompletableFuture<Integer> future = new CompletableFuture<>();
       String returnValue = remoteService.methodWithPromiseAndReturn(future.getPromise());
       Integer promiseValue = await(future);
       return Arrays.asList(returnValue, promiseValue);
@@ -434,7 +432,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     // Use direct endpoint without EndpointId
     TestService remoteService = clientTransport.getRpcStub(serverEndpoint, TestService.class);
 
-    FlowFuture<String> echoF = startActor(() -> remoteService.echo("Direct"));
+    CompletableFuture<String> echoF = startActor(() -> remoteService.echo("Direct"));
     pumpAndAdvanceTimeUntilDone(echoF);
     String result = echoF.getNow();
     assertEquals("Echo: Direct", result);
@@ -449,7 +447,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     ServiceWithMultipleArgs service = clientTransport.getRpcStub(serviceId, ServiceWithMultipleArgs.class);
 
     // This will test the buildMethodId method with multiple parameter types
-    FlowFuture<String> futureF = startActor(() -> service.concat("a", "b", "c"));
+    CompletableFuture<String> futureF = startActor(() -> service.concat("a", "b", "c"));
     pumpAndAdvanceTimeUntilDone(futureF);
     assertEquals("abc", futureF.getNow());
   }
@@ -496,7 +494,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     StreamConsumerService remoteService = clientTransport.getRpcStub(serviceId, StreamConsumerService.class);
     
     // Test: Simple stream passing
-    FlowFuture<String> resultF = startActor(() -> {
+    CompletableFuture<String> resultF = startActor(() -> {
       PromiseStream<Integer> stream = new PromiseStream<>();
       
       // Call remote method with PromiseStream argument

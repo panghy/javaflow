@@ -3,6 +3,7 @@ package io.github.panghy.javaflow.core;
 import io.github.panghy.javaflow.Flow;
 
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,13 +26,13 @@ import static io.github.panghy.javaflow.Flow.startActor;
 public class PromiseStream<T> {
 
   private final Queue<T> buffer = new ConcurrentLinkedQueue<>();
-  private final Queue<FlowPromise<T>> nextPromises = new ConcurrentLinkedQueue<>();
-  private final Queue<FlowPromise<Boolean>> hasNextPromises = new ConcurrentLinkedQueue<>();
+  private final Queue<CompletableFuture<T>> nextFutures = new ConcurrentLinkedQueue<>();
+  private final Queue<CompletableFuture<Boolean>> hasNextFutures = new ConcurrentLinkedQueue<>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final AtomicReference<Throwable> closeException = new AtomicReference<>();
   private final FutureStream<T> futureStream;
   private final Object lock = new Object(); // Lock for synchronizing buffer and promise operations
-  private final FlowFuture<Void> closeFuture = new FlowFuture<>();
+  private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
   /**
    * Creates a new PromiseStream.
@@ -63,19 +64,19 @@ public class PromiseStream<T> {
     }
 
     synchronized (lock) {
-      FlowPromise<T> promise = nextPromises.poll();
-      if (promise != null) {
+      CompletableFuture<T> future = nextFutures.poll();
+      if (future != null) {
         // There's a waiting consumer, deliver directly
-        promise.complete(value);
+        future.complete(value);
       } else {
         // No waiting consumer, buffer the value
         buffer.add(value);
       }
 
-      // Complete any pending hasNext promises with true
-      FlowPromise<Boolean> hasNextPromise;
-      while ((hasNextPromise = hasNextPromises.poll()) != null) {
-        hasNextPromise.complete(true);
+      // Complete any pending hasNext futures with true
+      CompletableFuture<Boolean> hasNextFuture;
+      while ((hasNextFuture = hasNextFutures.poll()) != null) {
+        hasNextFuture.complete(true);
       }
     }
 
@@ -109,24 +110,24 @@ public class PromiseStream<T> {
     closeException.set(exception);
 
     synchronized (lock) {
-      // Complete all pending next promises with the exception
-      FlowPromise<T> nextPromise;
-      while ((nextPromise = nextPromises.poll()) != null) {
-        nextPromise.completeExceptionally(exception);
+      // Complete all pending next futures with the exception
+      CompletableFuture<T> nextFuture;
+      while ((nextFuture = nextFutures.poll()) != null) {
+        nextFuture.completeExceptionally(exception);
       }
 
-      // Complete all pending hasNext promises with false
-      FlowPromise<Boolean> hasNextPromise;
-      while ((hasNextPromise = hasNextPromises.poll()) != null) {
-        hasNextPromise.complete(false);
+      // Complete all pending hasNext futures with false
+      CompletableFuture<Boolean> hasNextFuture;
+      while ((hasNextFuture = hasNextFutures.poll()) != null) {
+        hasNextFuture.complete(false);
       }
     }
 
     // Complete the close future
     if (exception instanceof StreamClosedException) {
-      closeFuture.getPromise().complete(null);
+      closeFuture.complete(null);
     } else {
-      closeFuture.getPromise().completeExceptionally(exception);
+      closeFuture.completeExceptionally(exception);
     }
 
     return true;
@@ -151,13 +152,13 @@ public class PromiseStream<T> {
   }
 
   /**
-   * Checks if there are any pending next promises waiting for data.
+   * Checks if there are any pending next futures waiting for data.
    * This is used internally to determine if more data should be read.
    *
-   * @return true if there are no pending next promises, false otherwise
+   * @return true if there are no pending next futures, false otherwise
    */
-  public boolean nextPromisesEmpty() {
-    return nextPromises.isEmpty();
+  public boolean nextFuturesEmpty() {
+    return nextFutures.isEmpty();
   }
 
   /**
@@ -173,7 +174,7 @@ public class PromiseStream<T> {
     }
 
     @Override
-    public FlowFuture<E> nextAsync() {
+    public CompletableFuture<E> nextAsync() {
       synchronized (parent.lock) {
         if (parent.closed.get() && parent.buffer.isEmpty()) {
           // Stream is closed and empty, return a failed future
@@ -181,13 +182,13 @@ public class PromiseStream<T> {
           if (exception == null) {
             exception = new StreamClosedException();
           }
-          return FlowFuture.failed(exception);
+          return CompletableFuture.failedFuture(exception);
         }
 
         // Check for buffered value
         E value = parent.buffer.poll();
         if (value != null) {
-          return FlowFuture.completed(value);
+          return CompletableFuture.completedFuture(value);
         }
 
         // Check if closed after checking buffer
@@ -196,23 +197,22 @@ public class PromiseStream<T> {
           if (exception == null) {
             exception = new StreamClosedException();
           }
-          return FlowFuture.failed(exception);
+          return CompletableFuture.failedFuture(exception);
         }
 
-        // No buffered value and not closed, create a promise and register it
-        FlowFuture<E> future = new FlowFuture<>();
-        FlowPromise<E> promise = future.getPromise();
-        parent.nextPromises.add(promise);
+        // No buffered value and not closed, create a future and register it
+        CompletableFuture<E> future = new CompletableFuture<>();
+        parent.nextFutures.add(future);
         return future;
       }
     }
 
     @Override
-    public FlowFuture<Boolean> hasNextAsync() {
+    public CompletableFuture<Boolean> hasNextAsync() {
       synchronized (parent.lock) {
         if (!parent.buffer.isEmpty()) {
           // There is a buffered value
-          return FlowFuture.completed(true);
+          return CompletableFuture.completedFuture(true);
         }
 
         if (parent.closed.get()) {
@@ -220,30 +220,29 @@ public class PromiseStream<T> {
           Throwable closeException = parent.getCloseException();
           if (closeException != null && !(closeException instanceof StreamClosedException)) {
             // Stream was closed exceptionally, return a failed future
-            return FlowFuture.failed(closeException);
+            return CompletableFuture.failedFuture(closeException);
           }
           // Stream was closed normally
-          return FlowFuture.completed(false);
+          return CompletableFuture.completedFuture(false);
         }
 
-        // No buffered value and not closed, create a promise and register it
-        FlowFuture<Boolean> future = new FlowFuture<>();
-        FlowPromise<Boolean> promise = future.getPromise();
-        parent.hasNextPromises.add(promise);
+        // No buffered value and not closed, create a future and register it
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        parent.hasNextFutures.add(future);
         return future;
       }
     }
 
     @Override
-    public FlowFuture<Void> closeExceptionally(Throwable exception) {
+    public CompletableFuture<Void> closeExceptionally(Throwable exception) {
       parent.closeExceptionally(exception);
-      return FlowFuture.completed(null);
+      return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public FlowFuture<Void> close() {
+    public CompletableFuture<Void> close() {
       parent.close();
-      return FlowFuture.completed(null);
+      return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -252,7 +251,7 @@ public class PromiseStream<T> {
     }
 
     @Override
-    public FlowFuture<Void> onClose() {
+    public CompletableFuture<Void> onClose() {
       return parent.closeFuture;
     }
 
@@ -328,15 +327,14 @@ public class PromiseStream<T> {
     }
 
     @Override
-    public FlowFuture<Void> forEach(Consumer<? super E> action) {
-      FlowFuture<Void> result = new FlowFuture<>();
-      FlowPromise<Void> promise = result.getPromise();
+    public CompletableFuture<Void> forEach(Consumer<? super E> action) {
+      CompletableFuture<Void> result = new CompletableFuture<>();
 
       // If the stream is already closed with a real exception (not StreamClosedException), fail immediately
       if (parent.closed.get() && parent.closeException.get() != null 
           && !(parent.closeException.get() instanceof StreamClosedException)) {
         Throwable exception = parent.closeException.get();
-        promise.completeExceptionally(exception);
+        result.completeExceptionally(exception);
         return result;
       }
 
@@ -346,14 +344,14 @@ public class PromiseStream<T> {
         try {
           action.accept(bufferedValue);
         } catch (Exception e) {
-          promise.completeExceptionally(e);
+          result.completeExceptionally(e);
           return result;
         }
       }
 
       // If the stream is already closed and the buffer is empty, complete
       if (parent.closed.get() && parent.buffer.isEmpty()) {
-        promise.complete(null);
+        result.complete(null);
         return result;
       }
 
@@ -361,14 +359,14 @@ public class PromiseStream<T> {
       startActor(() -> {
         try {
           while (true) {
-            FlowFuture<Boolean> hasNextFuture = hasNextAsync();
+            CompletableFuture<Boolean> hasNextFuture = hasNextAsync();
             boolean hasNext = Flow.await(hasNextFuture);
             if (!hasNext) {
-              promise.complete(null);
+              result.complete(null);
               return null;
             }
 
-            FlowFuture<E> nextFuture = nextAsync();
+            CompletableFuture<E> nextFuture = nextAsync();
             E value = Flow.await(nextFuture);
             action.accept(value);
 
@@ -376,7 +374,7 @@ public class PromiseStream<T> {
             Flow.await(Flow.yieldF());
           }
         } catch (Exception e) {
-          promise.completeExceptionally(e);
+          result.completeExceptionally(e);
           return null;
         }
       });

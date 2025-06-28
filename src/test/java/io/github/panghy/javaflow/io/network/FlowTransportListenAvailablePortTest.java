@@ -1,9 +1,10 @@
 package io.github.panghy.javaflow.io.network;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -23,8 +24,8 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     private LocalEndpoint lastEndpoint;
 
     @Override
-    public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
-      return new FlowFuture<>(); // Not used in this test
+    public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
+      return new CompletableFuture<>(); // Not used in this test
     }
 
     @Override
@@ -37,8 +38,8 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> close() {
-      return new FlowFuture<>(); // Not used in this test
+    public CompletableFuture<Void> close() {
+      return new CompletableFuture<>(); // Not used in this test
     }
     
     // Helper method to get the last endpoint used in listen()
@@ -64,23 +65,23 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<T> nextAsync() {
-      return new FlowFuture<>();
+    public CompletableFuture<T> nextAsync() {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Boolean> hasNextAsync() {
-      return new FlowFuture<>();
+    public CompletableFuture<Boolean> hasNextAsync() {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Void> closeExceptionally(Throwable exception) {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> closeExceptionally(Throwable exception) {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Void> close() {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> close() {
+      return new CompletableFuture<>();
     }
 
     @Override
@@ -89,8 +90,8 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> onClose() {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> onClose() {
+      return new CompletableFuture<>();
     }
 
     @Override
@@ -104,8 +105,8 @@ public class FlowTransportListenAvailablePortTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> forEach(java.util.function.Consumer<? super T> action) {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> forEach(java.util.function.Consumer<? super T> action) {
+      return new CompletableFuture<>();
     }
   }
 

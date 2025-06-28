@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
@@ -59,10 +58,10 @@ public class RemotePromiseStreamTest extends AbstractFlowTest {
     // Set up a message sender that does nothing
     streamManager.setMessageSender(new StreamManager.StreamMessageSender() {
       @Override
-      public FlowFuture<Void> sendMessage(EndpointId destination, 
+      public CompletableFuture<Void> sendMessage(EndpointId destination, 
                                         RpcMessageHeader.MessageType type,
                                         UUID streamId, Object payload) {
-        return new FlowFuture<>();
+        return new CompletableFuture<>();
       }
     });
     

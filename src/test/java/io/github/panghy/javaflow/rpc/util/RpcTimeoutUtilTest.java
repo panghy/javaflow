@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.rpc.util;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.error.RpcTimeoutException;
 import org.junit.jupiter.api.Test;
@@ -19,12 +18,12 @@ public class RpcTimeoutUtilTest extends AbstractFlowTest {
   @Test
   public void testTimeoutUtilDirectly() {
     // Start an actor to test the timeout util
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Create a future that never completes
-      FlowFuture<String> neverCompletingFuture = new FlowFuture<>();
+      CompletableFuture<String> neverCompletingFuture = new CompletableFuture<>();
       
       // Apply timeout
-      FlowFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
+      CompletableFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
           neverCompletingFuture, 
           new EndpointId("test"), 
           "testMethod", 

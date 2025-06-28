@@ -1,8 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
 import io.github.panghy.javaflow.rpc.serialization.DefaultSerializer;
@@ -151,7 +149,7 @@ public class FlowRpcTransportImplSimpleTest {
   @Test
   public void testTransportClosure() {
     // Close the transport
-    FlowFuture<Void> closeFuture = rpcTransport.close();
+    CompletableFuture<Void> closeFuture = rpcTransport.close();
     assertNotNull(closeFuture);
     assertTrue(closeFuture.isDone());
 
@@ -256,7 +254,7 @@ public class FlowRpcTransportImplSimpleTest {
 
     PromiseService service = rpcTransport.getRpcStub(serviceId, PromiseService.class);
 
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     service.processWithCallback("test", promise);
@@ -277,7 +275,7 @@ public class FlowRpcTransportImplSimpleTest {
     assertNotNull(defaultTransport.getEndpointResolver());
 
     // Clean up
-    FlowFuture<Void> closeFuture = defaultTransport.close();
+    CompletableFuture<Void> closeFuture = defaultTransport.close();
     assertTrue(closeFuture.isDone());
   }
 
@@ -307,11 +305,11 @@ public class FlowRpcTransportImplSimpleTest {
   @Test
   public void testClosedTransportOperations() {
     // Close the transport
-    FlowFuture<Void> closeFuture = rpcTransport.close();
+    CompletableFuture<Void> closeFuture = rpcTransport.close();
     assertTrue(closeFuture.isDone());
 
     // Try to close again (should still complete)
-    FlowFuture<Void> secondClose = rpcTransport.close();
+    CompletableFuture<Void> secondClose = rpcTransport.close();
     assertTrue(secondClose.isDone());
 
     EndpointId serviceId = new EndpointId("test");

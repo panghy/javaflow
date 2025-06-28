@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -51,7 +50,7 @@ class RealFlowFileTest {
     // Create a test file path
     Path testFile = tempDir.resolve("test-open.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file with CREATE and WRITE options
       FlowFile file = Flow.await(RealFlowFile.open(testFile, OpenOptions.CREATE, OpenOptions.WRITE));
       assertNotNull(file);
@@ -79,7 +78,7 @@ class RealFlowFileTest {
     String testString = "Hello, Flow File!";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -126,7 +125,7 @@ class RealFlowFileTest {
     String testString = "This is a longer text that we will partially read.";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -184,7 +183,7 @@ class RealFlowFileTest {
     String testString = "Short data";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -240,7 +239,7 @@ class RealFlowFileTest {
     byte[] part1Bytes = part1.getBytes();
     byte[] part2Bytes = part2.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -297,7 +296,7 @@ class RealFlowFileTest {
     String testString = "Size test content";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -329,7 +328,7 @@ class RealFlowFileTest {
     String testString = "This text will be truncated - unique";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       try {
         // Create the file first using standard Java API to ensure fresh state
         Files.write(testFile, testData);
@@ -379,7 +378,7 @@ class RealFlowFileTest {
     String testString = "Data to sync";
     byte[] testData = testString.getBytes();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -429,7 +428,7 @@ class RealFlowFileTest {
     // Create a test file path
     Path testFile = tempDir.resolve("test-multi-write.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -502,7 +501,7 @@ class RealFlowFileTest {
     limitedBuffer.put(testData);
     limitedBuffer.flip();
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -590,7 +589,7 @@ class RealFlowFileTest {
       testData[i] = (byte) (i % 256);
     }
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -641,7 +640,7 @@ class RealFlowFileTest {
     // Create a test file path
     Path testFile = tempDir.resolve("test-close.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -705,7 +704,7 @@ class RealFlowFileTest {
     // Create a test file path
     Path testFile = tempDir.resolve("test-get-path.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Open a file
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.CREATE, OpenOptions.WRITE));
@@ -730,7 +729,7 @@ class RealFlowFileTest {
     Path invalidPath = tempDir.resolve("non-existent-dir/non-existent-file.txt");
     
     // Try to open file with invalid path
-    FlowFuture<FlowFile> future = RealFlowFile.open(invalidPath, OpenOptions.READ);
+    CompletableFuture<FlowFile> future = RealFlowFile.open(invalidPath, OpenOptions.READ);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
     // Verify the operation failed
@@ -746,7 +745,7 @@ class RealFlowFileTest {
     Files.createFile(existingFile);
     
     // Open with CREATE_NEW which should fail on existing file
-    FlowFuture<FlowFile> createNewFuture = RealFlowFile.open(
+    CompletableFuture<FlowFile> createNewFuture = RealFlowFile.open(
         existingFile, OpenOptions.CREATE_NEW, OpenOptions.WRITE);
     
     // With real file system operations, we should use get() instead of pumpUntilDone
@@ -773,7 +772,7 @@ class RealFlowFileTest {
     byte[] testData = "Test data for error paths".getBytes();
     
     // First test the read error path
-    FlowFuture<Boolean> readErrorFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> readErrorFuture = Flow.startActor(() -> {
       // Create a file
       Files.write(testFile, testData);
       
@@ -799,7 +798,7 @@ class RealFlowFileTest {
     assertTrue(readErrorFuture.toCompletableFuture().get());
     
     // Now test the write error path
-    FlowFuture<Boolean> writeErrorFuture = Flow.startActor(() -> {
+    CompletableFuture<Boolean> writeErrorFuture = Flow.startActor(() -> {
       // Open a file for writing
       FlowFile file = Flow.await(RealFlowFile.open(
           testFile, OpenOptions.WRITE));
@@ -835,7 +834,7 @@ class RealFlowFileTest {
     Files.write(testFile, "Test data".getBytes());
     
     // Create a helper function to do a read test with failure
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // First open and then immediately close the file - leaving it in a bad state
       // for future read operations
       RealFlowFile file = (RealFlowFile) Flow.await(RealFlowFile.open(testFile, OpenOptions.READ));
@@ -877,7 +876,7 @@ class RealFlowFileTest {
     Files.write(testFile, "Initial data".getBytes());
     
     // Create a helper function to do a write test with failure
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // First open and then immediately close the underlying channel
       RealFlowFile file = (RealFlowFile) Flow.await(RealFlowFile.open(
           testFile, OpenOptions.WRITE));
@@ -914,7 +913,7 @@ class RealFlowFileTest {
     Path testFile2 = tempDir.resolve("coverage2.txt");
     Path testFile3 = tempDir.resolve("coverage3.txt");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Test full file lifecycle with various edge cases
       
       // 1. Create and write with multiple options

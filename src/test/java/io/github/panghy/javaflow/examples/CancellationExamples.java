@@ -2,12 +2,12 @@ package io.github.panghy.javaflow.examples;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,7 +23,7 @@ public class CancellationExamples {
    */
   public static class BasicCancellation {
     
-    public static FlowFuture<String> longRunningOperation() {
+    public static CompletableFuture<String> longRunningOperation() {
       return Flow.startActor(() -> {
         System.out.println("Starting long operation...");
         
@@ -42,7 +42,7 @@ public class CancellationExamples {
     }
     
     public static void runExample() {
-      FlowFuture<String> operation = longRunningOperation();
+      CompletableFuture<String> operation = longRunningOperation();
       
       // Cancel after 1 second
       Flow.startActor(() -> {
@@ -60,7 +60,7 @@ public class CancellationExamples {
    */
   public static class CooperativeCancellation {
     
-    public static FlowFuture<Integer> processLargeDataset(List<Integer> data) {
+    public static CompletableFuture<Integer> processLargeDataset(List<Integer> data) {
       return Flow.startActor(() -> {
         int sum = 0;
         int processed = 0;
@@ -84,7 +84,7 @@ public class CancellationExamples {
       });
     }
     
-    public static FlowFuture<ProcessingResult> processWithPartialResults(List<Integer> data) {
+    public static CompletableFuture<ProcessingResult> processWithPartialResults(List<Integer> data) {
       return Flow.startActor(() -> {
         List<Integer> results = new ArrayList<>();
         int processed = 0;
@@ -150,7 +150,7 @@ public class CancellationExamples {
       }
     }
     
-    public static FlowFuture<String> operationWithCleanup() {
+    public static CompletableFuture<String> operationWithCleanup() {
       return Flow.startActor(() -> {
         Resource resource = null;
         
@@ -221,7 +221,7 @@ public class CancellationExamples {
       return stream;
     }
     
-    public static FlowFuture<Integer> consumeStreamWithLimit(
+    public static CompletableFuture<Integer> consumeStreamWithLimit(
         FutureStream<Integer> stream, int limit) {
       
       return Flow.startActor(() -> {
@@ -256,12 +256,12 @@ public class CancellationExamples {
    */
   public static class TimeoutPattern {
     
-    public static <T> FlowFuture<T> withTimeout(
-        FlowFuture<T> operation, double timeoutSeconds) {
+    public static <T> CompletableFuture<T> withTimeout(
+        CompletableFuture<T> operation, double timeoutSeconds) {
       
       return Flow.startActor(() -> {
         // Create timeout task
-        FlowFuture<Void> timeoutTask = Flow.startActor(() -> {
+        CompletableFuture<Void> timeoutTask = Flow.startActor(() -> {
           Flow.await(Flow.delay(timeoutSeconds));
           System.out.println("Timeout reached, cancelling operation");
           operation.cancel();
@@ -285,7 +285,7 @@ public class CancellationExamples {
       });
     }
     
-    public static FlowFuture<String> slowOperation(double duration) {
+    public static CompletableFuture<String> slowOperation(double duration) {
       return Flow.startActor(() -> {
         System.out.println("Slow operation starting (will take " + duration + "s)");
         Flow.await(Flow.delay(duration));
@@ -301,14 +301,14 @@ public class CancellationExamples {
    */
   public static class NestedCancellation {
     
-    public static FlowFuture<String> parentOperation() {
+    public static CompletableFuture<String> parentOperation() {
       return Flow.startActor(() -> {
         System.out.println("Parent operation starting");
         
         try {
           // Start child operations
-          FlowFuture<String> child1 = childOperation("Child-1", 2.0);
-          FlowFuture<String> child2 = childOperation("Child-2", 3.0);
+          CompletableFuture<String> child1 = childOperation("Child-1", 2.0);
+          CompletableFuture<String> child2 = childOperation("Child-2", 3.0);
           
           // Wait for children
           String result1 = Flow.await(child1);
@@ -323,7 +323,7 @@ public class CancellationExamples {
       });
     }
     
-    private static FlowFuture<String> childOperation(String name, double duration) {
+    private static CompletableFuture<String> childOperation(String name, double duration) {
       return Flow.startActor(() -> {
         System.out.println(name + " starting");
         
@@ -358,11 +358,11 @@ public class CancellationExamples {
   public static class GracefulShutdown {
     
     public static class WorkerService {
-      private final List<FlowFuture<?>> activeWorkers = new ArrayList<>();
+      private final List<CompletableFuture<?>> activeWorkers = new ArrayList<>();
       private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
       private final AtomicInteger taskCounter = new AtomicInteger(0);
       
-      public FlowFuture<String> submitTask(String taskName) {
+      public CompletableFuture<String> submitTask(String taskName) {
         if (shuttingDown.get()) {
           throw new IllegalStateException("Service is shutting down");
         }
@@ -370,9 +370,9 @@ public class CancellationExamples {
         int taskId = taskCounter.incrementAndGet();
         
         // Create a holder for the future reference
-        final FlowFuture<String>[] workerHolder = new FlowFuture[1];
+        final CompletableFuture<String>[] workerHolder = new FlowFuture[1];
         
-        FlowFuture<String> worker = Flow.startActor(() -> {
+        CompletableFuture<String> worker = Flow.startActor(() -> {
           try {
             System.out.println("Task " + taskId + " (" + taskName + ") started");
             
@@ -410,13 +410,13 @@ public class CancellationExamples {
         return worker;
       }
       
-      public FlowFuture<Integer> shutdown(double gracePeriodSeconds) {
+      public CompletableFuture<Integer> shutdown(double gracePeriodSeconds) {
         return Flow.startActor(() -> {
           shuttingDown.set(true);
           System.out.println("Initiating graceful shutdown...");
           
           // Get current active workers
-          List<FlowFuture<?>> workers;
+          List<CompletableFuture<?>> workers;
           synchronized (activeWorkers) {
             workers = new ArrayList<>(activeWorkers);
           }
@@ -424,7 +424,7 @@ public class CancellationExamples {
           System.out.println("Cancelling " + workers.size() + " active tasks");
           
           // Request cancellation
-          for (FlowFuture<?> worker : workers) {
+          for (CompletableFuture<?> worker : workers) {
             worker.cancel();
           }
           

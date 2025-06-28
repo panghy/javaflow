@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
 
@@ -38,14 +37,14 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       transport.listen(endpoint);
       
       // Try to connect - should fail with 100% probability
-      FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
+      CompletableFuture<FlowConnection> connectFuture = transport.connect(endpoint);
       pumpAndAdvanceTimeUntilDone(connectFuture);
       
       assertTrue(connectFuture.isCompletedExceptionally(), "Connect should fail with 100% error probability");
       
       // Try again with normal parameters to test that at least one connection succeeds
       params.setConnectErrorProbability(0.0);
-      FlowFuture<FlowConnection> successFuture = transport.connect(endpoint);
+      CompletableFuture<FlowConnection> successFuture = transport.connect(endpoint);
       pumpAndAdvanceTimeUntilDone(successFuture);
       
       assertFalse(successFuture.isCompletedExceptionally(), "Connect should succeed with 0% error probability");
@@ -56,13 +55,13 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       
       // Send should fail with 100% probability
       ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-      FlowFuture<Void> sendFuture = connection.send(data);
+      CompletableFuture<Void> sendFuture = connection.send(data);
       pumpAndAdvanceTimeUntilDone(sendFuture);
       
       assertTrue(sendFuture.isCompletedExceptionally(), "Send should fail with 100% error probability");
       
       // Receive should fail with 100% probability
-      FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+      CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
       pumpAndAdvanceTimeUntilDone(receiveFuture);
       
       assertTrue(receiveFuture.isCompletedExceptionally(), "Receive should fail with 100% error probability");
@@ -88,7 +87,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       transport.listen(endpoint);
       
       // Connect (should succeed)
-      FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
+      CompletableFuture<FlowConnection> connectFuture = transport.connect(endpoint);
       pumpAndAdvanceTimeUntilDone(connectFuture);
       
       assertFalse(connectFuture.isCompletedExceptionally(), "Connect should succeed");
@@ -98,7 +97,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       
       // Send with 100% disconnect probability should cause connection to close
       ByteBuffer data = ByteBuffer.wrap("test".getBytes());
-      FlowFuture<Void> sendFuture = connection.send(data);
+      CompletableFuture<Void> sendFuture = connection.send(data);
       pumpAndAdvanceTimeUntilDone(sendFuture);
       
       assertTrue(sendFuture.isCompletedExceptionally(), "Send should fail due to disconnect");
@@ -124,15 +123,15 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       FlowStream<FlowConnection> stream2 = transport.listen(endpoint2);
       
       // Connect to both
-      FlowFuture<FlowConnection> connectFuture1 = transport.connect(endpoint1);
-      FlowFuture<FlowConnection> connectFuture2 = transport.connect(endpoint2);
+      CompletableFuture<FlowConnection> connectFuture1 = transport.connect(endpoint1);
+      CompletableFuture<FlowConnection> connectFuture2 = transport.connect(endpoint2);
       
       // Wait for connections
       pumpAndAdvanceTimeUntilDone(connectFuture1, connectFuture2);
       
       // Get connections from listeners
-      FlowFuture<FlowConnection> acceptFuture1 = stream1.nextAsync();
-      FlowFuture<FlowConnection> acceptFuture2 = stream2.nextAsync();
+      CompletableFuture<FlowConnection> acceptFuture1 = stream1.nextAsync();
+      CompletableFuture<FlowConnection> acceptFuture2 = stream2.nextAsync();
       pumpAndAdvanceTimeUntilDone(acceptFuture1, acceptFuture2);
       
       // Verify all connections were established
@@ -165,8 +164,8 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     FlowStream<FlowConnection> stream = transport.listen(endpoint);
     
     // Create a connection
-    FlowFuture<FlowConnection> connectFuture = transport.connect(endpoint);
-    FlowFuture<FlowConnection> acceptFuture = stream.nextAsync();
+    CompletableFuture<FlowConnection> connectFuture = transport.connect(endpoint);
+    CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
     pumpAndAdvanceTimeUntilDone(connectFuture, acceptFuture);
     
     // Get the connections
@@ -179,7 +178,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     AtomicInteger closeFutureCompletions = new AtomicInteger(0);
     
     // Send operation
-    FlowFuture<Void> sendFuture = clientConn.send(ByteBuffer.wrap("test".getBytes()));
+    CompletableFuture<Void> sendFuture = clientConn.send(ByteBuffer.wrap("test".getBytes()));
     sendFuture.whenComplete((v, ex) -> {
       if (ex != null) {
         sendException.set((Exception) ex);
@@ -191,7 +190,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     serverConn.closeFuture().whenComplete((v, ex) -> closeFutureCompletions.incrementAndGet());
     
     // Close the transport while operations are in progress
-    FlowFuture<Void> closeFuture = transport.close();
+    CompletableFuture<Void> closeFuture = transport.close();
     pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Verify all futures completed
@@ -209,7 +208,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     assertFalse(serverConn.isOpen(), "Server connection should be closed");
     
     // Try to connect/listen after close - this should fail
-    FlowFuture<FlowConnection> postCloseFuture = transport.connect(endpoint);
+    CompletableFuture<FlowConnection> postCloseFuture = transport.connect(endpoint);
     pumpAndAdvanceTimeUntilDone(postCloseFuture);
     
     assertTrue(postCloseFuture.isCompletedExceptionally(), "Connect after close should fail");

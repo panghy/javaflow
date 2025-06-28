@@ -2,8 +2,6 @@ package io.github.panghy.javaflow.rpc;
 
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.rpc.serialization.TypeDescription;
@@ -177,7 +175,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TestableRemotePromiseTracker tracker = new TestableRemotePromiseTracker();
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     // Register the promise
@@ -194,7 +192,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TestableRemotePromiseTracker tracker = new TestableRemotePromiseTracker();
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     // Register the promise
@@ -223,7 +221,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TestableRemotePromiseTracker tracker = new TestableRemotePromiseTracker();
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     // Register the promise
@@ -455,7 +453,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TestableRemotePromiseTracker tracker = new TestableRemotePromiseTracker();
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     // Register the promise
@@ -904,7 +902,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     RemotePromiseTracker tracker = new RemotePromiseTracker(messageSender);
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -938,7 +936,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     RemotePromiseTracker tracker = new RemotePromiseTracker(messageSender);
 
     // Create a promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     FlowPromise<String> promise = future.getPromise();
 
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -1056,9 +1054,9 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint endpoint2 = new Endpoint("localhost", 8081);
 
     // Create outgoing promises for both endpoints
-    FlowFuture<String> future1 = new FlowFuture<>();
-    FlowFuture<String> future2 = new FlowFuture<>();
-    FlowFuture<String> future3 = new FlowFuture<>();
+    CompletableFuture<String> future1 = new CompletableFuture<>();
+    CompletableFuture<String> future2 = new CompletableFuture<>();
+    CompletableFuture<String> future3 = new CompletableFuture<>();
 
     UUID promiseId1 = tracker.registerOutgoingPromise(future1.getPromise(), endpoint1,
         new TypeDescription(String.class));
@@ -1148,7 +1146,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.cancelAllForEndpoint(endpoint);
 
     // Verify tracker is still functional
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     UUID promiseId = tracker.registerOutgoingPromise(future.getPromise(), endpoint,
         new TypeDescription(String.class));
 
@@ -1331,7 +1329,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TestableRemotePromiseTracker tracker = new TestableRemotePromiseTracker();
 
     // Create an outgoing promise
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     Endpoint destination = new Endpoint("localhost", 8080);
     UUID promiseId = tracker.registerOutgoingPromise(future.getPromise(), destination,
         new TypeDescription(String.class));
@@ -1467,7 +1465,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.completeLocalPromise(promiseId, values);
 
     // Verify the promise was completed successfully
-    FlowFuture<List<String>> future = listPromise.getFuture();
+    CompletableFuture<List<String>> future = listPromise.getFuture();
     assertTrue(future.isDone());
     try {
       assertEquals(values, future.getNow());
@@ -1495,7 +1493,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.completeLocalPromise(promiseId, value);
 
     // Verify the promise was completed with the original value
-    FlowFuture<Object> future = promise.getFuture();
+    CompletableFuture<Object> future = promise.getFuture();
     assertTrue(future.isDone());
     try {
       assertEquals(value, future.getNow());
@@ -1576,7 +1574,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     assertTrue(remoteStream.isClosed());
 
     // Try to get a value from the closed stream - this should fail with the error
-    FlowFuture<String> nextFuture = remoteStream.getFutureStream().nextAsync();
+    CompletableFuture<String> nextFuture = remoteStream.getFutureStream().nextAsync();
     pumpAndAdvanceTimeUntilDone();
 
     // This future should be completed exceptionally

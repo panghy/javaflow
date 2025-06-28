@@ -1,7 +1,5 @@
 package io.github.panghy.javaflow.rpc.serialization;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.error.RpcSerializationException;
 import io.github.panghy.javaflow.util.Tuple;
@@ -13,6 +11,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 
 import static io.github.panghy.javaflow.util.Tuple.packItems;
 
@@ -117,16 +116,11 @@ public class DefaultSerializer<T> implements Serializer<T> {
     }
 
     // Special handling for primitive wrappers and common types
-    if (FlowFuture.class.isAssignableFrom(expectedType)) {
-      // FlowFuture instances are handled specially by the RPC layer
+    if (CompletableFuture.class.isAssignableFrom(expectedType)) {
+      // CompletableFuture instances are handled specially by the RPC layer
       // and should not be directly serialized/deserialized
       throw new RpcSerializationException(
-          FlowFuture.class, "Cannot be directly serialized/deserialized");
-    } else if (FlowPromise.class.isAssignableFrom(expectedType)) {
-      // FlowPromise instances are handled specially by the RPC layer
-      // and should not be directly serialized/deserialized
-      throw new RpcSerializationException(
-          FlowPromise.class, "Cannot be directly serialized/deserialized");
+          CompletableFuture.class, "Cannot be directly serialized/deserialized");
     } else if (PromiseStream.class.isAssignableFrom(expectedType)) {
       // PromiseStream instances are handled specially by the RPC layer
       // and should not be directly serialized/deserialized

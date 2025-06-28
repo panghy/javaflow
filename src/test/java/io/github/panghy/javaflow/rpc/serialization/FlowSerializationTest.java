@@ -7,8 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.panghy.javaflow.core.FlowPromise;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 
 import java.nio.ByteBuffer;

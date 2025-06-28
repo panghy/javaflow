@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.io;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.github.panghy.javaflow.core.FlowFuture.COMPLETED_VOID_FUTURE;
 import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
 
 /**
@@ -47,10 +46,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<FlowFile> open(Path path, OpenOptions... options) {
+  public CompletableFuture<FlowFile> open(Path path, OpenOptions... options) {
     // Check if the path is null
     if (path == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -59,7 +58,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated open error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated open error"));
     }
 
     // Check if options include required ones
@@ -122,10 +121,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<Void> delete(Path path) {
+  public CompletableFuture<Void> delete(Path path) {
     // Check if the path is null
     if (path == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -134,7 +133,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated delete error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated delete error"));
     }
 
     // Simulate delay
@@ -184,10 +183,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<Boolean> exists(Path path) {
+  public CompletableFuture<Boolean> exists(Path path) {
     // Check if the path is null
     if (path == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -196,7 +195,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated exists error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated exists error"));
     }
 
     // Simulate delay
@@ -206,10 +205,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<Void> createDirectory(Path path) {
+  public CompletableFuture<Void> createDirectory(Path path) {
     // Check if the path is null
     if (path == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -218,7 +217,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated createDirectory error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated createDirectory error"));
     }
 
     // Simulate delay
@@ -254,10 +253,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<Void> createDirectories(Path path) {
+  public CompletableFuture<Void> createDirectories(Path path) {
     // Check if the path is null
     if (path == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -266,17 +265,17 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated createDirectories error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated createDirectories error"));
     }
 
     // If the directory already exists, nothing to do
     if (directories.containsKey(pathStr)) {
-      return COMPLETED_VOID_FUTURE;
+      return CompletableFuture.completedFuture(null);
     }
 
     // If a file exists with this name, throw an exception
     if (files.containsKey(pathStr)) {
-      return FlowFuture.failed(new FileAlreadyExistsException(pathStr));
+      return CompletableFuture.failedFuture(new FileAlreadyExistsException(pathStr));
     }
 
     // Get parent path
@@ -286,7 +285,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     if (!parentPath.equals(pathStr) && !directories.containsKey(parentPath)) {
       // First create parent directories, then create this directory
       return createDirectories(Paths.get(parentPath))
-          .map(v -> {
+          .thenApply(v -> {
             // Create the directory
             DirectoryEntry newDir = new DirectoryEntry(pathStr);
             directories.put(pathStr, newDir);
@@ -320,10 +319,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<List<Path>> list(Path directory) {
+  public CompletableFuture<List<Path>> list(Path directory) {
     // Check if the path is null
     if (directory == null) {
-      return FlowFuture.failed(new NullPointerException("Path cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Path cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -332,7 +331,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated list error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated list error"));
     }
 
     // Simulate delay
@@ -358,10 +357,10 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
   }
 
   @Override
-  public FlowFuture<Void> move(Path source, Path target) {
+  public CompletableFuture<Void> move(Path source, Path target) {
     // Check if the paths are null
     if (source == null || target == null) {
-      return FlowFuture.failed(new NullPointerException("Paths cannot be null"));
+      return CompletableFuture.failedFuture(new NullPointerException("Paths cannot be null"));
     }
 
     // Convert to canonical string representation
@@ -371,7 +370,7 @@ public class SimulatedFlowFileSystem implements FlowFileSystem {
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated move error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated move error"));
     }
 
     // Simulate delay
