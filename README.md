@@ -241,7 +241,7 @@ Coverage reports are generated in the build/reports/jacoco directory after runni
 JavaFlow provides:
 
 ### Core Components
-- **FlowFuture & FlowPromise**: For managing asynchronous operations
+- **CompletableFuture**: For managing asynchronous operations (standard Java futures)
 - **SingleThreadedScheduler**: Cooperative multitasking with one task active at a time
 - **Task & TaskPriority**: Prioritized operations for optimal scheduling
 - **Flow API**: Simple entry point for creating and scheduling asynchronous tasks
@@ -274,7 +274,7 @@ JavaFlow provides:
 import static io.github.panghy.javaflow.Flow.*;
 
 // Create a simple actor using Flow
-FlowFuture<String> result = startActor(() -> {
+CompletableFuture<String> result = startActor(() -> {
     // Do some work
     String partialResult = doSomeWork();
 
@@ -293,7 +293,7 @@ result.whenComplete((value, error) -> {
 });
 
 // Using timer functionality
-FlowFuture<Void> delayedOperation = startActor(() -> {
+CompletableFuture<Void> delayedOperation = startActor(() -> {
     // Do initial work
     initialSetup();
 
@@ -305,7 +305,7 @@ FlowFuture<Void> delayedOperation = startActor(() -> {
 });
 
 // Using asynchronous file I/O
-FlowFuture<ByteBuffer> fileReadOperation = startActor(() -> {
+CompletableFuture<ByteBuffer> fileReadOperation = startActor(() -> {
     // Get the default file system (real or simulated based on Flow.isSimulated())
     FlowFileSystem fs = FlowFileSystem.getDefault();
     
@@ -364,7 +364,7 @@ void testFileOperations() {
         SimulatedFlowFileSystem fs = new SimulatedFlowFileSystem(params);
         
         // Start test actor using the simulated file system
-        FlowFuture<String> testFuture = Flow.startActor(() -> {
+        CompletableFuture<String> testFuture = Flow.startActor(() -> {
             // Create directory and open file
             await(fs.createDirectories(Path.of("/test")));
             FlowFile file = await(fs.open(Path.of("/test/data.txt"), OpenOptions.CREATE, OpenOptions.WRITE));
@@ -422,7 +422,7 @@ UserServiceInterface userService = transport.getRpcStub(
     new EndpointId("user-service"), UserServiceInterface.class);
 
 // Call remote service using promise-based API in an actor
-FlowFuture<UserInfo> userLookup = startActor(() -> {
+CompletableFuture<UserInfo> userLookup = startActor(() -> {
     UserInfo user = await(userService.getUserAsync(new GetUserRequest("user123")));
     return processUserInfo(user);
 });
@@ -503,7 +503,7 @@ The file system component provides a comprehensive asynchronous API for file ope
 1. **Interfaces and Abstractions**:
    - `FlowFile`: Interface for file operations (read, write, truncate, sync, size, close)
    - `FlowFileSystem`: Interface for file system operations (open, delete, exists, createDirectory, list, move)
-   - All operations return `FlowFuture` objects that can be awaited by actors
+   - All operations return `CompletableFuture` objects that can be awaited by actors
 
 2. **Real Implementations**:
    - `RealFlowFile`: Implementation using Java NIO's `AsynchronousFileChannel`

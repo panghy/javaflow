@@ -2,6 +2,44 @@
 
 ## Version 1.3.0
 
+### Major Breaking Changes
+
+#### Migration from FlowFuture/FlowPromise to CompletableFuture
+JavaFlow has migrated from custom FlowFuture/FlowPromise classes to Java's standard CompletableFuture. This major architectural change improves interoperability with standard Java libraries and reduces the learning curve for new users.
+
+**Breaking Changes:**
+- `FlowFuture<T>` → `CompletableFuture<T>` throughout the codebase
+- `FlowPromise<T>` removed - use `CompletableFuture<T>` directly
+- Methods returning `FlowFuture` now return `CompletableFuture`
+- `future.getNow()` → `future.getNow(null)` (CompletableFuture requires a default value)
+- `FlowFuture.map()` → `CompletableFuture.thenApply()`
+- Exception handling changes: `CompletionException` instead of `ExecutionException` in some cases
+
+**Migration Guide:**
+```java
+// Old code
+FlowFuture<String> future = Flow.startActor(() -> "result");
+String value = future.getNow();  // Old API
+
+// New code
+CompletableFuture<String> future = Flow.startActor(() -> "result");
+String value = future.getNow(null);  // New API requires default value
+```
+
+#### API Rename: yieldF() → yield()
+The `Flow.yieldF()` method has been renamed to `Flow.yield()` for consistency and simplicity.
+
+**Migration:**
+```java
+// Old code
+Flow.await(Flow.yieldF());
+Flow.await(Flow.yieldF(priority));
+
+// New code
+Flow.await(Flow.yield());
+Flow.await(Flow.yield(priority));
+```
+
 ### Major Features
 
 #### Phase 6: Core Cancellation Infrastructure
@@ -34,11 +72,12 @@
 - `Buggify` - Fault injection utilities
 - `FlowScheduler.getCurrentTask()` - Package-private helper for cancellation support
 
-### Breaking Changes
+### Additional Breaking Changes
 - `Flow.await()` now throws `FlowCancellationException` instead of `CancellationException`
   - Since FlowCancellationException extends RuntimeException, most code continues to work unchanged
   - Only affects code that explicitly catches CancellationException
 - Endpoint model simplified from three-tier to two-tier architecture (affects RPC internals)
+- Removed disabled tests that were incompatible with the simulation framework
 
 ### Improvements
 - Enhanced Javadoc for all Flow methods documenting cancellation behavior
