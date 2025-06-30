@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.rpc.util;
+import java.util.concurrent.CompletableFuture;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.error.RpcTimeoutException;
 
@@ -28,10 +28,10 @@ public class RpcTimeoutUtil {
    * @return A new future that will complete like the original future, or throw an
    * exception if the timeout is exceeded
    */
-  public static <T> FlowFuture<T> withTimeout(FlowFuture<T> future, EndpointId endpointId,
+  public static <T> CompletableFuture<T> withTimeout(CompletableFuture<T> future, EndpointId endpointId,
                                               String methodName, long timeoutMs) {
     // Create a result future
-    FlowFuture<T> resultFuture = new FlowFuture<>();
+    CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
     // Set up handlers for the original future
     future.whenComplete((result, error) -> {
@@ -40,17 +40,17 @@ public class RpcTimeoutUtil {
         // (e.g., by the timeout handler)
         if (!resultFuture.isDone()) {
           logger.fine(() -> "Original future completed with error: " + error);
-          resultFuture.getPromise().completeExceptionally(error);
+          resultFuture.completeExceptionally(error);
         }
       } else {
-        resultFuture.getPromise().complete(result);
+        resultFuture.complete(result);
       }
     });
 
     // Start an actor to handle the timeout
     Flow.startActor(() -> {
       // Create a timer future that completes after the timeout
-      FlowFuture<Void> timeoutFuture = Flow.delay(timeoutMs / 1000.0);
+      CompletableFuture<Void> timeoutFuture = Flow.delay(timeoutMs / 1000.0);
 
       // Wait for the timeout
       Flow.await(timeoutFuture);
@@ -59,9 +59,9 @@ public class RpcTimeoutUtil {
         // Timeout occurred before the original future completed
         logger.fine(() -> "Timeout occurred for " + endpointId + "." + methodName + " after " + timeoutMs + "ms");
         RpcTimeoutException timeoutEx = new RpcTimeoutException(endpointId, methodName, timeoutMs);
-        resultFuture.getPromise().completeExceptionally(timeoutEx);
+        resultFuture.completeExceptionally(timeoutEx);
         logger.fine(() -> "Completed result future with timeout exception: " + timeoutEx);
-        future.cancel();
+        future.cancel(true);
       }
       return null;
     });

@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
@@ -75,7 +75,7 @@ public class SingleThreadedSchedulerPriorityRandomizationTest {
 
     // Track execution order
     List<Integer> executionOrder = new ArrayList<>();
-    List<FlowFuture<Integer>> futures = new ArrayList<>();
+    List<CompletableFuture<Integer>> futures = new ArrayList<>();
 
     // Schedule tasks with same priority - they will all be added to ready queue
     // before any execute
@@ -95,7 +95,7 @@ public class SingleThreadedSchedulerPriorityRandomizationTest {
     }
 
     // Verify all completed
-    for (FlowFuture<Integer> future : futures) {
+    for (CompletableFuture<Integer> future : futures) {
       assertTrue(future.isDone());
     }
 
@@ -184,8 +184,8 @@ public class SingleThreadedSchedulerPriorityRandomizationTest {
     scheduler.start();
 
     // Schedule a task and check its effective priority
-    FlowFuture<Integer> future1 = scheduler.schedule(() -> 1, 100);
-    FlowFuture<Integer> future2 = scheduler.schedule(() -> 2, 100);
+    CompletableFuture<Integer> future1 = scheduler.schedule(() -> 1, 100);
+    CompletableFuture<Integer> future2 = scheduler.schedule(() -> 2, 100);
     
     // Pump to execute
     scheduler.pump();
@@ -213,12 +213,12 @@ public class SingleThreadedSchedulerPriorityRandomizationTest {
     scheduler.start();
 
     // Schedule task with zero priority
-    FlowFuture<String> future = scheduler.schedule(() -> "zero", 0);
+    CompletableFuture<String> future = scheduler.schedule(() -> "zero", 0);
     
     // Pump to execute
     scheduler.pump();
     
     assertTrue(future.isDone());
-    assertEquals("zero", future.getNow());
+    assertEquals("zero", future.getNow(null));
   }
 }

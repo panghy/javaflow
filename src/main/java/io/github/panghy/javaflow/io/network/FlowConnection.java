@@ -1,14 +1,14 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
+import java.util.concurrent.CompletableFuture;
 
 import java.nio.ByteBuffer;
 
 /**
  * Represents an asynchronous network connection in the JavaFlow actor system.
  * This interface defines the operations for sending and receiving data over a connection.
- * All operations return FlowFuture objects that can be awaited using Flow.await().
+ * All operations return CompletableFuture objects that can be awaited using Flow.await().
  * 
  * <p>FlowConnection provides key network communication capabilities including:</p>
  * <ul>
@@ -61,7 +61,7 @@ public interface FlowConnection {
    * @param data The data to send
    * @return A future that completes when the data has been sent successfully
    */
-  FlowFuture<Void> send(ByteBuffer data);
+  CompletableFuture<Void> send(ByteBuffer data);
 
   /**
    * Reads available data from the connection.
@@ -72,7 +72,7 @@ public interface FlowConnection {
    * @return A future that completes with the data read from the connection
    * @throws IllegalArgumentException if maxBytes is not positive
    */
-  FlowFuture<ByteBuffer> receive(int maxBytes);
+  CompletableFuture<ByteBuffer> receive(int maxBytes);
 
   /**
    * Provides a stream of incoming data packets.
@@ -109,12 +109,12 @@ public interface FlowConnection {
    *
    * @return A future that completes when the connection is closed
    */
-  FlowFuture<Void> closeFuture();
+  CompletableFuture<Void> closeFuture();
 
   /**
    * Closes this connection.
    *
    * @return A future that completes when the connection is closed
    */
-  FlowFuture<Void> close();
+  CompletableFuture<Void> close();
 }

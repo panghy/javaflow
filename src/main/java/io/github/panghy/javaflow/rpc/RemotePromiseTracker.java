@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.rpc;
+import java.util.concurrent.CompletableFuture;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
@@ -85,13 +84,13 @@ public class RemotePromiseTracker {
   /**
    * Information about a remote promise.
    */
-  record RemotePromiseInfo(Endpoint destination, TypeDescription resultType, FlowPromise<?> promise) {
+  record RemotePromiseInfo(Endpoint destination, TypeDescription resultType, CompletableFuture<?> promise) {
   }
 
   /**
    * Information about a local promise that was created for a remote promise.
    */
-  record LocalPromiseInfo(FlowPromise<?> promise, Endpoint source,
+  record LocalPromiseInfo(CompletableFuture<?> promise, Endpoint source,
                           TypeDescription resultType) {
   }
 
@@ -149,7 +148,7 @@ public class RemotePromiseTracker {
    * @param resultType  The expected type of the result
    * @return A unique ID for the promise that can be sent to the remote endpoint
    */
-  public <T> UUID registerOutgoingPromise(FlowPromise<T> promise, Endpoint destination,
+  public <T> UUID registerOutgoingPromise(CompletableFuture<T> promise, Endpoint destination,
                                           TypeDescription resultType) {
     UUID promiseId = UUID.randomUUID();
     debug(LOGGER, "Registering outgoing promise " + promiseId + " to " + destination);
@@ -173,7 +172,7 @@ public class RemotePromiseTracker {
    * @param resultType      The expected type of the result
    * @return A local promise that will be fulfilled when the remote promise is completed
    */
-  public <T> FlowPromise<T> createLocalPromiseForRemote(UUID remotePromiseId, Endpoint source,
+  public <T> CompletableFuture<T> createLocalPromiseForRemote(UUID remotePromiseId, Endpoint source,
                                                         TypeDescription resultType) {
     return createLocalPromiseForRemote(remotePromiseId, source, resultType, true);
   }
@@ -188,13 +187,12 @@ public class RemotePromiseTracker {
    * @param sendResultBack  Whether to send results back to source when completed
    * @return A local promise that will be fulfilled when the remote promise is completed
    */
-  public <T> FlowPromise<T> createLocalPromiseForRemote(UUID remotePromiseId, Endpoint source,
+  public <T> CompletableFuture<T> createLocalPromiseForRemote(UUID remotePromiseId, Endpoint source,
                                                         TypeDescription resultType, boolean sendResultBack) {
-    FlowFuture<T> future = new FlowFuture<>();
-    FlowPromise<T> localPromise = future.getPromise();
+    CompletableFuture<T> future = new CompletableFuture<>();
 
     // Store the promise info (promise, source, and type) in the map
-    incomingPromises.put(remotePromiseId, new LocalPromiseInfo(localPromise, source, resultType));
+    incomingPromises.put(remotePromiseId, new LocalPromiseInfo(future, source, resultType));
 
     // Add a completion handler to send the result back to the source if requested
     if (sendResultBack) {
@@ -225,7 +223,7 @@ public class RemotePromiseTracker {
       });
     }
 
-    return localPromise;
+    return future;
   }
 
   /**
@@ -236,10 +234,9 @@ public class RemotePromiseTracker {
    * @param endpoint  The endpoint that owns this promise
    * @return A promise that will deliver its result over the connection when completed
    */
-  public <T> FlowPromise<T> createIncomingPromise(UUID promiseId,
+  public <T> CompletableFuture<T> createIncomingPromise(UUID promiseId,
                                                   Endpoint endpoint) {
-    FlowFuture<T> future = new FlowFuture<>();
-    FlowPromise<T> promise = future.getPromise();
+    CompletableFuture<T> future = new CompletableFuture<>();
 
     // When the promise is completed, send the result to the source
     future.whenComplete((result, error) -> {
@@ -250,7 +247,7 @@ public class RemotePromiseTracker {
       }
     });
 
-    return promise;
+    return future;
   }
 
   /**
@@ -270,7 +267,7 @@ public class RemotePromiseTracker {
         debug(LOGGER, "Completing incoming promise " + remotePromiseId + " with result: " + result);
         // Convert the result to the expected type if needed
         Object convertedResult = convertPromiseResult(result, promiseInfo.resultType());
-        ((FlowPromise<Object>) promiseInfo.promise()).complete(convertedResult);
+        ((CompletableFuture<Object>) promiseInfo.promise()).complete(convertedResult);
         return true;
       } catch (Exception e) {
         // Wrong type or conversion error, complete with exception
@@ -286,7 +283,7 @@ public class RemotePromiseTracker {
         debug(LOGGER, "Completing outgoing promise " + remotePromiseId + " with result: " + result);
         // Convert the result to the expected type if needed
         Object convertedResult = convertPromiseResult(result, outgoingInfo.resultType());
-        ((FlowPromise<Object>) outgoingInfo.promise()).complete(convertedResult);
+        ((CompletableFuture<Object>) outgoingInfo.promise()).complete(convertedResult);
         // Remove from map after completion - this is a promise sent as an argument
         // that has now been completed by the remote side
         outgoingPromises.remove(remotePromiseId);

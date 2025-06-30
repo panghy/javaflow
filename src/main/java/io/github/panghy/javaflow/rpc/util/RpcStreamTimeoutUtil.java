@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.rpc.util;
+import java.util.concurrent.CompletableFuture;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
@@ -40,18 +40,18 @@ public class RpcStreamTimeoutUtil {
     PromiseStream<T> timeoutStream = new PromiseStream<>();
 
     // Track the current timeout future
-    AtomicReference<FlowFuture<Void>> currentTimeout = new AtomicReference<>();
+    AtomicReference<CompletableFuture<Void>> currentTimeout = new AtomicReference<>();
 
     // Function to reset the timeout
     Runnable resetTimeout = () -> {
       // Cancel the previous timeout if any
-      FlowFuture<Void> previous = currentTimeout.get();
+      CompletableFuture<Void> previous = currentTimeout.get();
       if (previous != null && !previous.isDone()) {
-        previous.cancel();
+        previous.cancel(true);
       }
 
       // Start a new timeout
-      FlowFuture<Void> newTimeout = Flow.delay(inactivityTimeoutMs / 1000.0);
+      CompletableFuture<Void> newTimeout = Flow.delay(inactivityTimeoutMs / 1000.0);
       currentTimeout.set(newTimeout);
 
       // When timeout expires, close the stream with timeout exception
@@ -92,7 +92,7 @@ public class RpcStreamTimeoutUtil {
           }
 
           // Check if there's a next value
-          FlowFuture<Boolean> hasNextFuture = stream.getFutureStream().hasNextAsync();
+          CompletableFuture<Boolean> hasNextFuture = stream.getFutureStream().hasNextAsync();
           boolean hasNext;
           try {
             hasNext = Flow.await(hasNextFuture);
@@ -141,7 +141,7 @@ public class RpcStreamTimeoutUtil {
           }
 
           // Get the next value
-          FlowFuture<T> nextFuture = stream.getFutureStream().nextAsync();
+          CompletableFuture<T> nextFuture = stream.getFutureStream().nextAsync();
           T value = Flow.await(nextFuture);
 
           // Reset timeout on each value received
@@ -168,9 +168,9 @@ public class RpcStreamTimeoutUtil {
         }
       } finally {
         // Cancel any pending timeout
-        FlowFuture<Void> timeout = currentTimeout.getAndSet(null);
+        CompletableFuture<Void> timeout = currentTimeout.getAndSet(null);
         if (timeout != null) {
-          timeout.cancel();
+          timeout.cancel(true);
         }
       }
 

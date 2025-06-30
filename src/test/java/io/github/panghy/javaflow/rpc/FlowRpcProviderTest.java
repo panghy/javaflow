@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import org.junit.jupiter.api.AfterEach;
@@ -102,7 +102,7 @@ public class FlowRpcProviderTest {
     assertNotNull(transport);
     
     // Close it
-    FlowFuture<Void> closeFuture = transport.close();
+    CompletableFuture<Void> closeFuture = transport.close();
     assertNotNull(closeFuture);
     
     // Future should complete immediately for connection manager close
@@ -148,8 +148,8 @@ public class FlowRpcProviderTest {
     }
     
     @Override
-    public FlowFuture<Void> close() {
-      return FlowFuture.completed(null);
+    public CompletableFuture<Void> close() {
+      return CompletableFuture.completedFuture(null);
     }
   }
 }

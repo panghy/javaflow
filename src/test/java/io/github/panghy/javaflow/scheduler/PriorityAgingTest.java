@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +52,7 @@ public class PriorityAgingTest {
     AtomicInteger lowPriorityExecutions = new AtomicInteger(0);
 
     // Create a low priority task - without priority aging, this would be starved
-    FlowFuture<Void> lowPriorityTask = Flow.startActor(() -> {
+    CompletableFuture<Void> lowPriorityTask = Flow.startActor(() -> {
       for (int i = 0; i < 10; i++) {
         lowPriorityExecutions.incrementAndGet();
         Flow.await(Flow.yieldF());

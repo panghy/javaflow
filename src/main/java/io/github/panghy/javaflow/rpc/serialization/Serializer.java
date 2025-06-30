@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
  * different serialization formats (JSON, Protocol Buffers, custom binary, etc.).
  * Users can register custom serializers for specific types or packages.</p>
  * 
- * <p>Built-in special handlers are provided for system types like {@link io.github.panghy.javaflow.core.FlowPromise}
+ * <p>Built-in special handlers are provided for system types like {@link java.util.concurrent.CompletableFuture}
  * and {@link io.github.panghy.javaflow.core.PromiseStream} to enable them to be
  * serialized as references that can cross the network.</p>
  * 

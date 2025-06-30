@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -50,9 +49,9 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
 
     void voidMethod();
 
-    FlowFuture<String> futureMethod();
+    CompletableFuture<String> futureMethod();
 
-    FlowPromise<String> promiseMethod();
+    CompletableFuture<String> promiseMethod();
 
     PromiseStream<String> streamMethod();
   }
@@ -87,17 +86,17 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<String> futureMethod() {
-      FlowFuture<String> future = new FlowFuture<>();
-      future.getPromise().complete("Future result");
+    public CompletableFuture<String> futureMethod() {
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.complete("Future result");
       return future;
     }
 
     @Override
-    public FlowPromise<String> promiseMethod() {
-      FlowFuture<String> future = new FlowFuture<>();
-      future.getPromise().complete("Promise result");
-      return future.getPromise();
+    public CompletableFuture<String> promiseMethod() {
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.complete("Promise result");
+      return future;
     }
 
     @Override
@@ -149,7 +148,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
     
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       assertEquals("Echo: Hello", client.echo("Hello"));
       return null;
     });
@@ -173,7 +172,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     TestService testClient = transport.getRpcStub(testId, TestService.class);
     SecondService secondClient = transport.getRpcStub(secondId, SecondService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test both services
       assertEquals("Echo: Test", testClient.echo("Test"));
       assertEquals("SecondService", secondClient.getName());
@@ -263,7 +262,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     }
 
     // Try to call a method that doesn't exist
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         ExtendedTestService client = transport.getRpcStub(serviceId, ExtendedTestService.class);
         client.nonExistentMethod();
@@ -290,7 +289,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
 
     ServiceWithObjectLikeMethods client = transport.getRpcStub(serviceId, ServiceWithObjectLikeMethods.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // These should work because they have different signatures
       assertEquals("hashCode called with: test", client.hashCode("test"));
       assertEquals("toString called with: 42", client.toString(42));
@@ -314,7 +313,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     TestService client = transport.getRpcStub(serviceId, TestService.class);
 
     // Void method should complete without error
-    FlowFuture<Void> voidFuture = startActor(() -> {
+    CompletableFuture<Void> voidFuture = startActor(() -> {
       client.voidMethod();
       return null;
     });
@@ -335,7 +334,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test echo method
       assertEquals("Echo: Hello World", client.echo("Hello World"));
 
@@ -360,7 +359,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     // Get stub using direct endpoint
     TestService directClient = transport.getRpcStub(serverEndpoint, TestService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test that it works
       assertEquals("Echo: Direct", directClient.echo("Direct"));
       return null;
@@ -372,7 +371,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
   @Test
   public void testClosedTransport() {
     // Test that operations fail after transport is closed
-    FlowFuture<Void> closeFuture = transport.close();
+    CompletableFuture<Void> closeFuture = transport.close();
     pumpAndAdvanceTimeUntilDone(closeFuture);
 
     // Try to get a stub after closing

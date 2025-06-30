@@ -70,7 +70,7 @@ public class RealFlowTransportTest {
     // Close the transport
     try {
       if (transport != null) {
-        transport.close().getNow();
+        transport.close().get(1, TimeUnit.SECONDS);
       }
     } catch (Exception e) {
       // Ignore exceptions during cleanup
@@ -114,7 +114,7 @@ public class RealFlowTransportTest {
 
     // Connect to the server
     FlowConnection clientConnection = startActor(() ->
-        await(transport.connect(serverEndpoint))).getNow();
+        await(transport.connect(serverEndpoint))).get(5, TimeUnit.SECONDS);
 
     // Wait for the server to accept the connection
     assertTrue(serverAcceptLatch.await(30, TimeUnit.SECONDS));
@@ -136,8 +136,12 @@ public class RealFlowTransportTest {
     assertEquals(testMessage, receivedMessage.get());
 
     // Close the connections
-    serverConnection.get().close().getNow();
-    clientConnection.close().getNow();
+    if (serverConnection.get() != null) {
+      serverConnection.get().close().get(1, TimeUnit.SECONDS);
+    }
+    if (clientConnection != null) {
+      clientConnection.close().get(1, TimeUnit.SECONDS);
+    }
   }
 
   @Test
@@ -183,7 +187,7 @@ public class RealFlowTransportTest {
 
     // Connect to the server
     FlowConnection clientConnection = startActor(() ->
-        await(transport.connect(serverEndpoint))).getNow();
+        await(transport.connect(serverEndpoint))).get(5, TimeUnit.SECONDS);
 
     // Wait for the server to accept the connection
     assertTrue(serverAcceptLatch.await(30, TimeUnit.SECONDS));
@@ -192,7 +196,7 @@ public class RealFlowTransportTest {
     startActor(() -> {
       await(clientConnection.send(createBuffer(testMessage)));
       return null;
-    }).getNow();
+    }).get(5, TimeUnit.SECONDS);
 
     // Wait for all messages to be received
     assertTrue(allMessagesReceivedLatch.await(30, TimeUnit.SECONDS));
@@ -202,8 +206,12 @@ public class RealFlowTransportTest {
     assertEquals(testMessage, receivedMessages.getFirst());
 
     // Close the connections
-    serverConnection.get().close().getNow();
-    clientConnection.close().getNow();
+    if (serverConnection.get() != null) {
+      serverConnection.get().close().get(1, TimeUnit.SECONDS);
+    }
+    if (clientConnection != null) {
+      clientConnection.close().get(1, TimeUnit.SECONDS);
+    }
   }
 
   @Test
@@ -278,7 +286,7 @@ public class RealFlowTransportTest {
         assertEquals(message, receivedMessage);
 
         return conn;
-      }).getNow();
+      }).get(5, TimeUnit.SECONDS);
     }
 
     // Wait for all clients to connect and all messages to be received
@@ -291,10 +299,14 @@ public class RealFlowTransportTest {
 
     // Close all connections
     for (FlowConnection conn : serverConnections) {
-      conn.close().getNow();
+      if (conn != null) {
+        conn.close().get(1, TimeUnit.SECONDS);
+      }
     }
     for (FlowConnection conn : clientConnections) {
-      conn.close().getNow();
+      if (conn != null) {
+        conn.close().get(1, TimeUnit.SECONDS);
+      }
     }
   }
 }

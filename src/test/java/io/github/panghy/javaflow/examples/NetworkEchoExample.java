@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.examples;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.FlowConnection;
@@ -33,7 +33,7 @@ public class NetworkEchoExample {
     FlowTransport transport = FlowTransport.getDefault();
     
     // Start the echo server
-    FlowFuture<Void> serverFuture = startEchoServer(transport, port);
+    CompletableFuture<Void> serverFuture = startEchoServer(transport, port);
     
     if (args.length <= 1) {
       // If no client flag, just run the server
@@ -53,7 +53,7 @@ public class NetworkEchoExample {
    * @param port      The port to listen on
    * @return A future that completes when the server finishes
    */
-  private static FlowFuture<Void> startEchoServer(FlowTransport transport, int port) {
+  private static CompletableFuture<Void> startEchoServer(FlowTransport transport, int port) {
     return Flow.startActor(() -> {
       try {
         // Create a local endpoint to listen on
@@ -88,7 +88,7 @@ public class NetworkEchoExample {
    * @param connection The client connection to handle
    * @return A future that completes when the connection is closed
    */
-  private static FlowFuture<Void> handleEchoConnection(FlowConnection connection) {
+  private static CompletableFuture<Void> handleEchoConnection(FlowConnection connection) {
     return Flow.startActor(() -> {
       try {
         System.out.println("Starting echo handler for " + connection.getRemoteEndpoint());
@@ -138,7 +138,7 @@ public class NetworkEchoExample {
    */
   private static void runEchoClient(FlowTransport transport, int port) throws Exception {
     // Create a future for the client
-    FlowFuture<Void> clientFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> clientFuture = Flow.startActor(() -> {
       try {
         // Connect to the server
         Endpoint serverEndpoint = new Endpoint("localhost", port);
@@ -190,7 +190,7 @@ public class NetworkEchoExample {
    * @param connection The connection to receive from
    * @return A future that completes when the connection is closed
    */
-  private static FlowFuture<Void> receiveResponses(FlowConnection connection) {
+  private static CompletableFuture<Void> receiveResponses(FlowConnection connection) {
     return Flow.startActor(() -> {
       try {
         // Get the receive stream

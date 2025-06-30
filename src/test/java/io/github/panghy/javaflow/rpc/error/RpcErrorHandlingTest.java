@@ -1,13 +1,12 @@
 package io.github.panghy.javaflow.rpc.error;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.util.RpcTimeoutUtil;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,15 +25,15 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
   @Test
   public void testRpcTimeout() throws Exception {
     // Create a task to run in an actor context
-    FlowFuture<Void> taskFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> taskFuture = Flow.startActor(() -> {
       // Create a future that never completes
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       
       // Add a timeout
       EndpointId endpoint = new EndpointId("test-endpoint");
       String methodName = "testMethod";
       long timeoutMs = 100;
-      FlowFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
+      CompletableFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
           future, endpoint, methodName, timeoutMs);
       
       // Advance time past the timeout
@@ -46,9 +45,9 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
       assertTrue(timeoutFuture.isCompletedExceptionally());
       
       try {
-        timeoutFuture.getNow();
+        timeoutFuture.getNow(null);
         fail("Expected a timeout exception");
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Verify that the exception is a RpcTimeoutException
         assertTrue(e.getCause() instanceof RpcTimeoutException);
         RpcTimeoutException timeoutException = (RpcTimeoutException) e.getCause();
@@ -72,18 +71,18 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
   @Test
   public void testRpcConnectionError() throws Exception {
     // Create a future and complete it with an RpcConnectionException
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     EndpointId endpoint = new EndpointId("test-endpoint");
-    future.getPromise().completeExceptionally(new RpcConnectionException(endpoint));
+    future.completeExceptionally(new RpcConnectionException(endpoint));
     
     // Verify that the error is propagated
     assertTrue(future.isDone());
     assertTrue(future.isCompletedExceptionally());
     
     try {
-      future.getNow();
+      future.getNow(null);
       fail("Expected a connection exception");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // Verify that the exception is a RpcConnectionException
       assertTrue(e.getCause() instanceof RpcConnectionException);
       RpcConnectionException connectionException = (RpcConnectionException) e.getCause();
@@ -100,10 +99,10 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
   @Test
   public void testRpcTransportError() throws Exception {
     // Create a future and complete it with an RpcTransportException
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     EndpointId endpoint = new EndpointId("test-endpoint");
     Throwable cause = new RuntimeException("Network error");
-    future.getPromise().completeExceptionally(
+    future.completeExceptionally(
         new RpcTransportException(endpoint, "Transport failed", cause));
     
     // Verify that the error is propagated
@@ -111,9 +110,9 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
     assertTrue(future.isCompletedExceptionally());
     
     try {
-      future.getNow();
+      future.getNow(null);
       fail("Expected a transport exception");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // Verify that the exception is a RpcTransportException
       assertTrue(e.getCause() instanceof RpcTransportException);
       RpcTransportException transportException = (RpcTransportException) e.getCause();
@@ -132,10 +131,10 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
   @Test
   public void testRpcSerializationError() throws Exception {
     // Create a future and complete it with an RpcSerializationException
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     Class<?> type = String.class;
     Throwable cause = new RuntimeException("Invalid format");
-    future.getPromise().completeExceptionally(
+    future.completeExceptionally(
         new RpcSerializationException(type, "Failed to deserialize", cause));
     
     // Verify that the error is propagated
@@ -143,9 +142,9 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
     assertTrue(future.isCompletedExceptionally());
     
     try {
-      future.getNow();
+      future.getNow(null);
       fail("Expected a serialization exception");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // Verify that the exception is a RpcSerializationException
       assertTrue(e.getCause() instanceof RpcSerializationException);
       RpcSerializationException serializationException = (RpcSerializationException) e.getCause();
@@ -164,17 +163,17 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
   @Test
   public void testTimeoutCancelledByCompletion() throws Exception {
     // Create a task to run in an actor context
-    FlowFuture<Void> taskFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> taskFuture = Flow.startActor(() -> {
       // Create a future and add a timeout
-      FlowFuture<String> future = new FlowFuture<>();
+      CompletableFuture<String> future = new CompletableFuture<>();
       EndpointId endpoint = new EndpointId("test-endpoint");
       String methodName = "testMethod";
       long timeoutMs = 100;
-      FlowFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
+      CompletableFuture<String> timeoutFuture = RpcTimeoutUtil.withTimeout(
           future, endpoint, methodName, timeoutMs);
       
       // Complete the future before the timeout
-      future.getPromise().complete("success");
+      future.complete("success");
       pump();
       
       // Verify that the completion was propagated
@@ -182,9 +181,9 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
       assertFalse(timeoutFuture.isCompletedExceptionally());
       
       try {
-        String result = timeoutFuture.getNow();
+        String result = timeoutFuture.getNow(null);
         assertEquals("success", result);
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         fail("Did not expect an exception: " + e);
       }
       
@@ -194,9 +193,9 @@ public class RpcErrorHandlingTest extends AbstractFlowTest {
       
       // Verify that the result is still the same
       try {
-        String result = timeoutFuture.getNow();
+        String result = timeoutFuture.getNow(null);
         assertEquals("success", result);
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         fail("Did not expect an exception: " + e);
       }
       return null;

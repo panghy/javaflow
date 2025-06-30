@@ -11,8 +11,8 @@ package io.github.panghy.javaflow.util;
  * <pre>{@code
  * // Create a pair of request and response promise
  * GetUserRequest request = new GetUserRequest(userId);
- * FlowPromise<UserInfo> promise = future.getPromise();
- * Pair<GetUserRequest, FlowPromise<UserInfo>> pair =
+ * CompletableFuture<UserInfo> promise = future.getPromise();
+ * Pair<GetUserRequest, CompletableFuture<UserInfo>> pair =
  *     new Pair<>(request, promise);
  *
  * // Send the pair to a promise stream
@@ -20,7 +20,7 @@ package io.github.panghy.javaflow.util;
  *
  * // Access the values
  * GetUserRequest req = pair.first;
- * FlowPromise<UserInfo> prom = pair.second;
+ * CompletableFuture<UserInfo> prom = pair.second;
  * }</pre>
  *
  * @param <T>    The type of the first value

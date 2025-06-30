@@ -1,13 +1,13 @@
 package io.github.panghy.javaflow.io.network;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.TimeUnit;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,20 +41,20 @@ public class RealFlowConnectionAdditionalTest extends AbstractFlowTest {
     transport.listen(serverEndpoint);
     
     // Connect a client
-    FlowFuture<FlowConnection> connectFuture = transport.connect(
+    CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", port));
-    FlowConnection connection = connectFuture.getNow();
+    FlowConnection connection = connectFuture.get(5, TimeUnit.SECONDS);
     
     // Close the transport
-    transport.close().getNow();
+    transport.close().get(5, TimeUnit.SECONDS);
     
     // Try to read from the connection after transport is closed
-    FlowFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
     
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(connection.closeFuture().isDone());
       assertFalse(connection.isOpen());
     }

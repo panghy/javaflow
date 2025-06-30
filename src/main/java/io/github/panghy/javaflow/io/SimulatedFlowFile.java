@@ -1,13 +1,11 @@
 package io.github.panghy.javaflow.io;
 
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-
-import static io.github.panghy.javaflow.core.FlowFuture.failed;
+import java.util.concurrent.CompletableFuture;
 import static io.github.panghy.javaflow.io.FlowFutureUtil.delayThenRun;
 
 /**
@@ -55,26 +53,26 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<ByteBuffer> read(long position, int length) {
+  public CompletableFuture<ByteBuffer> read(long position, int length) {
     // Check if file is closed
     if (closed) {
-      return failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
     // Check if position is valid
     if (position < 0) {
-      return failed(new IllegalArgumentException("Position must be non-negative"));
+      return CompletableFuture.failedFuture(new IllegalArgumentException("Position must be non-negative"));
     }
 
     // Check if length is valid
     if (length <= 0) {
-      return failed(new IllegalArgumentException("Length must be positive"));
+      return CompletableFuture.failedFuture(new IllegalArgumentException("Length must be positive"));
     }
 
     // Check for injected errors
     if (params.getReadErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getReadErrorProbability()) {
-      return failed(new IOException("Simulated read error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated read error"));
     }
 
     // Calculate a realistic delay based on the simulation parameters
@@ -105,27 +103,27 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> write(long position, ByteBuffer data) {
+  public CompletableFuture<Void> write(long position, ByteBuffer data) {
     // Check if file is closed
     if (closed) {
-      return failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
     // Check if position is valid
     if (position < 0) {
-      return failed(new IllegalArgumentException("Position must be non-negative"));
+      return CompletableFuture.failedFuture(new IllegalArgumentException("Position must be non-negative"));
     }
 
     // Check for injected errors
     if (params.getWriteErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getWriteErrorProbability()) {
-      return failed(new IOException("Simulated write error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated write error"));
     }
     
     // Check for disk full errors
     if (params.getDiskFullProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getDiskFullProbability()) {
-      return failed(new IOException("No space left on device"));
+      return CompletableFuture.failedFuture(new IOException("No space left on device"));
     }
 
     // Calculate a realistic delay based on the simulation parameters
@@ -139,10 +137,10 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> sync() {
+  public CompletableFuture<Void> sync() {
     // Check if file is closed
     if (closed) {
-      return failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
     // For simulation, sync is just a delay
@@ -150,21 +148,21 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> truncate(long size) {
+  public CompletableFuture<Void> truncate(long size) {
     // Check if file is closed
     if (closed) {
-      return failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
     // Check if size is valid
     if (size < 0) {
-      return failed(new IllegalArgumentException("Size must be non-negative"));
+      return CompletableFuture.failedFuture(new IllegalArgumentException("Size must be non-negative"));
     }
 
     // Check for injected errors
     if (params.getMetadataErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getMetadataErrorProbability()) {
-      return failed(new IOException("Simulated truncate error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated truncate error"));
     }
 
     // Simulate delay
@@ -175,12 +173,12 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     System.out.println("Closing SimulatedFlowFile " + id + " at path " + path);
 
     // If already closed, still return success (idempotent)
     if (closed) {
-      return FlowFuture.completed(null);
+      return CompletableFuture.completedFuture(null);
     }
 
     // Mark the file as closed
@@ -191,10 +189,10 @@ public class SimulatedFlowFile implements FlowFile {
   }
 
   @Override
-  public FlowFuture<Long> size() {
+  public CompletableFuture<Long> size() {
     // Check if file is closed
     if (closed) {
-      return failed(new IOException("File is closed"));
+      return CompletableFuture.failedFuture(new IOException("File is closed"));
     }
 
     // Simulate delay

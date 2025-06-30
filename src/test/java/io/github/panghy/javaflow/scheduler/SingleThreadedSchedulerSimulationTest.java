@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -47,7 +46,7 @@ public class SingleThreadedSchedulerSimulationTest {
     List<Integer> executionOrder = new ArrayList<>();
     
     // Schedule tasks
-    List<FlowFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (int i = 1; i <= 3; i++) {
       final int taskId = i;
       futures.add(scheduler.schedule(() -> {
@@ -79,7 +78,7 @@ public class SingleThreadedSchedulerSimulationTest {
     List<Integer> executionOrder = new ArrayList<>();
     
     // Schedule tasks
-    List<FlowFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 5; i++) {
       final int taskId = i;
       futures.add(scheduler.schedule(() -> {
@@ -108,7 +107,7 @@ public class SingleThreadedSchedulerSimulationTest {
     
     // This just tests that the code path is covered
     // Actual randomization behavior is hard to test deterministically
-    List<FlowFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 3; i++) {
       futures.add(scheduler.schedule(() -> null, 50));
     }
@@ -119,7 +118,7 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     // All should complete
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
   
   @Test
@@ -138,7 +137,7 @@ public class SingleThreadedSchedulerSimulationTest {
     SimulationContext.setCurrent(context);
     
     // Schedule a simple task
-    FlowFuture<String> future = scheduler.schedule(() -> "test", 50);
+    CompletableFuture<String> future = scheduler.schedule(() -> "test", 50);
     
     // Pump to execute
     while (!future.isDone()) {
@@ -146,8 +145,8 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     try {
-      assertEquals("test", future.getNow());
-    } catch (ExecutionException e) {
+      assertEquals("test", future.getNow(null));
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -174,7 +173,7 @@ public class SingleThreadedSchedulerSimulationTest {
     // Schedule a task on a separate thread that will be interrupted
     Thread testThread = new Thread(() -> {
       try {
-        FlowFuture<Void> future = scheduler.schedule(() -> null);
+        CompletableFuture<Void> future = scheduler.schedule(() -> null);
         // Interrupt during pump
         Thread.currentThread().interrupt();
         scheduler.pump();
@@ -202,8 +201,8 @@ public class SingleThreadedSchedulerSimulationTest {
     FlowRandom.initialize(new DeterministicRandomSource(12345));
     
     // Schedule tasks with different priorities to trigger logging
-    FlowFuture<Void> high = scheduler.schedule(() -> null, 100);
-    FlowFuture<Void> low = scheduler.schedule(() -> null, 10);
+    CompletableFuture<Void> high = scheduler.schedule(() -> null, 100);
+    CompletableFuture<Void> low = scheduler.schedule(() -> null, 10);
     
     // Pump until complete
     while (!high.isDone() || !low.isDone()) {
@@ -226,7 +225,7 @@ public class SingleThreadedSchedulerSimulationTest {
     SimulationContext.setCurrent(context);
     
     // Schedule multiple tasks to ensure randomization path is taken
-    List<FlowFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       futures.add(scheduler.schedule(() -> null, 50));
     }
@@ -240,6 +239,6 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     // All tasks should complete
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
 }

@@ -1,7 +1,5 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.simulation.FlowRandom;
@@ -11,6 +9,7 @@ import io.github.panghy.javaflow.simulation.SimulationContext;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -80,7 +79,7 @@ public class SimulatedFlowTransport implements FlowTransport {
   
   private final NetworkSimulationParameters params;
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private final FlowPromise<Void> closePromise;
+  private final CompletableFuture<Void> closePromise;
 
   /**
    * Creates a new simulated transport with default parameters.
@@ -97,8 +96,7 @@ public class SimulatedFlowTransport implements FlowTransport {
   public SimulatedFlowTransport(NetworkSimulationParameters params) {
     this.params = params;
     
-    FlowFuture<Void> closeFuture = new FlowFuture<>();
-    this.closePromise = closeFuture.getPromise();
+    this.closePromise = new CompletableFuture<>();
   }
   
   /**
@@ -135,15 +133,15 @@ public class SimulatedFlowTransport implements FlowTransport {
   }
 
   @Override
-  public FlowFuture<FlowConnection> connect(Endpoint endpoint) {
+  public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Transport is closed"));
+      return CompletableFuture.failedFuture(new IOException("Transport is closed"));
     }
 
     // Check for injected errors
     if (params.getConnectErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getConnectErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated connection error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated connection error"));
     }
 
     // Get the target node (create if doesn't exist)
@@ -156,7 +154,7 @@ public class SimulatedFlowTransport implements FlowTransport {
     // Check if the connection is partitioned
     String pairKey = makePairKey(localEndpoint, endpoint);
     if (disconnectedPairs.contains(pairKey)) {
-      return FlowFuture.failed(new IOException("Network partitioned - connection refused"));
+      return CompletableFuture.failedFuture(new IOException("Network partitioned - connection refused"));
     }
 
     // Create the connection
@@ -222,7 +220,7 @@ public class SimulatedFlowTransport implements FlowTransport {
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       try {
         // Close all nodes (which will close their connections)
@@ -239,7 +237,7 @@ public class SimulatedFlowTransport implements FlowTransport {
       }
     }
     
-    return closePromise.getFuture();
+    return closePromise;
   }
 
   /**

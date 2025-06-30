@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.simulation;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * BUGGIFY-style fault injection framework for JavaFlow.
@@ -122,7 +122,7 @@ public final class Buggify {
    * 
    * <p>Example usage:
    * <pre>{@code
-   * FlowFuture<Void> delay = Buggify.maybeDelay(0.1, 5.0); // 10% chance of 5s delay
+   * CompletableFuture<Void> delay = Buggify.maybeDelay(0.1, 5.0); // 10% chance of 5s delay
    * if (delay != null) {
    *     Flow.await(delay);
    * }
@@ -132,7 +132,7 @@ public final class Buggify {
    * @param delaySeconds The delay duration in seconds
    * @return A delay future if the probability check passes, null otherwise
    */
-  public static FlowFuture<Void> maybeDelay(double probability, double delaySeconds) {
+  public static CompletableFuture<Void> maybeDelay(double probability, double delaySeconds) {
     if (!Flow.isSimulated() || !sometimes(probability)) {
       return null;
     }

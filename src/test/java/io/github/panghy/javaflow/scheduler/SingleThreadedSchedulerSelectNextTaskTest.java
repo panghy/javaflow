@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
@@ -88,7 +88,7 @@ public class SingleThreadedSchedulerSelectNextTaskTest {
     });
     
     // Schedule multiple tasks
-    List<FlowFuture<Integer>> futures = new ArrayList<>();
+    List<CompletableFuture<Integer>> futures = new ArrayList<>();
     for (int i = 0; i < 5; i++) {
       final int taskId = i;
       futures.add(scheduler.schedule(() -> taskId));
@@ -100,7 +100,7 @@ public class SingleThreadedSchedulerSelectNextTaskTest {
     }
     
     // Verify all tasks completed
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
   
   @Test
@@ -110,8 +110,8 @@ public class SingleThreadedSchedulerSelectNextTaskTest {
     SimulationContext.setCurrent(context);
     
     // Schedule tasks
-    FlowFuture<Integer> f1 = scheduler.schedule(() -> 1);
-    FlowFuture<Integer> f2 = scheduler.schedule(() -> 2);
+    CompletableFuture<Integer> f1 = scheduler.schedule(() -> 1);
+    CompletableFuture<Integer> f2 = scheduler.schedule(() -> 2);
     
     // Pump
     scheduler.pump();
@@ -146,8 +146,8 @@ public class SingleThreadedSchedulerSelectNextTaskTest {
     });
     
     // Schedule tasks
-    FlowFuture<String> f1 = scheduler.schedule(() -> "task1");
-    FlowFuture<String> f2 = scheduler.schedule(() -> "task2");
+    CompletableFuture<String> f1 = scheduler.schedule(() -> "task1");
+    CompletableFuture<String> f2 = scheduler.schedule(() -> "task2");
     
     // Pump
     scheduler.pump();

@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.examples;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.simulation.BugIds;
 import io.github.panghy.javaflow.simulation.BugRegistry;
 import io.github.panghy.javaflow.simulation.Buggify;
@@ -9,6 +8,8 @@ import io.github.panghy.javaflow.simulation.ChaosScenarios;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
 import io.github.panghy.javaflow.AbstractFlowTest;
+
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -31,9 +32,9 @@ public class BuggifyExample extends AbstractFlowTest {
    * Simple key-value store interface.
    */
   public interface KeyValueStore {
-    FlowFuture<Void> put(String key, String value);
-    FlowFuture<String> get(String key);
-    FlowFuture<Void> replicate();
+    CompletableFuture<Void> put(String key, String value);
+    CompletableFuture<String> get(String key);
+    CompletableFuture<Void> replicate();
   }
   
   /**
@@ -54,7 +55,7 @@ public class BuggifyExample extends AbstractFlowTest {
     }
     
     @Override
-    public FlowFuture<Void> put(String key, String value) {
+    public CompletableFuture<Void> put(String key, String value) {
       return Flow.startActor(() -> {
         // Simulate node being down
         if (Buggify.isEnabled(BugIds.PROCESS_CRASH)) {
@@ -96,7 +97,7 @@ public class BuggifyExample extends AbstractFlowTest {
     }
     
     @Override
-    public FlowFuture<String> get(String key) {
+    public CompletableFuture<String> get(String key) {
       return Flow.startActor(() -> {
         if (isDown) {
           throw new RuntimeException("Node " + nodeId + " is down");
@@ -117,13 +118,13 @@ public class BuggifyExample extends AbstractFlowTest {
     }
     
     @Override
-    public FlowFuture<Void> replicate() {
+    public CompletableFuture<Void> replicate() {
       return Flow.startActor(() -> {
         if (isDown) {
           return null; // Can't replicate if down
         }
         
-        List<FlowFuture<Void>> replicationFutures = new ArrayList<>();
+        List<CompletableFuture<Void>> replicationFutures = new ArrayList<>();
         
         for (BuggifiedKeyValueStore replica : replicas) {
           // Simulate network issues during replication
@@ -131,7 +132,7 @@ public class BuggifyExample extends AbstractFlowTest {
             continue; // Skip this replica due to network partition
           }
           
-          FlowFuture<Void> replicaFuture = Flow.startActor(() -> {
+          CompletableFuture<Void> replicaFuture = Flow.startActor(() -> {
             // Simulate network delay
             if (Buggify.isEnabled(BugIds.NETWORK_SLOW)) {
               Flow.await(Flow.delay(Buggify.randomDouble(0.1, 1.0)));
@@ -154,7 +155,7 @@ public class BuggifyExample extends AbstractFlowTest {
         }
         
         // Wait for all replications to complete
-        for (FlowFuture<Void> future : replicationFutures) {
+        for (CompletableFuture<Void> future : replicationFutures) {
           try {
             Flow.await(future);
           } catch (Exception e) {
@@ -198,11 +199,11 @@ public class BuggifyExample extends AbstractFlowTest {
     AtomicInteger failedReads = new AtomicInteger(0);
     
     // Perform many operations
-    List<FlowFuture<Void>> operations = new ArrayList<>();
+    List<CompletableFuture<Void>> operations = new ArrayList<>();
     
     for (int i = 0; i < 100; i++) {
       final int index = i;
-      FlowFuture<Void> op = Flow.startActor(() -> {
+      CompletableFuture<Void> op = Flow.startActor(() -> {
         try {
           // Write to primary
           Flow.await(primary.put("key" + index, "value" + index));
@@ -229,7 +230,7 @@ public class BuggifyExample extends AbstractFlowTest {
     }
     
     // Wait for all operations
-    for (FlowFuture<Void> future : operations) {
+    for (CompletableFuture<Void> future : operations) {
       pumpAndAdvanceTimeUntilDone(future);
     }
     

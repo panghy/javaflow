@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,11 +27,11 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
    * A service implementation that overrides the ready method.
    */
   private static class CustomReadyService implements RpcServiceInterface {
-    private FlowPromise<Void> readyPromise = new FlowFuture<Void>().getPromise();
+    private CompletableFuture<Void> readyPromise = new CompletableFuture<Void>();
 
     @Override
-    public FlowFuture<Void> ready() {
-      return readyPromise.getFuture();
+    public CompletableFuture<Void> ready() {
+      return readyPromise;
     }
 
     public void completeReady() {
@@ -54,11 +53,11 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     MinimalService service = new MinimalService();
 
     // Call ready
-    FlowFuture<Void> readyFuture = service.ready();
+    CompletableFuture<Void> readyFuture = service.ready();
 
     // Verify it returned a completed future
     assertNotNull(readyFuture);
-    assertTrue(readyFuture.isCompleted());
+    assertTrue(readyFuture.isDone());
     assertFalse(readyFuture.isCompletedExceptionally());
   }
 
@@ -70,24 +69,24 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     CustomReadyService service = new CustomReadyService();
 
     // Call ready and verify it's not completed yet
-    FlowFuture<Void> readyFuture = service.ready();
+    CompletableFuture<Void> readyFuture = service.ready();
     assertNotNull(readyFuture);
-    assertFalse(readyFuture.isCompleted());
+    assertFalse(readyFuture.isDone());
 
     // Complete the future
     service.completeReady();
 
     // Verify it's now completed
-    assertTrue(readyFuture.isCompleted());
+    assertTrue(readyFuture.isDone());
     assertFalse(readyFuture.isCompletedExceptionally());
 
     // Test with failure
     CustomReadyService service2 = new CustomReadyService();
-    FlowFuture<Void> failingFuture = service2.ready();
+    CompletableFuture<Void> failingFuture = service2.ready();
     service2.failReady(new RuntimeException("Test exception"));
 
     // Verify it completed exceptionally
-    assertTrue(failingFuture.isCompleted());
+    assertTrue(failingFuture.isDone());
     assertTrue(failingFuture.isCompletedExceptionally());
   }
 
@@ -99,16 +98,16 @@ public class RpcServiceInterfaceExtendedTest extends AbstractFlowTest {
     MinimalService service = new MinimalService();
 
     // Get the default onClose future
-    FlowFuture<Void> closeFuture = service.onClose();
+    CompletableFuture<Void> closeFuture = service.onClose();
 
     // The default implementation should return a new future that never completes
     assertNotNull(closeFuture);
-    assertFalse(closeFuture.isCompleted());
+    assertFalse(closeFuture.isDone());
 
     // Get it again - should be a different future each time
-    FlowFuture<Void> closeFuture2 = service.onClose();
+    CompletableFuture<Void> closeFuture2 = service.onClose();
     assertNotNull(closeFuture2);
-    assertFalse(closeFuture2.isCompleted());
+    assertFalse(closeFuture2.isDone());
 
     // They should be different futures
     assertFalse(closeFuture == closeFuture2);

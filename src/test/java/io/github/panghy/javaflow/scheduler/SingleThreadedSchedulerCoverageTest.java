@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
@@ -43,7 +43,7 @@ public class SingleThreadedSchedulerCoverageTest {
     SimulationContext.clear();
     
     // Schedule a task
-    FlowFuture<String> future = scheduler.schedule(() -> "test");
+    CompletableFuture<String> future = scheduler.schedule(() -> "test");
     
     // Pump to execute - should use default selection
     while (!future.isDone()) {
@@ -64,8 +64,8 @@ public class SingleThreadedSchedulerCoverageTest {
     SimulationContext.setCurrent(context);
     
     // Schedule multiple tasks
-    FlowFuture<Void> f1 = scheduler.schedule(() -> null);
-    FlowFuture<Void> f2 = scheduler.schedule(() -> null);
+    CompletableFuture<Void> f1 = scheduler.schedule(() -> null);
+    CompletableFuture<Void> f2 = scheduler.schedule(() -> null);
     
     // Pump to execute all
     while (!f1.isDone() || !f2.isDone()) {
@@ -86,7 +86,7 @@ public class SingleThreadedSchedulerCoverageTest {
     SimulationContext.setCurrent(context);
     
     // Schedule a task
-    FlowFuture<Void> future = scheduler.schedule(() -> null);
+    CompletableFuture<Void> future = scheduler.schedule(() -> null);
     
     // Pump to execute
     while (!future.isDone()) {

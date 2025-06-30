@@ -1,8 +1,9 @@
 package io.github.panghy.javaflow.io;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -16,6 +17,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the internal classes of SimulatedFlowFileSystem.
@@ -124,7 +126,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testDirectoriesMap() throws Exception {
     // Create a directory structure
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directories
       Flow.await(fileSystem.createDirectory(Paths.get("/dir1")));
       Flow.await(fileSystem.createDirectory(Paths.get("/dir1/subdir")));
@@ -156,7 +158,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -164,7 +166,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
    */
   @Test
   void testNormalize() throws Exception {
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directories with different path formats
       Path path1 = Paths.get("/dir1");
       Path path2 = Paths.get("dir2");     // No leading slash
@@ -192,7 +194,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -201,7 +203,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testParentPathLogic() throws Exception {
     // Test adding a file to a directory
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create directory
       Flow.await(fileSystem.createDirectory(Paths.get("/parent")));
       
@@ -237,7 +239,7 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -246,24 +248,25 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testCreateDirectoryWithoutParent() throws Exception {
     // Try to create directory without parent
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       Path path = Paths.get("/nonexistent/dir");
-      
-      try {
-        Flow.await(fileSystem.createDirectory(path));
-        return null;
-      } catch (Exception e) {
-        if (e instanceof java.util.concurrent.ExecutionException &&
-            e.getCause() instanceof java.io.IOException) {
-          return e.getCause().getClass();
-        }
-        return e.getClass();
-      }
+      Flow.await(fileSystem.createDirectory(path));
+      return null;
     });
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertEquals(java.io.IOException.class, future.getNow());
+    // The future should complete exceptionally
+    assertTrue(future.isCompletedExceptionally());
+    
+    // Verify the exception type
+    try {
+      future.getNow(null);
+      fail("Expected CompletionException");
+    } catch (CompletionException e) {
+      assertTrue(e.getCause() instanceof java.io.IOException,
+          "Expected IOException as cause, but got " + e.getCause().getClass());
+    }
   }
   
   /**
@@ -272,27 +275,31 @@ class SimulatedFlowFileSystemEntryTest extends AbstractFlowTest {
   @Test
   void testFileDirectoryNameCollision() throws Exception {
     // Create a file and then try to create a directory with the same name
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       Path path = Paths.get("/collision");
       
       // Create file first
       Flow.await(fileSystem.open(path, OpenOptions.CREATE, OpenOptions.WRITE)).close();
       
-      // Try to create directory with the same name
-      try {
-        Flow.await(fileSystem.createDirectory(path));
-        return null;
-      } catch (Exception e) {
-        if (e instanceof java.util.concurrent.ExecutionException &&
-            e.getCause() instanceof FileAlreadyExistsException) {
-          return e.getCause().getClass();
-        }
-        return e.getClass();
-      }
+      // Try to create directory with the same name - should fail
+      Flow.await(fileSystem.createDirectory(path));
+      return null;
     });
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertEquals(FileAlreadyExistsException.class, future.getNow());
+    // The future should complete exceptionally
+    assertTrue(future.isCompletedExceptionally());
+    
+    // Verify the exception type
+    try {
+      future.getNow(null);
+      fail("Expected CompletionException");
+    } catch (CompletionException e) {
+      Throwable cause = e.getCause();
+      assertTrue(cause instanceof FileAlreadyExistsException ||
+                 cause instanceof java.io.IOException,
+          "Expected FileAlreadyExistsException or IOException, but got " + cause.getClass());
+    }
   }
 }

@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +39,7 @@ class SingleThreadedSchedulerConstructorTest {
         
     // Schedule a task and verify it executes automatically
     AtomicBoolean executed = new AtomicBoolean(false);
-    FlowFuture<Void> future = scheduler.schedule(() -> {
+    CompletableFuture<Void> future = scheduler.schedule(() -> {
       executed.set(true);
       return null;
     });

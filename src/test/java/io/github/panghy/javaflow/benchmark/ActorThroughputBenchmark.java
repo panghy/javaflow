@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ public class ActorThroughputBenchmark {
     reportingThread.start();
 
     // Create actors with different priorities to better demonstrate aging effects
-    List<FlowFuture<Void>> actors = new ArrayList<>(ACTOR_COUNT);
+    List<CompletableFuture<Void>> actors = new ArrayList<>(ACTOR_COUNT);
 
     // Create actors with different priorities
     for (int i = 0; i < ACTOR_COUNT; i++) {
@@ -88,7 +88,7 @@ public class ActorThroughputBenchmark {
       }
 
       // Each actor increments the counter and yields in a loop
-      FlowFuture<Void> actor = Flow.startActor(() -> {
+      CompletableFuture<Void> actor = Flow.startActor(() -> {
         while (true) {
           totalOperations.incrementAndGet();
           Flow.await(Flow.yieldF());

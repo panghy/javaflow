@@ -1,8 +1,8 @@
 package io.github.panghy.javaflow.io;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -11,7 +11,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,7 +38,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path dir = Paths.get("/testDir");
     
     // Create the directory
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       Flow.await(fileSystem.createDirectory(dir));
       
       // Check it exists
@@ -49,7 +48,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify it exists
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -57,7 +56,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path dir = Paths.get("/testDir");
     
     // Create the directory
-    FlowFuture<Void> createFuture = Flow.startActor(() -> {
+    CompletableFuture<Void> createFuture = Flow.startActor(() -> {
       Flow.await(fileSystem.createDirectory(dir));
       return null;
     });
@@ -65,11 +64,11 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(createFuture);
     
     // Try to create the same directory again
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       try {
         Flow.await(fileSystem.createDirectory(dir));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -83,7 +82,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(FileAlreadyExistsException.class, future.getNow());
+    assertEquals(FileAlreadyExistsException.class, future.getNow(null));
   }
   
   @Test
@@ -91,7 +90,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path deep = Paths.get("/a/b/c/d");
     
     // Create nested directories and check they all exist
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       Flow.await(fileSystem.createDirectories(deep));
       
       // Check all directories exist
@@ -106,7 +105,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all directories exist
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -117,7 +116,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path child2 = Paths.get("/parent/child2");
     Path file1 = Paths.get("/parent/file1");
     
-    FlowFuture<List<Path>> future = Flow.startActor(() -> {
+    CompletableFuture<List<Path>> future = Flow.startActor(() -> {
       // Create parent directory
       Flow.await(fileSystem.createDirectory(parent));
       
@@ -135,7 +134,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify results
-    List<Path> children = future.getNow();
+    List<Path> children = future.getNow(null);
     assertEquals(3, children.size());
     assertTrue(children.contains(Paths.get("/parent/child1")));
     assertTrue(children.contains(Paths.get("/parent/child2")));
@@ -147,11 +146,11 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path nonExistent = Paths.get("/doesNotExist");
     
     // Try to list a non-existent directory
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       try {
         Flow.await(fileSystem.list(nonExistent));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -165,7 +164,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(NoSuchFileException.class, future.getNow());
+    assertEquals(NoSuchFileException.class, future.getNow(null));
   }
   
   @Test
@@ -173,7 +172,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     // Create a directory
     Path dir = Paths.get("/testDir");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create the directory
       Flow.await(fileSystem.createDirectory(dir));
       
@@ -193,7 +192,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the directory was deleted
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -202,7 +201,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path parent = Paths.get("/parent");
     Path child = Paths.get("/parent/child");
     
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       // Create parent and child directories
       Flow.await(fileSystem.createDirectory(parent));
       Flow.await(fileSystem.createDirectory(child));
@@ -211,7 +210,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
         // Try to delete the non-empty directory
         Flow.await(fileSystem.delete(parent));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -225,7 +224,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the exception class is IOException
-    assertEquals(IOException.class, future.getNow());
+    assertEquals(IOException.class, future.getNow(null));
   }
   
   @Test
@@ -235,7 +234,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path target = Paths.get("/target");
     Path file = Paths.get("/source/file");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create source directory
       Flow.await(fileSystem.createDirectory(source));
       
@@ -257,7 +256,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all checks pass
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -266,7 +265,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path source = Paths.get("/source");
     Path target = Paths.get("/target");
     
-    FlowFuture<Class<?>> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>> future = Flow.startActor(() -> {
       // Create source and target directories
       Flow.await(fileSystem.createDirectory(source));
       Flow.await(fileSystem.createDirectory(target));
@@ -275,7 +274,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
         // Try to move to an existing directory
         Flow.await(fileSystem.move(source, target));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -289,7 +288,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(FileAlreadyExistsException.class, future.getNow());
+    assertEquals(FileAlreadyExistsException.class, future.getNow(null));
   }
   
   @Test
@@ -297,7 +296,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     // Create and verify a deep directory structure
     Path path = Paths.get("/level1/level2/level3/level4/level5");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Create the deep directory structure
       Flow.await(fileSystem.createDirectories(path));
       
@@ -356,7 +355,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -364,14 +363,14 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path filePath = Paths.get("/testfile");
     
     // Test file opening with various option combinations
-    FlowFuture<Class<?>[]> future = Flow.startActor(() -> {
+    CompletableFuture<Class<?>[]> future = Flow.startActor(() -> {
       Class<?>[] results = new Class<?>[2];
       
       // Try to open a non-existent file without CREATE/CREATE_NEW
       try {
         Flow.await(fileSystem.open(filePath, OpenOptions.READ));
         results[0] = null; // Should not reach here
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -389,7 +388,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       try {
         Flow.await(fileSystem.open(filePath, OpenOptions.CREATE_NEW, OpenOptions.WRITE));
         results[1] = null; // Should not reach here
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -405,7 +404,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    Class<?>[] results = future.getNow();
+    Class<?>[] results = future.getNow(null);
     assertEquals(NoSuchFileException.class, results[0]);
     assertEquals(FileAlreadyExistsException.class, results[1]);
   }
@@ -416,7 +415,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     Path path1 = Paths.get("/dir1");
     Path path2 = Paths.get("dir2");
     
-    FlowFuture<Boolean> future = Flow.startActor(() -> {
+    CompletableFuture<Boolean> future = Flow.startActor(() -> {
       // Both paths should be created and accessible
       Flow.await(fileSystem.createDirectory(path1));
       Flow.await(fileSystem.createDirectory(path2));
@@ -431,6 +430,6 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
 }

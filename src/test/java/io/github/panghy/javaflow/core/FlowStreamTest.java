@@ -3,6 +3,7 @@ package io.github.panghy.javaflow.core;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -20,7 +21,7 @@ public class FlowStreamTest extends AbstractFlowTest {
     // Test the default onClose() method implementation
     FlowStream<String> stream = new TestFlowStream<>();
     
-    FlowFuture<Void> onCloseFuture = stream.onClose();
+    CompletableFuture<Void> onCloseFuture = stream.onClose();
     assertNotNull(onCloseFuture);
     // The default implementation just returns a new FlowFuture that won't complete
     assertTrue(!onCloseFuture.isDone());
@@ -32,23 +33,23 @@ public class FlowStreamTest extends AbstractFlowTest {
   private static class TestFlowStream<T> implements FlowStream<T> {
     
     @Override
-    public FlowFuture<T> nextAsync() {
-      return new FlowFuture<>();
+    public CompletableFuture<T> nextAsync() {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Boolean> hasNextAsync() {
-      return new FlowFuture<>();
+    public CompletableFuture<Boolean> hasNextAsync() {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Void> closeExceptionally(Throwable exception) {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> closeExceptionally(Throwable exception) {
+      return new CompletableFuture<>();
     }
 
     @Override
-    public FlowFuture<Void> close() {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> close() {
+      return new CompletableFuture<>();
     }
 
     @Override
@@ -57,8 +58,8 @@ public class FlowStreamTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> onClose() {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> onClose() {
+      return new CompletableFuture<>();
     }
 
     @Override
@@ -72,8 +73,8 @@ public class FlowStreamTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowFuture<Void> forEach(Consumer<? super T> action) {
-      return new FlowFuture<>();
+    public CompletableFuture<Void> forEach(Consumer<? super T> action) {
+      return new CompletableFuture<>();
     }
   }
 }

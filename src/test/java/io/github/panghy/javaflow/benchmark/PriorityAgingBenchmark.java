@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
@@ -94,11 +94,11 @@ public class PriorityAgingBenchmark {
 
     // Start low-priority actors
     System.out.println("Starting " + LOW_PRIORITY_ACTORS + " low-priority actors and measuring throughput...");
-    List<FlowFuture<Void>> lowPriorityActors = new ArrayList<>();
+    List<CompletableFuture<Void>> lowPriorityActors = new ArrayList<>();
 
     for (int i = 0; i < LOW_PRIORITY_ACTORS; i++) {
       final long actorId = i;
-      FlowFuture<Void> actor = Flow.startActor(() -> {
+      CompletableFuture<Void> actor = Flow.startActor(() -> {
         // Record the first successful operation
         boolean firstOp = true;
 

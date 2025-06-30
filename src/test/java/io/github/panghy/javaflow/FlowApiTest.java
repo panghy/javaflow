@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class FlowApiTest {
     AtomicInteger counter = new AtomicInteger(0);
     
     // Start a task that will increment twice with a yield in between
-    FlowFuture<Integer> future = Flow.startActor(() -> {
+    CompletableFuture<Integer> future = Flow.startActor(() -> {
       // First increment
       counter.incrementAndGet();
       
@@ -48,16 +48,16 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureReadyOrThrow() throws Exception {
+  void testCompletableFutureReadyOrThrow() throws Exception {
     // Create a completed future
-    FlowFuture<String> completedFuture = FlowFuture.completed("test");
+    CompletableFuture<String> completedFuture = CompletableFuture.completedFuture("test");
     
     // Check if it's ready
     assertTrue(Flow.futureReadyOrThrow(completedFuture), 
         "Completed future should be ready");
     
     // Create an incomplete future
-    FlowFuture<String> incompleteFuture = new FlowFuture<>();
+    CompletableFuture<String> incompleteFuture = new CompletableFuture<>();
     
     // Check if it's ready
     assertFalse(Flow.futureReadyOrThrow(incompleteFuture), 
@@ -65,7 +65,7 @@ class FlowApiTest {
     
     // Create a failed future
     RuntimeException testException = new RuntimeException("Test exception");
-    FlowFuture<String> failedFuture = FlowFuture.failed(testException);
+    CompletableFuture<String> failedFuture = CompletableFuture.failedFuture(testException);
     
     // Should throw the exception
     Exception thrown = assertThrows(RuntimeException.class, 
@@ -77,10 +77,10 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureToCompletableFuture() throws Exception {
+  void testCompletableFutureToCompletableFuture() throws Exception {
     // Create a future
-    FlowFuture<String> future = new FlowFuture<>();
-    future.getPromise().complete("test");
+    CompletableFuture<String> future = new CompletableFuture<>();
+    future.complete("test");
     
     // Convert to CompletableFuture
     assertEquals("test", future.toCompletableFuture().get(), 
@@ -88,21 +88,21 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureGetNow() throws Exception {
+  void testCompletableFutureGetNow() throws Exception {
     // Create a completed future
-    FlowFuture<String> completedFuture = FlowFuture.completed("test");
+    CompletableFuture<String> completedFuture = CompletableFuture.completedFuture("test");
     
     // Get the value now
-    assertEquals("test", completedFuture.getNow(), 
+    assertEquals("test", completedFuture.getNow(null), 
         "getNow should return the value for a completed future");
     
     // Create a failed future
     RuntimeException testException = new RuntimeException("Test exception");
-    FlowFuture<String> failedFuture = FlowFuture.failed(testException);
+    CompletableFuture<String> failedFuture = CompletableFuture.failedFuture(testException);
 
     // Should throw the exception
     Exception thrown = assertThrows(Exception.class,
-        failedFuture::getNow,
+        () -> failedFuture.getNow(null),
         "Should throw the exception from the failed future");
 
     assertEquals("Test exception", thrown.getCause().getMessage(),
@@ -112,11 +112,11 @@ class FlowApiTest {
   @Test
   void testAwaitApi() throws Exception {
     // Create a future
-    FlowFuture<String> future = new FlowFuture<>();
+    CompletableFuture<String> future = new CompletableFuture<>();
     
     // Start a task that will await the future
     AtomicBoolean awaited = new AtomicBoolean(false);
-    FlowFuture<String> resultFuture = Flow.startActor(() -> {
+    CompletableFuture<String> resultFuture = Flow.startActor(() -> {
       // This will be a no-op initially since the future is not complete
       try {
         String result = Flow.await(future);
@@ -128,7 +128,7 @@ class FlowApiTest {
     });
     
     // Complete the future
-    future.getPromise().complete("test");
+    future.complete("test");
     
     // Get the result
     assertEquals("test", resultFuture.toCompletableFuture().get(), 
@@ -140,7 +140,7 @@ class FlowApiTest {
   void testNonFlowContext() {
     // Call await outside of a flow context
     assertThrows(IllegalStateException.class, 
-        () -> Flow.await(new FlowFuture<>()),
+        () -> Flow.await(new CompletableFuture<>()),
         "await should throw IllegalStateException when called outside flow context");
   }
 }

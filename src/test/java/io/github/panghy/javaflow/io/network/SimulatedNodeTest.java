@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,22 +38,22 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowStream<FlowConnection> clientStream = transport.listen(clientEndpoint);
     
     // Create connections between them
-    FlowFuture<FlowConnection> client1Future = transport.connect(serverEndpoint);
-    FlowFuture<FlowConnection> client2Future = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> client1Future = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> client2Future = transport.connect(serverEndpoint);
     
     // Wait for connections
     pumpAndAdvanceTimeUntilDone(client1Future, client2Future);
     
-    FlowConnection client1 = client1Future.getNow();
-    FlowConnection client2 = client2Future.getNow();
+    FlowConnection client1 = client1Future.getNow(null);
+    FlowConnection client2 = client2Future.getNow(null);
     
     // Get server connections
-    FlowFuture<FlowConnection> server1Future = serverStream.nextAsync();
-    FlowFuture<FlowConnection> server2Future = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> server1Future = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> server2Future = serverStream.nextAsync();
     pumpAndAdvanceTimeUntilDone(server1Future, server2Future);
     
-    FlowConnection server1 = server1Future.getNow();
-    FlowConnection server2 = server2Future.getNow();
+    FlowConnection server1 = server1Future.getNow(null);
+    FlowConnection server2 = server2Future.getNow(null);
     
     // Verify all connections are active
     assertTrue(client1.isOpen());
@@ -66,7 +66,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone();
     
     // Try to send data from client1 to server - should fail or get disconnected
-    FlowFuture<Void> sendFuture = client1.send(ByteBuffer.wrap("test".getBytes()));
+    CompletableFuture<Void> sendFuture = client1.send(ByteBuffer.wrap("test".getBytes()));
     pumpAndAdvanceTimeUntilDone(sendFuture);
     
     // Client1 connection should be closed or sending should fail
@@ -74,7 +74,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     assertTrue(connectionFailed, "Connection should fail after partition");
     
     // Client2 should still be able to send
-    FlowFuture<Void> send2Future = client2.send(ByteBuffer.wrap("test2".getBytes()));
+    CompletableFuture<Void> send2Future = client2.send(ByteBuffer.wrap("test2".getBytes()));
     pumpAndAdvanceTimeUntilDone(send2Future);
     
     assertFalse(send2Future.isCompletedExceptionally(), "Unpartitioned connection should work");
@@ -83,10 +83,10 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     transport.healPartition(serverEndpoint, client1.getLocalEndpoint());
     
     // Create a new connection from client1 endpoint
-    FlowFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
     pumpAndAdvanceTimeUntilDone(newClientFuture);
     
-    FlowConnection newClient = newClientFuture.getNow();
+    FlowConnection newClient = newClientFuture.getNow(null);
     assertTrue(newClient.isOpen(), "New connection should work after healing partition");
     
     // Clean up all connections
@@ -109,27 +109,27 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowStream<FlowConnection> serverStream = transport.listen(serverEndpoint);
     
     // Connect multiple clients
-    FlowFuture<FlowConnection> client1Future = transport.connect(serverEndpoint);
-    FlowFuture<FlowConnection> client2Future = transport.connect(serverEndpoint);
-    FlowFuture<FlowConnection> client3Future = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> client1Future = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> client2Future = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> client3Future = transport.connect(serverEndpoint);
     
     // Wait for client connections
     pumpAndAdvanceTimeUntilDone(client1Future, client2Future, client3Future);
     
-    FlowConnection client1 = client1Future.getNow();
-    FlowConnection client2 = client2Future.getNow();
-    FlowConnection client3 = client3Future.getNow();
+    FlowConnection client1 = client1Future.getNow(null);
+    FlowConnection client2 = client2Future.getNow(null);
+    FlowConnection client3 = client3Future.getNow(null);
     
     // Accept server connections
-    FlowFuture<FlowConnection> server1Future = serverStream.nextAsync();
-    FlowFuture<FlowConnection> server2Future = serverStream.nextAsync();
-    FlowFuture<FlowConnection> server3Future = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> server1Future = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> server2Future = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> server3Future = serverStream.nextAsync();
     
     pumpAndAdvanceTimeUntilDone(server1Future, server2Future, server3Future);
     
-    FlowConnection server1 = server1Future.getNow();
-    FlowConnection server2 = server2Future.getNow();
-    FlowConnection server3 = server3Future.getNow();
+    FlowConnection server1 = server1Future.getNow(null);
+    FlowConnection server2 = server2Future.getNow(null);
+    FlowConnection server3 = server3Future.getNow(null);
     
     // Verify all connections are active
     assertTrue(client1.isOpen());
@@ -140,7 +140,7 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     assertTrue(server3.isOpen());
     
     // Close the transport - should close all connections
-    FlowFuture<Void> closeFuture = transport.close();
+    CompletableFuture<Void> closeFuture = transport.close();
     pumpAndAdvanceTimeUntilDone(closeFuture);
     
     // Verify all connections are closed
@@ -165,24 +165,24 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     FlowStream<FlowConnection> serverStream = transport.listen(serverEndpoint);
     
     // Connect client
-    FlowFuture<FlowConnection> clientFuture = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> clientFuture = transport.connect(serverEndpoint);
     pumpAndAdvanceTimeUntilDone(clientFuture);
     
-    FlowConnection client = clientFuture.getNow();
+    FlowConnection client = clientFuture.getNow(null);
     
     // Accept server connection
-    FlowFuture<FlowConnection> serverFuture = serverStream.nextAsync();
+    CompletableFuture<FlowConnection> serverFuture = serverStream.nextAsync();
     pumpAndAdvanceTimeUntilDone(serverFuture);
     
-    FlowConnection server = serverFuture.getNow();
+    FlowConnection server = serverFuture.getNow(null);
     
     // Verify connections are active
     assertTrue(client.isOpen());
     assertTrue(server.isOpen());
     
     // Get close futures
-    FlowFuture<Void> clientCloseFuture = client.closeFuture();
-    FlowFuture<Void> serverCloseFuture = server.closeFuture();
+    CompletableFuture<Void> clientCloseFuture = client.closeFuture();
+    CompletableFuture<Void> serverCloseFuture = server.closeFuture();
     
     assertFalse(clientCloseFuture.isDone());
     assertFalse(serverCloseFuture.isDone());
@@ -200,10 +200,10 @@ public class SimulatedNodeTest extends AbstractFlowTest {
     assertFalse(server.isOpen());
     
     // Verify we can create new connections
-    FlowFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
+    CompletableFuture<FlowConnection> newClientFuture = transport.connect(serverEndpoint);
     pumpAndAdvanceTimeUntilDone(newClientFuture);
     
-    FlowConnection newClient = newClientFuture.getNow();
+    FlowConnection newClient = newClientFuture.getNow(null);
     assertTrue(newClient.isOpen());
     
     // Clean up

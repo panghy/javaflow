@@ -1,8 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.io.network.FlowConnection;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -61,7 +60,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public interface EdgeCaseService {
     void voidMethod();
     Object nullMethod();
-    FlowPromise<String> promiseMethod();
+    CompletableFuture<String> promiseMethod();
   }
 
   // Non-serializable class for testing
@@ -113,10 +112,10 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowPromise<String> promiseMethod() {
-      FlowFuture<String> future = new FlowFuture<>();
-      future.getPromise().complete("Promise result");
-      return future.getPromise();
+    public CompletableFuture<String> promiseMethod() {
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.complete("Promise result");
+      return future;
     }
   }
 
@@ -138,7 +137,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
     // Create a service that accepts an unserializable object
     ServiceWithUnserializable client = transport.getRpcStub(serviceId, ServiceWithUnserializable.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         // Try to send an unserializable object
         client.process(new Object() {
@@ -170,14 +169,14 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         // Get the connection
-        FlowFuture<FlowConnection> connFuture = networkTransport.connect(serverEndpoint);
+        CompletableFuture<FlowConnection> connFuture = networkTransport.connect(serverEndpoint);
         FlowConnection conn = await(connFuture);
         
         // Start a request
-        FlowFuture<String> echoFuture = startActor(() -> client.echo("test"));
+        CompletableFuture<String> echoFuture = startActor(() -> client.echo("test"));
         
         // Close the connection while request is in flight
         await(conn.close());
@@ -214,7 +213,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     MismatchedService client = transport.getRpcStub(serviceId, MismatchedService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         client.echo("test1", "test2");
         fail("Should have thrown exception");
@@ -242,7 +241,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     EdgeCaseService client = transport.getRpcStub(serviceId, EdgeCaseService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Test void return
       client.voidMethod();
       // Should complete without error
@@ -252,8 +251,8 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       assertEquals(null, nullResult);
 
       // Test promise return
-      FlowPromise<String> promise = client.promiseMethod();
-      String promiseResult = await(promise.getFuture());
+      CompletableFuture<String> promise = client.promiseMethod();
+      String promiseResult = await(promise);
       assertEquals("Promise result", promiseResult);
 
       return null;
@@ -283,7 +282,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         client.echo("test");
         fail("Should have thrown exception");
@@ -312,7 +311,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
 
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       try {
         client.throwException();
         fail("Should have thrown exception");
@@ -339,8 +338,8 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
     // Create a connection that fails on send
     FlowConnection failingConnection = new FlowConnection() {
       @Override
-      public FlowFuture<ByteBuffer> receive(int maxBytes) {
-        return FlowFuture.completed(ByteBuffer.allocate(0));
+      public CompletableFuture<ByteBuffer> receive(int maxBytes) {
+        return CompletableFuture.completedFuture(ByteBuffer.allocate(0));
       }
 
       @Override
@@ -349,17 +348,17 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> send(ByteBuffer data) {
+      public CompletableFuture<Void> send(ByteBuffer data) {
         throw new RuntimeException("Send failed");
       }
 
       @Override
-      public FlowFuture<Void> close() {
-        return FlowFuture.completed(null);
+      public CompletableFuture<Void> close() {
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override
-      public FlowFuture<Void> closeFuture() {
+      public CompletableFuture<Void> closeFuture() {
         return close();
       }
 
@@ -398,7 +397,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
     TestService client = transport.getRpcStub(serviceId, TestService.class);
     
-    FlowFuture<Void> testFuture = startActor(() -> {
+    CompletableFuture<Void> testFuture = startActor(() -> {
       // Call void method with no arguments - should work
       client.voidMethod();
       return null;
@@ -437,7 +436,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       private boolean firstCall = true;
       
       @Override
-      public FlowFuture<ByteBuffer> receive(int maxBytes) {
+      public CompletableFuture<ByteBuffer> receive(int maxBytes) {
         if (firstCall) {
           firstCall = false;
           // Return a valid message on first call
@@ -448,7 +447,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
               null,
               null,
               null);
-          return FlowFuture.completed(message.serialize());
+          return CompletableFuture.completedFuture(message.serialize());
         } else {
           // Simulate connection close on second call
           connectionClosed.set(true);
@@ -462,18 +461,18 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       }
 
       @Override
-      public FlowFuture<Void> send(ByteBuffer data) {
-        return FlowFuture.completed(null);
+      public CompletableFuture<Void> send(ByteBuffer data) {
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override
-      public FlowFuture<Void> close() {
+      public CompletableFuture<Void> close() {
         connectionClosed.set(true);
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override
-      public FlowFuture<Void> closeFuture() {
+      public CompletableFuture<Void> closeFuture() {
         return close();
       }
 

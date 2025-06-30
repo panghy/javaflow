@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.test.CancellationTestUtils;
@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import java.util.concurrent.ExecutionException;
 /**
  * Comprehensive cancellation tests using CancellationTestUtils.
  * This replaces the original FlowCancellationTest with cleaner implementations.
@@ -30,7 +29,7 @@ class FlowCancellationTest extends AbstractFlowTest {
   @Test
   void testCancellationDuringDelayUsingUtils() throws ExecutionException {
     // Using CancellationTestUtils for a cleaner test
-    FlowFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(1.0, 0.1);
+    CompletableFuture<Double> operation = CancellationTestUtils.createLongRunningOperation(1.0, 0.1);
     
     // Let it start and run for a bit
     pump();
@@ -38,27 +37,27 @@ class FlowCancellationTest extends AbstractFlowTest {
     pump();
     
     // Cancel during the operation
-    operation.cancel();
+    operation.cancel(true);
     
     // Process cancellation
     pumpAndAdvanceTimeUntilDone();
     
     // Verify cancellation
     assertTrue(operation.isCancelled());
-    assertThrows(CancellationException.class, operation::getNow);
+    assertThrows(CancellationException.class, () -> operation.getNow(null));
   }
 
   @Test
   void testCancellationLatencyMeasurement() throws ExecutionException {
     // Measure how quickly cancellation is detected
-    FlowFuture<Double> latencyFuture = CancellationTestUtils.measureCancellationLatency(
+    CompletableFuture<Double> latencyFuture = CancellationTestUtils.measureCancellationLatency(
         () -> CancellationTestUtils.createLongRunningOperation(1.0, 0.01), // 10ms check interval
         0.1 // Cancel after 100ms
     );
     
     pumpAndAdvanceTimeUntilDone(latencyFuture);
     
-    Double latency = latencyFuture.getNow();
+    Double latency = latencyFuture.getNow(null);
     assertTrue(latency >= 0, "Latency should be non-negative");
     assertTrue(latency < 0.02, "Latency should be less than check interval (10ms + overhead)");
   }
@@ -68,7 +67,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     AtomicBoolean resourceCleaned = new AtomicBoolean(false);
     
     // Create an operation that cleans up on cancellation
-    FlowFuture<Void> verifyFuture = CancellationTestUtils.verifyCancellationCleanup(
+    CompletableFuture<Void> verifyFuture = CancellationTestUtils.verifyCancellationCleanup(
         () -> startActor(() -> {
           try {
             // Simulate resource allocation
@@ -94,7 +93,7 @@ class FlowCancellationTest extends AbstractFlowTest {
   @Test
   void testCancellationWithNestedOperationsUsingUtils() {
     // Using the utility for nested operations
-    FlowFuture<String> nestedOp = CancellationTestUtils.createNestedOperation(4, 0.1);
+    CompletableFuture<String> nestedOp = CancellationTestUtils.createNestedOperation(4, 0.1);
     
     // Let it progress into the hierarchy
     pump();
@@ -102,7 +101,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     pump();
     
     // Cancel the root
-    nestedOp.cancel();
+    nestedOp.cancel(true);
     
     // Process cancellation
     pumpAndAdvanceTimeUntilDone();
@@ -117,7 +116,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     PromiseStream<Integer> stream = CancellationTestUtils.createStreamingOperation(0.05); // 50ms interval
     List<Integer> received = new ArrayList<>();
     
-    FlowFuture<Void> consumer = startActor(() -> {
+    CompletableFuture<Void> consumer = startActor(() -> {
       FutureStream<Integer> futureStream = stream.getFutureStream();
       while (!futureStream.isClosed()) {
         try {
@@ -141,7 +140,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     assertTrue(received.size() >= 3, "Should have received at least 3 values");
     
     // Cancel the consumer
-    consumer.cancel();
+    consumer.cancel(true);
     pumpAndAdvanceTimeUntilDone();
     
     // Stream producer should have been cancelled, which closes the stream
@@ -152,7 +151,7 @@ class FlowCancellationTest extends AbstractFlowTest {
   @Test
   void testCpuIntensiveOperationCancellation() {
     // Test cancellation of CPU-bound work
-    FlowFuture<Integer> cpuOp = CancellationTestUtils.createCpuIntensiveOperation(10000, 100);
+    CompletableFuture<Integer> cpuOp = CancellationTestUtils.createCpuIntensiveOperation(10000, 100);
     
     // Let it run for a bit
     pump();
@@ -160,13 +159,13 @@ class FlowCancellationTest extends AbstractFlowTest {
     pump();
     
     // Cancel it
-    cpuOp.cancel();
+    cpuOp.cancel(true);
     
     // Process cancellation
     pumpAndAdvanceTimeUntilDone();
     
     assertTrue(cpuOp.isCancelled());
-    assertThrows(CancellationException.class, cpuOp::getNow);
+    assertThrows(CancellationException.class, () -> cpuOp.getNow(null));
   }
 
   @Test
@@ -174,7 +173,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     // Test concurrent cancellation of multiple operations
     AtomicInteger createdCount = new AtomicInteger(0);
     
-    FlowFuture<Integer> result = CancellationTestUtils.testConcurrentCancellation(
+    CompletableFuture<Integer> result = CancellationTestUtils.testConcurrentCancellation(
         10, // Create 10 operations
         () -> {
           createdCount.incrementAndGet();
@@ -186,7 +185,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(result);
     
     assertEquals(10, createdCount.get());
-    assertEquals(10, result.getNow(), "All 10 operations should have been cancelled");
+    assertEquals(10, result.getNow(null), "All 10 operations should have been cancelled");
   }
 
   @Test
@@ -198,7 +197,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     assertFalse(service.hasStarted());
     
     // Start a long operation
-    FlowFuture<String> operation = service.longRunningOperation(1.0, 0.1);
+    CompletableFuture<String> operation = service.longRunningOperation(1.0, 0.1);
     
     // Let it run
     pump();
@@ -209,7 +208,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     assertTrue(service.getCancellationCheckCount() > 0);
     
     // Cancel it
-    operation.cancel();
+    operation.cancel(true);
     pumpAndAdvanceTimeUntilDone();
     
     assertTrue(service.wasCancelled());
@@ -223,9 +222,9 @@ class FlowCancellationTest extends AbstractFlowTest {
   @Test
   void testCancellationDuringChainedOperations() {
     // Create a chain of operations using utilities
-    FlowFuture<Double> first = CancellationTestUtils.createLongRunningOperation(0.5, 0.1);
+    CompletableFuture<Double> first = CancellationTestUtils.createLongRunningOperation(0.5, 0.1);
     
-    FlowFuture<String> chain = first.flatMap(result -> {
+    CompletableFuture<String> chain = first.thenCompose(result -> {
       // Second operation depends on first
       return CancellationTestUtils.createNestedOperation(3, 0.1);
     });
@@ -236,7 +235,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     pump();
     
     // Cancel during second operation
-    chain.cancel();
+    chain.cancel(true);
     
     pumpAndAdvanceTimeUntilDone();
     
@@ -250,20 +249,20 @@ class FlowCancellationTest extends AbstractFlowTest {
   void testCancellationWithCustomCheckInterval() throws ExecutionException {
     // Demonstrate fine-grained control over check intervals
     // Measure latency for both fast and slow check intervals
-    FlowFuture<Double> fastLatency = CancellationTestUtils.measureCancellationLatency(
+    CompletableFuture<Double> fastLatency = CancellationTestUtils.measureCancellationLatency(
         () -> CancellationTestUtils.createLongRunningOperation(1.0, 0.001),
         0.1
     );
     
-    FlowFuture<Double> slowLatency = CancellationTestUtils.measureCancellationLatency(
+    CompletableFuture<Double> slowLatency = CancellationTestUtils.measureCancellationLatency(
         () -> CancellationTestUtils.createLongRunningOperation(1.0, 0.1),
         0.1
     );
     
     pumpAndAdvanceTimeUntilDone(fastLatency, slowLatency);
     
-    Double fast = fastLatency.getNow();
-    Double slow = slowLatency.getNow();
+    Double fast = fastLatency.getNow(null);
+    Double slow = slowLatency.getNow(null);
     
     // In simulation, timing might be less precise due to how the scheduler works
     // Just verify both detected cancellation in reasonable time
@@ -276,9 +275,9 @@ class FlowCancellationTest extends AbstractFlowTest {
   @Test
   void testCancellationDuringAwait() {
     AtomicBoolean cancellationExceptionCaught = new AtomicBoolean(false);
-    FlowFuture<String> blockingFuture = new FlowFuture<>();
+    CompletableFuture<String> blockingFuture = new CompletableFuture<>();
     
-    FlowFuture<Void> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       try {
         Flow.await(blockingFuture);
       } catch (FlowCancellationException e) {
@@ -292,7 +291,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     pump();
     
     // Cancel the awaited future
-    blockingFuture.cancel();
+    blockingFuture.cancel(true);
     
     // Pump to process the cancellation
     pump();
@@ -316,7 +315,7 @@ class FlowCancellationTest extends AbstractFlowTest {
   void testCancellationDuringException() {
     AtomicBoolean exceptionThrown = new AtomicBoolean(false);
     
-    FlowFuture<Void> future = Flow.startActor(() -> {
+    CompletableFuture<Void> future = Flow.startActor(() -> {
       try {
         // Throw an exception
         exceptionThrown.set(true);
@@ -329,7 +328,7 @@ class FlowCancellationTest extends AbstractFlowTest {
     });
     
     // Cancel immediately
-    future.cancel();
+    future.cancel(true);
     
     // Execute
     pump();

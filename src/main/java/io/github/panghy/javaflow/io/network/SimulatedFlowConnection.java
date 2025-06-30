@@ -1,13 +1,12 @@
 package io.github.panghy.javaflow.io.network;
 
-import io.github.panghy.javaflow.core.FlowFuture;
-import io.github.panghy.javaflow.core.FlowPromise;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
@@ -60,7 +59,7 @@ public class SimulatedFlowConnection implements FlowConnection {
   private final NetworkSimulationParameters params;
   private final PromiseStream<ByteBuffer> receivePromiseStream = new PromiseStream<>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private final FlowPromise<Void> closePromise;
+  private final CompletableFuture<Void> closePromise;
   
   // Reference to the other end of this connection
   private SimulatedFlowConnection peer;
@@ -77,8 +76,7 @@ public class SimulatedFlowConnection implements FlowConnection {
     this.remoteEndpoint = remoteEndpoint;
     this.params = params;
     
-    FlowFuture<Void> closeFuture = new FlowFuture<>();
-    this.closePromise = closeFuture.getPromise();
+    this.closePromise = new CompletableFuture<>();
   }
 
   /**
@@ -92,22 +90,22 @@ public class SimulatedFlowConnection implements FlowConnection {
   }
 
   @Override
-  public FlowFuture<Void> send(ByteBuffer data) {
+  public CompletableFuture<Void> send(ByteBuffer data) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Connection is closed"));
+      return CompletableFuture.failedFuture(new IOException("Connection is closed"));
     }
 
     // Check for injected errors
     if (params.getSendErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getSendErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated send error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated send error"));
     }
 
     // Check for random disconnects
     if (params.getDisconnectProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getDisconnectProbability()) {
       close();
-      return FlowFuture.failed(new IOException("Connection closed during send"));
+      return CompletableFuture.failedFuture(new IOException("Connection closed during send"));
     }
 
     // Check for packet loss
@@ -153,22 +151,22 @@ public class SimulatedFlowConnection implements FlowConnection {
   }
 
   @Override
-  public FlowFuture<ByteBuffer> receive(int maxBytes) {
+  public CompletableFuture<ByteBuffer> receive(int maxBytes) {
     if (closed.get()) {
-      return FlowFuture.failed(new IOException("Connection is closed"));
+      return CompletableFuture.failedFuture(new IOException("Connection is closed"));
     }
 
     // Check for injected errors
     if (params.getReceiveErrorProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getReceiveErrorProbability()) {
-      return FlowFuture.failed(new IOException("Simulated receive error"));
+      return CompletableFuture.failedFuture(new IOException("Simulated receive error"));
     }
 
     // Check for random disconnects
     if (params.getDisconnectProbability() > 0.0 &&
         FlowRandom.current().nextDouble() < params.getDisconnectProbability()) {
       close();
-      return FlowFuture.failed(new IOException("Connection closed during receive"));
+      return CompletableFuture.failedFuture(new IOException("Connection closed during receive"));
     }
 
     // Get the next item from the receive stream
@@ -196,12 +194,12 @@ public class SimulatedFlowConnection implements FlowConnection {
   }
 
   @Override
-  public FlowFuture<Void> closeFuture() {
-    return closePromise.getFuture();
+  public CompletableFuture<Void> closeFuture() {
+    return closePromise;
   }
 
   @Override
-  public FlowFuture<Void> close() {
+  public CompletableFuture<Void> close() {
     if (closed.compareAndSet(false, true)) {
       // Close the receive stream
       receivePromiseStream.close();
@@ -215,6 +213,6 @@ public class SimulatedFlowConnection implements FlowConnection {
       }
     }
     
-    return closePromise.getFuture();
+    return closePromise;
   }
 }

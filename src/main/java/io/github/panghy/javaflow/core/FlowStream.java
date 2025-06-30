@@ -1,5 +1,6 @@
 package io.github.panghy.javaflow.core;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -19,7 +20,7 @@ public interface FlowStream<T> {
    *
    * @return A future that completes with the next value
    */
-  FlowFuture<T> nextAsync();
+  CompletableFuture<T> nextAsync();
 
   /**
    * Returns a future that completes with true if this stream has more values,
@@ -27,7 +28,7 @@ public interface FlowStream<T> {
    *
    * @return A future that completes with true if more values are available
    */
-  FlowFuture<Boolean> hasNextAsync();
+  CompletableFuture<Boolean> hasNextAsync();
 
   /**
    * Closes this stream, making any pending nextAsync() calls complete exceptionally
@@ -36,7 +37,7 @@ public interface FlowStream<T> {
    * @param exception The exception to complete pending futures with
    * @return A future that completes when the stream is closed
    */
-  FlowFuture<Void> closeExceptionally(Throwable exception);
+  CompletableFuture<Void> closeExceptionally(Throwable exception);
 
   /**
    * Closes this stream, making any pending nextAsync() calls complete exceptionally
@@ -44,7 +45,7 @@ public interface FlowStream<T> {
    *
    * @return A future that completes when the stream is closed
    */
-  FlowFuture<Void> close();
+  CompletableFuture<Void> close();
 
   /**
    * Returns whether this stream is closed.
@@ -59,7 +60,7 @@ public interface FlowStream<T> {
    *
    * @return A future that completes when the stream is closed
    */
-  FlowFuture<Void> onClose();
+  CompletableFuture<Void> onClose();
 
   /**
    * Maps the values in this stream to another type.
@@ -84,5 +85,5 @@ public interface FlowStream<T> {
    * @param action The action to execute for each element
    * @return A future that completes when all elements have been processed
    */
-  FlowFuture<Void> forEach(Consumer<? super T> action);
+  CompletableFuture<Void> forEach(Consumer<? super T> action);
 }

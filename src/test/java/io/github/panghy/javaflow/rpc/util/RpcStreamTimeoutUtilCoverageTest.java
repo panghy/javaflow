@@ -1,7 +1,7 @@
 package io.github.panghy.javaflow.rpc.util;
 
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.AbstractFlowTest;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
@@ -35,7 +35,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
         originalStream, null, "testMethod", 100);
     
     List<String> values = new ArrayList<>();
-    FlowFuture<Void> processingFuture = startActor(() -> {
+    CompletableFuture<Void> processingFuture = startActor(() -> {
       // Receive one value
       values.add(await(timeoutStream.getFutureStream().nextAsync()));
       
@@ -53,7 +53,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
       return null;
     });
     
-    FlowFuture<Void> producerFuture = startActor(() -> {
+    CompletableFuture<Void> producerFuture = startActor(() -> {
       originalStream.send("value1");
       return null;
     });
@@ -62,7 +62,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     assertThat(values).containsExactly("value1");
     assertThat(processingFuture.isCompletedExceptionally()).isTrue();
-    assertThatThrownBy(() -> processingFuture.getNow())
+    assertThatThrownBy(() -> processingFuture.getNow(null))
         .hasCauseInstanceOf(RpcTimeoutException.class);
   }
 
@@ -75,7 +75,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
         originalStream, new EndpointId("test"), "method", 200);
     
     List<String> values = new ArrayList<>();
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Receive values
       while (await(timeoutStream.getFutureStream().hasNextAsync())) {
         values.add(await(timeoutStream.getFutureStream().nextAsync()));
@@ -110,14 +110,14 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     List<String> values = new ArrayList<>();
     IOException testException = new IOException("Test IO exception");
     
-    FlowFuture<Void> producerFuture = startActor(() -> {
+    CompletableFuture<Void> producerFuture = startActor(() -> {
       originalStream.send("value1");
       await(delay(0.05)); // Small delay
       originalStream.closeExceptionally(testException);
       return null;
     });
     
-    FlowFuture<Void> consumerFuture = startActor(() -> {
+    CompletableFuture<Void> consumerFuture = startActor(() -> {
       // Receive one value
       values.add(await(timeoutStream.getFutureStream().nextAsync()));
       
@@ -130,7 +130,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     assertThat(values).containsExactly("value1");
     assertThat(consumerFuture.isCompletedExceptionally()).isTrue();
-    assertThatThrownBy(() -> consumerFuture.getNow())
+    assertThatThrownBy(() -> consumerFuture.getNow(null))
         .hasRootCauseInstanceOf(StreamClosedException.class);
   }
 
@@ -142,7 +142,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send initial value
       originalStream.send("value1");
       
@@ -181,7 +181,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
         originalFutureStream, new EndpointId("test"), "futureMethod", 100);
     
     List<String> values = new ArrayList<>();
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Receive one value
       values.add(await(timeoutStream.nextAsync()));
       
@@ -215,7 +215,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
         originalStream, new EndpointId("test"), "method", 100);
     
     List<String> values = new ArrayList<>();
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Receive multiple values with delays that are less than timeout
       for (int i = 0; i < 5; i++) {
         values.add(await(timeoutStream.getFutureStream().nextAsync()));
@@ -253,14 +253,14 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send and consume initial value
       originalStream.send("value1");
       String val = await(timeoutStream.getFutureStream().nextAsync());
       assertThat(val).isEqualTo("value1");
       
       // Start checking hasNext in a separate actor
-      FlowFuture<Boolean> hasNextFuture = startActor(() -> 
+      CompletableFuture<Boolean> hasNextFuture = startActor(() -> 
           await(timeoutStream.getFutureStream().hasNextAsync())
       );
       
@@ -289,7 +289,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send and consume value
       originalStream.send("value1");
       await(timeoutStream.getFutureStream().nextAsync());
@@ -326,7 +326,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 200);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send value
       originalStream.send("value1");
       await(timeoutStream.getFutureStream().nextAsync());
@@ -357,7 +357,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send first value
       originalStream.send("value1");
       String val1 = await(timeoutStream.getFutureStream().nextAsync());
@@ -393,7 +393,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 200);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Close with StreamClosedException
       StreamClosedException closeEx = new StreamClosedException("Stream closed");
       originalStream.closeExceptionally(closeEx);
@@ -420,7 +420,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     FutureStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         futureStream, new EndpointId("test"), "method", 200);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send and consume value
       originalStream.send("value1");
       String val = await(timeoutStream.nextAsync());
@@ -446,7 +446,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // First, let the timeout occur
       await(delay(0.15));
       
@@ -481,7 +481,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     FutureStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         futureStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send value
       promiseStream.send("value1");
       await(timeoutStream.nextAsync());
@@ -509,7 +509,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     IOException testException = new IOException("Test exception");
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Close original stream with exception
       originalStream.closeExceptionally(testException);
       
@@ -536,7 +536,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     IOException closeException = new IOException("Close exception");
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send a value
       promiseStream.send("value1");
       String val = await(timeoutStream.nextAsync());
@@ -569,7 +569,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     FutureStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         futureStream, new EndpointId("test"), "method", 200);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Should immediately see that stream is closed
       assertThat(await(timeoutStream.hasNextAsync())).isFalse();
       return null;
@@ -586,9 +586,9 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Start trying to get next value (will block since no value sent yet)
-      FlowFuture<String> nextFuture = startActor(() -> 
+      CompletableFuture<String> nextFuture = startActor(() -> 
           await(timeoutStream.getFutureStream().nextAsync())
       );
       
@@ -613,7 +613,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Wait for timeout to close the stream
       await(delay(0.15));
       
@@ -646,7 +646,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     FutureStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         futureStream, new EndpointId("test"), "method", 200);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send and consume a value
       originalStream.send("value1");
       String val = await(timeoutStream.nextAsync());
@@ -689,7 +689,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send value and consume it
       originalStream.send("value1");
       String val = await(timeoutStream.getFutureStream().nextAsync());
@@ -725,7 +725,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 50);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Wait for timeout to occur immediately
       await(delay(0.1));
       
@@ -757,7 +757,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send multiple values quickly
       for (int i = 0; i < 5; i++) {
         originalStream.send("value" + i);
@@ -784,7 +784,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send values rapidly to cause frequent timeout resets
       for (int i = 0; i < 10; i++) {
         originalStream.send("value" + i);
@@ -808,7 +808,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send value and close immediately
       originalStream.send("value1");
       await(timeoutStream.getFutureStream().nextAsync());
@@ -830,7 +830,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     // Test the branch in FutureStream wrapper where promise is already closed during forEach
     PromiseStream<String> customStream = new PromiseStream<>();
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Apply timeout to custom stream
       FutureStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
           customStream.getFutureStream(), new EndpointId("test"), "method", 200);
@@ -865,7 +865,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     // Create an intermediate promise stream that we'll close early
     PromiseStream<String> intermediateStream = new PromiseStream<>();
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Forward from original to intermediate
       futureStream.forEach(value -> {
         if (!intermediateStream.isClosed()) {
@@ -918,7 +918,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Send a value
       originalStream.send("value1");
       await(timeoutStream.getFutureStream().nextAsync());
@@ -953,7 +953,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     PromiseStream<String> timeoutStream = RpcStreamTimeoutUtil.withInactivityTimeout(
         originalStream, new EndpointId("test"), "method", 100);
     
-    FlowFuture<Void> future = startActor(() -> {
+    CompletableFuture<Void> future = startActor(() -> {
       // Close the timeout stream normally (no exception)
       timeoutStream.close();
       

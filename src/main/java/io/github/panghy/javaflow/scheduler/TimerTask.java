@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.scheduler;
 
-import io.github.panghy.javaflow.core.FlowPromise;
+import java.util.concurrent.CompletableFuture;
 
 import java.util.Objects;
 
@@ -15,7 +15,7 @@ public class TimerTask implements Comparable<TimerTask> {
   private final long scheduledTimeMillis;
   private final Runnable task;
   private final int priority;
-  private final FlowPromise<Void> promise;
+  private final CompletableFuture<Void> future;
   private final Task parentTask;
   
   /**
@@ -25,16 +25,16 @@ public class TimerTask implements Comparable<TimerTask> {
    * @param scheduledTimeMillis Absolute time in milliseconds when the task should execute
    * @param task                The task to execute when the timer fires
    * @param priority            The priority of the task
-   * @param promise             Promise to complete when the task executes
+   * @param future              Future to complete when the task executes
    * @param parentTask          The parent flow task if any
    */
   public TimerTask(long id, long scheduledTimeMillis, Runnable task, int priority,
-                   FlowPromise<Void> promise, Task parentTask) {
+                   CompletableFuture<Void> future, Task parentTask) {
     this.id = id;
     this.scheduledTimeMillis = scheduledTimeMillis;
     this.task = Objects.requireNonNull(task, "Task cannot be null");
     this.priority = priority;
-    this.promise = Objects.requireNonNull(promise, "Promise cannot be null");
+    this.future = Objects.requireNonNull(future, "Future cannot be null");
     this.parentTask = parentTask;
   }
   
@@ -75,12 +75,12 @@ public class TimerTask implements Comparable<TimerTask> {
   }
   
   /**
-   * Gets the promise associated with this timer task.
+   * Gets the future associated with this timer task.
    *
-   * @return The promise to complete when the task executes
+   * @return The future to complete when the task executes
    */
-  public FlowPromise<Void> getPromise() {
-    return promise;
+  public CompletableFuture<Void> getFuture() {
+    return future;
   }
   
   /**
@@ -98,9 +98,9 @@ public class TimerTask implements Comparable<TimerTask> {
   public void execute() {
     try {
       task.run();
-      promise.complete(null);
+      future.complete(null);
     } catch (Throwable t) {
-      promise.completeExceptionally(t);
+      future.completeExceptionally(t);
     }
   }
   

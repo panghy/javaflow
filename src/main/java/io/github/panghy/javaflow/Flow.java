@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow;
 
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.scheduler.FlowClock;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.Task;
@@ -9,6 +8,7 @@ import io.github.panghy.javaflow.simulation.SimulationContext;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPriority;
@@ -31,10 +31,10 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  *
  * <pre>{@code
  * // Create an actor:
- * FlowFuture<String> result = Flow.startActor(() -> {
+ * CompletableFuture<String> result = Flow.startActor(() -> {
  *   // Inside an actor, you can use suspension methods:
  *   Flow.delay(1.0).await(); // Wait for 1 second
- *   FlowFuture<Data> dataFuture = fetchDataAsync();
+ *   CompletableFuture<Data> dataFuture = fetchDataAsync();
  *   Data data = Flow.await(dataFuture); // Suspend until data is available
  *   return processData(data);
  * });
@@ -53,7 +53,7 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  * <h2>Cancellation Support</h2>
  * 
  * <p>JavaFlow provides comprehensive cancellation support through cooperative cancellation.
- * When a {@link FlowFuture} is cancelled, the associated task will throw a
+ * When a {@link CompletableFuture} is cancelled, the associated task will throw a
  * {@link FlowCancellationException} at the next suspension point (await, yield, or delay)
  * or when {@link #checkCancellation()} is called.</p>
  * 
@@ -61,13 +61,13 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  * <ul>
  *   <li>{@link #checkCancellation()} - Throws if cancelled (for periodic checks)</li>
  *   <li>{@link #isCancelled()} - Returns cancellation status (for conditional logic)</li>
- *   <li>{@link #await(FlowFuture)} - Automatically checks cancellation</li>
+ *   <li>{@link #await(CompletableFuture)} - Automatically checks cancellation</li>
  *   <li>{@link #yieldF()} - Checks cancellation when resuming</li>
  * </ul>
  * 
  * <p><b>Example: Long-running operation with cancellation support:</b></p>
  * <pre>{@code
- * FlowFuture<String> operation = Flow.startActor(() -> {
+ * CompletableFuture<String> operation = Flow.startActor(() -> {
  *   try {
  *     for (int i = 0; i < 1000; i++) {
  *       // Check for cancellation
@@ -139,7 +139,7 @@ public final class Flow {
    * Starts a new actor with the given task.
    *
    * <p><b>Cancellation behavior:</b> When the returned future is cancelled using
-   * {@link FlowFuture#cancel()}, the actor's execution is immediately terminated. 
+   * {@link CompletableFuture#cancel(boolean)}, the actor's execution is immediately terminated. 
    * The cancellation happens eagerly - any cleanup code in the actor will not run
    * unless it's in a {@code finally} block or unless the scheduler is allowed to
    * run all remaining tasks (not just until the future resolves).</p>
@@ -148,7 +148,7 @@ public final class Flow {
    * @param <T>  The return type of the actor
    * @return A future that will be completed with the actor's result
    */
-  public static <T> FlowFuture<T> startActor(Callable<T> task) {
+  public static <T> CompletableFuture<T> startActor(Callable<T> task) {
     return scheduler.schedule(task);
   }
 
@@ -161,7 +161,7 @@ public final class Flow {
    * @return A future that will be completed with the actor's result
    * @throws IllegalArgumentException if the priority is negative
    */
-  public static <T> FlowFuture<T> startActor(Callable<T> task, int priority) {
+  public static <T> CompletableFuture<T> startActor(Callable<T> task, int priority) {
     // Validate that user-provided priority isn't negative
     validateUserPriority(priority);
     return scheduler.schedule(task, priority);
@@ -173,7 +173,7 @@ public final class Flow {
    * @param task The task to run in the actor (returns void)
    * @return A future that will be completed when the actor finishes
    */
-  public static FlowFuture<Void> startActor(Runnable task) {
+  public static CompletableFuture<Void> startActor(Runnable task) {
     return scheduler.schedule(() -> {
       task.run();
       return null;
@@ -188,7 +188,7 @@ public final class Flow {
    * @return A future that will be completed when the actor finishes
    * @throws IllegalArgumentException if the priority is negative
    */
-  public static FlowFuture<Void> startActor(Runnable task, int priority) {
+  public static CompletableFuture<Void> startActor(Runnable task, int priority) {
     // Validate that user-provided priority isn't negative
     validateUserPriority(priority);
     return scheduler.schedule(() -> {
@@ -205,17 +205,25 @@ public final class Flow {
    * @return true if the future is ready
    * @throws Exception If the future completed exceptionally
    */
-  public static <T> boolean futureReadyOrThrow(FlowFuture<T> future) throws Exception {
+  public static <T> boolean futureReadyOrThrow(CompletableFuture<T> future) throws Exception {
     // If already completed, return the result immediately
     if (future.isDone()) {
       if (future.isCompletedExceptionally()) {
-        Throwable cause = future.getException();
-        if (cause instanceof CancellationException) {
-          throw new FlowCancellationException("Future was cancelled", cause);
-        } else if (cause instanceof Exception) {
-          throw (Exception) cause;
-        } else {
-          throw new ExecutionException(cause);
+        try {
+          future.getNow(null); // This will throw the exception
+        } catch (CancellationException e) {
+          throw new FlowCancellationException("Future was cancelled", e);
+        } catch (Exception e) {
+          Throwable cause = e.getCause();
+          if (cause instanceof CancellationException) {
+            throw new FlowCancellationException("Future was cancelled", cause);
+          } else if (cause instanceof Exception) {
+            throw (Exception) cause;
+          } else if (cause != null) {
+            throw new ExecutionException(cause);
+          } else {
+            throw e;
+          }
         }
       }
       return true;
@@ -264,9 +272,9 @@ public final class Flow {
    * @throws Exception             If the future completes exceptionally
    * @throws IllegalStateException if called outside a flow task
    */
-  public static <T> T await(FlowFuture<T> future) throws Exception {
+  public static <T> T await(CompletableFuture<T> future) throws Exception {
     if (futureReadyOrThrow(future)) {
-      return future.getNow();
+      return future.getNow(null);
     }
     
     // Check for cancellation before awaiting
@@ -298,7 +306,7 @@ public final class Flow {
    * @return A future that completes after the delay
    * @throws IllegalStateException if called outside a flow task
    */
-  public static FlowFuture<Void> delay(double seconds) {
+  public static CompletableFuture<Void> delay(double seconds) {
     // Delay is only supported within flow tasks
     return scheduler.scheduleDelay(seconds);
   }
@@ -312,7 +320,7 @@ public final class Flow {
    * @return A future that completes after the delay
    * @throws IllegalStateException if called outside a flow task
    */
-  public static FlowFuture<Void> delay(double seconds, int priority) {
+  public static CompletableFuture<Void> delay(double seconds, int priority) {
     validateUserPriority(priority);
     // Delay is only supported within flow tasks
     return scheduler.scheduleDelay(seconds, priority);
@@ -359,7 +367,7 @@ public final class Flow {
    * 
    * @throws FlowCancellationException if the current task is cancelled
    * @see #isCancelled() for a non-throwing alternative
-   * @see #await(FlowFuture) which also checks for cancellation
+   * @see #await(CompletableFuture) which also checks for cancellation
    * @since 1.3
    */
   public static void checkCancellation() {
@@ -498,7 +506,7 @@ public final class Flow {
    * @return A future that completes when the actor is resumed
    * @throws IllegalStateException if called outside a flow task
    */
-  public static FlowFuture<Void> yieldF() {
+  public static CompletableFuture<Void> yieldF() {
     return scheduler.yield();
   }
 
@@ -515,7 +523,7 @@ public final class Flow {
    * @throws IllegalArgumentException if the priority is negative
    * @throws IllegalStateException if called outside a flow task
    */
-  public static FlowFuture<Void> yieldF(int priority) {
+  public static CompletableFuture<Void> yieldF(int priority) {
     // Validate that user-provided priority isn't negative
     validateUserPriority(priority);
     return scheduler.yield(priority);

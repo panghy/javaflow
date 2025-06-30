@@ -7,12 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.panghy.javaflow.core.FlowPromise;
-import io.github.panghy.javaflow.core.FlowFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -273,10 +272,7 @@ public class FlowSerializationTest {
   void testSystemTypesSerialization() {
     // Test that system types throw proper exceptions
     assertThrows(IllegalStateException.class, () -> 
-        FlowSerialization.getSerializer(FlowFuture.class));
-      
-    assertThrows(IllegalStateException.class, () -> 
-        FlowSerialization.getSerializer(FlowPromise.class));
+        FlowSerialization.getSerializer(CompletableFuture.class));
       
     assertThrows(IllegalStateException.class, () -> 
         FlowSerialization.getSerializer(PromiseStream.class));

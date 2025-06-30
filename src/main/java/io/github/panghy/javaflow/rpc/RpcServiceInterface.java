@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.io.network.Endpoint;
 
 /**
@@ -17,7 +17,7 @@ import io.github.panghy.javaflow.io.network.Endpoint;
  * <pre>{@code
  * public class UserServiceInterface extends RpcServiceInterface {
  *     // One-shot request with reply
- *     public final PromiseStream<Pair<GetUserRequest, FlowPromise<UserInfo>>> getUser;
+ *     public final PromiseStream<Pair<GetUserRequest, CompletableFuture<UserInfo>>> getUser;
  *
  *     // One-way notification
  *     public final PromiseStream<UserStatusUpdate> statusUpdate;
@@ -33,9 +33,9 @@ import io.github.panghy.javaflow.io.network.Endpoint;
  *     }
  *
  *     // Convenience methods for common patterns
- *     public FlowFuture<UserInfo> getUserAsync(GetUserRequest request) {
- *         FlowFuture<UserInfo> future = new FlowFuture<>();
- *         getUser.send(new Pair<>(request, future.getPromise()));
+ *     public CompletableFuture<UserInfo> getUserAsync(GetUserRequest request) {
+ *         CompletableFuture<UserInfo> future = new CompletableFuture<>();
+ *         getUser.send(new Pair<>(request, future));
  *         return future;
  *     }
  * }
@@ -61,9 +61,9 @@ public interface RpcServiceInterface {
    *
    * @return A future that completes when the service is ready
    */
-  default FlowFuture<Void> ready() {
+  default CompletableFuture<Void> ready() {
     // By default, services are ready immediately
-    return FlowFuture.completed(null);
+    return CompletableFuture.completedFuture(null);
   }
 
   /**
@@ -72,8 +72,8 @@ public interface RpcServiceInterface {
    *
    * @return A future that completes when the service is shut down
    */
-  default FlowFuture<Void> onClose() {
+  default CompletableFuture<Void> onClose() {
     // By default, create a new future that will be completed when the service is closed
-    return new FlowFuture<>();
+    return new CompletableFuture<>();
   }
 }
