@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,12 +62,12 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
       
       try {
         // Try to get the result (should throw exception)
-        readFuture.getNow();
+        readFuture.getNow(null);
         // If no exception, wait a bit and try again (error is probabilistic)
         testScheduler.advanceTime(0.1);
         testScheduler.pump();
         continue;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Success - got the expected exception
         assertTrue(e.getCause() instanceof IOException);
         assertEquals("Simulated read error", e.getCause().getMessage());
@@ -93,12 +94,12 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
       
       try {
         // Try to get the result (should throw exception)
-        writeFuture.getNow();
+        writeFuture.getNow(null);
         // If no exception, wait a bit and try again (error is probabilistic)
         testScheduler.advanceTime(0.1);
         testScheduler.pump();
         continue;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Success - got the expected exception
         assertTrue(e.getCause() instanceof IOException);
         assertEquals("Simulated write error", e.getCause().getMessage());
@@ -122,12 +123,12 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
       
       try {
         // Try to get the result (should throw exception)
-        truncateFuture.getNow();
+        truncateFuture.getNow(null);
         // If no exception, wait a bit and try again (error is probabilistic)
         testScheduler.advanceTime(0.1);
         testScheduler.pump();
         continue;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Success - got the expected exception
         assertTrue(e.getCause() instanceof IOException);
         assertEquals("Simulated truncate error", e.getCause().getMessage());
@@ -149,9 +150,9 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     CompletableFuture<ByteBuffer> negativePosReadFuture = file.read(-1, 10);
     pumpAndAdvanceTimeUntilDone(negativePosReadFuture);
     
-    ExecutionException exception1 = assertThrows(
-        ExecutionException.class, 
-        () -> negativePosReadFuture.getNow());
+    CompletionException exception1 = assertThrows(
+        CompletionException.class, 
+        () -> negativePosReadFuture.getNow(null));
     
     assertTrue(exception1.getCause() instanceof IllegalArgumentException);
     assertEquals("Position must be non-negative", exception1.getCause().getMessage());
@@ -160,9 +161,9 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     CompletableFuture<ByteBuffer> zeroLengthReadFuture = file.read(0, 0);
     pumpAndAdvanceTimeUntilDone(zeroLengthReadFuture);
     
-    ExecutionException exception2 = assertThrows(
-        ExecutionException.class, 
-        () -> zeroLengthReadFuture.getNow());
+    CompletionException exception2 = assertThrows(
+        CompletionException.class, 
+        () -> zeroLengthReadFuture.getNow(null));
     
     assertTrue(exception2.getCause() instanceof IllegalArgumentException);
     assertEquals("Length must be positive", exception2.getCause().getMessage());
@@ -171,9 +172,9 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     CompletableFuture<ByteBuffer> negativeLengthReadFuture = file.read(0, -10);
     pumpAndAdvanceTimeUntilDone(negativeLengthReadFuture);
     
-    ExecutionException exception3 = assertThrows(
-        ExecutionException.class, 
-        () -> negativeLengthReadFuture.getNow());
+    CompletionException exception3 = assertThrows(
+        CompletionException.class, 
+        () -> negativeLengthReadFuture.getNow(null));
     
     assertTrue(exception3.getCause() instanceof IllegalArgumentException);
     assertEquals("Length must be positive", exception3.getCause().getMessage());
@@ -191,9 +192,9 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     CompletableFuture<Void> negativePositionWriteFuture = file.write(-1, writeBuffer);
     pumpAndAdvanceTimeUntilDone(negativePositionWriteFuture);
     
-    ExecutionException exception = assertThrows(
-        ExecutionException.class, 
-        () -> negativePositionWriteFuture.getNow());
+    CompletionException exception = assertThrows(
+        CompletionException.class, 
+        () -> negativePositionWriteFuture.getNow(null));
     
     assertTrue(exception.getCause() instanceof IllegalArgumentException);
     assertEquals("Position must be non-negative", exception.getCause().getMessage());
@@ -208,9 +209,9 @@ class SimulatedFlowFileErrorTest extends AbstractFlowTest {
     CompletableFuture<Void> negativeSizeTruncateFuture = file.truncate(-1);
     pumpAndAdvanceTimeUntilDone(negativeSizeTruncateFuture);
     
-    ExecutionException exception = assertThrows(
-        ExecutionException.class, 
-        () -> negativeSizeTruncateFuture.getNow());
+    CompletionException exception = assertThrows(
+        CompletionException.class, 
+        () -> negativeSizeTruncateFuture.getNow(null));
     
     assertTrue(exception.getCause() instanceof IllegalArgumentException);
     assertEquals("Size must be non-negative", exception.getCause().getMessage());

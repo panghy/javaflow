@@ -174,7 +174,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Wait for both to complete
     pumpAndAdvanceTimeUntilDone(serverConnectionFuture, clientConnectionFuture);
 
-    FlowConnection connection = clientConnectionFuture.getNow();
+    FlowConnection connection = clientConnectionFuture.getNow(null);
     assertNotNull(connection);
     assertTrue(connection.isOpen());
   }
@@ -186,7 +186,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = manager.getConnection(unknownId);
     pumpAndAdvanceTimeUntilDone(future);
 
-    Throwable error = future.getException();
+    Throwable error = future.handle((result, ex) -> ex).join();
     assertNotNull(error);
     assertInstanceOf(IllegalArgumentException.class, error);
     assertTrue(error.getMessage().contains("Unknown endpoint"));
@@ -203,12 +203,12 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get first connection
     CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
-    FlowConnection conn1 = future.getNow();
+    FlowConnection conn1 = future.getNow(null);
 
     // Get second connection - should return the same one
     CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future2);
-    FlowConnection conn2 = future2.getNow();
+    FlowConnection conn2 = future2.getNow(null);
 
     // Should be the same connection
     assertSame(conn1, conn2);
@@ -231,7 +231,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
       public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
         int attempt = connectAttempts.incrementAndGet();
         if (attempt <= 2) {
-          return FlowFuture.failed(new RuntimeException("Connection failed"));
+          return CompletableFuture.failedFuture(new RuntimeException("Connection failed"));
         }
         // Start listening on third attempt
         delegate.listen((LocalEndpoint) endpoint);
@@ -254,7 +254,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = retryManager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
 
-    FlowConnection connection = future.getNow();
+    FlowConnection connection = future.getNow(null);
     assertNotNull(connection);
     assertEquals(3, connectAttempts.get()); // Should have tried 3 times
 
@@ -270,7 +270,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     FlowTransport failingTransport = new FlowTransport() {
       @Override
       public CompletableFuture<FlowConnection> connect(Endpoint endpoint) {
-        return FlowFuture.failed(new RuntimeException("Connection always fails"));
+        return CompletableFuture.failedFuture(new RuntimeException("Connection always fails"));
       }
 
       @Override
@@ -280,7 +280,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
       @Override
       public CompletableFuture<Void> close() {
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
     };
 
@@ -293,7 +293,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = failingManager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
 
-    assertThat(future.getException()).isInstanceOf(RpcConnectionException.class)
+    assertThat(future.handle((result, ex) -> ex).join()).isInstanceOf(RpcConnectionException.class)
         .hasMessageContaining("Failed to connect to endpoint");
 
     failingManager.close();
@@ -310,7 +310,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get connection
     CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future);
-    FlowConnection conn1 = future.getNow();
+    FlowConnection conn1 = future.getNow(null);
 
     // Release the connection
     manager.releaseConnection(endpoint, conn1);
@@ -319,7 +319,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future2);
-    FlowConnection conn2 = future2.getNow();
+    FlowConnection conn2 = future2.getNow(null);
 
     // Should be the same connection from the pool
     assertSame(conn1, conn2);
@@ -336,7 +336,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
-    FlowConnection connection = future.getNow();
+    FlowConnection connection = future.getNow(null);
     assertTrue(connection.isOpen());
 
     // Close the manager
@@ -350,7 +350,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
-    Throwable error = future.getException();
+    Throwable error = future.handle((result, ex) -> ex).join();
 
     assertNotNull(error);
     assertInstanceOf(IllegalStateException.class, error);
@@ -369,7 +369,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
-    FlowConnection conn1 = future.getNow();
+    FlowConnection conn1 = future.getNow(null);
 
     // Close the connection to simulate failure
     CompletableFuture<Void> closeF = conn1.close();
@@ -381,7 +381,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     // Get connection again - should trigger new connection since old one failed
     CompletableFuture<FlowConnection> future2 = manager.getConnection(endpointId);
     pumpAndAdvanceTimeUntilDone(future2);
-    FlowConnection conn2 = future2.getNow();
+    FlowConnection conn2 = future2.getNow(null);
 
     // Should be a different connection
     assertNotSame(conn1, conn2);
@@ -409,7 +409,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
             await(Flow.delay(0.1));
           }
           FlowConnection conn = await(delegate.connect(endpoint));
-          future.getPromise().complete(conn);
+          future.complete(conn);
           return null;
         });
         return future;
@@ -494,7 +494,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
 
       @Override
       public CompletableFuture<Void> close() {
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
     };
 
@@ -510,7 +510,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     blockingManager.close();
     testScheduler.pump();
 
-    Throwable error = future1.getException();
+    Throwable error = future1.handle((result, ex) -> ex).join();
     assertNotNull(error);
     assertInstanceOf(IllegalStateException.class, error);
     assertTrue(error.getMessage().contains("ConnectionManager was closed"));
@@ -528,7 +528,7 @@ public class ConnectionManagerTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> future = manager.getConnection(endpointId);
 
     pumpAndAdvanceTimeUntilDone(future);
-    FlowConnection connection = future.getNow();
+    FlowConnection connection = future.getNow(null);
     assertTrue(connection.isOpen());
 
     // Close the manager

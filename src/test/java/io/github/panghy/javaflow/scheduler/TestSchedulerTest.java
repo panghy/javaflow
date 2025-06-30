@@ -1,12 +1,12 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -249,8 +249,8 @@ class TestSchedulerTest {
 
     // Get the result
     try {
-      assertEquals(3, flowFuture.getNow());
-    } catch (ExecutionException e) {
+      assertEquals(3, flowFuture.getNow(null));
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
 

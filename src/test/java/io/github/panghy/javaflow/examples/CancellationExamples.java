@@ -48,7 +48,7 @@ public class CancellationExamples {
       Flow.startActor(() -> {
         Flow.await(Flow.delay(1.0));
         System.out.println("Cancelling operation...");
-        operation.cancel();
+        operation.cancel(true);
         return null;
       });
     }
@@ -264,7 +264,7 @@ public class CancellationExamples {
         CompletableFuture<Void> timeoutTask = Flow.startActor(() -> {
           Flow.await(Flow.delay(timeoutSeconds));
           System.out.println("Timeout reached, cancelling operation");
-          operation.cancel();
+          operation.cancel(true);
           return null;
         });
         
@@ -273,7 +273,7 @@ public class CancellationExamples {
           T result = Flow.await(operation);
           
           // Cancel timeout if operation succeeded
-          timeoutTask.cancel();
+          timeoutTask.cancel(true);
           
           return result;
           
@@ -370,7 +370,8 @@ public class CancellationExamples {
         int taskId = taskCounter.incrementAndGet();
         
         // Create a holder for the future reference
-        final CompletableFuture<String>[] workerHolder = new FlowFuture[1];
+        @SuppressWarnings("unchecked")
+        final CompletableFuture<String>[] workerHolder = new CompletableFuture[1];
         
         CompletableFuture<String> worker = Flow.startActor(() -> {
           try {
@@ -425,7 +426,7 @@ public class CancellationExamples {
           
           // Request cancellation
           for (CompletableFuture<?> worker : workers) {
-            worker.cancel();
+            worker.cancel(true);
           }
           
           // Wait for grace period

@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
+import java.util.concurrent.ExecutionException;
 /**
  * Comprehensive tests for Flow timer functionality.
  * Tests both real-time and simulated time operation.
@@ -534,7 +533,7 @@ class FlowTimerTest {
       assertTrue(combinedFuture.isDone(), "Combined future should be done");
 
       // Verify the slow future wasn't awaited
-      slowFuture.cancel(); // Cancel it to avoid waiting
+      slowFuture.cancel(true); // Cancel it to avoid waiting
     }
 
     @Test
@@ -741,9 +740,9 @@ class FlowTimerTest {
 
     @Test
     void testAnyOfEmpty() {
-      // anyOf with empty array should throw IllegalArgumentException
-      assertThrows(IllegalArgumentException.class,
-          () -> CompletableFuture.anyOf());
+      // anyOf with empty array returns a future that never completes
+      CompletableFuture<Object> future = CompletableFuture.anyOf();
+      assertFalse(future.isDone());
     }
   }
 }

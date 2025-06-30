@@ -167,7 +167,7 @@ class TaskCancellationTest {
       Task child = new Task(i, TaskPriority.DEFAULT, () -> "child", parentTask);
       
       // The child's cancel method will automatically call parent.removeChild(this)
-      // due to the implementation in Task.cancel()
+      // due to the implementation in Task.cancel(true)
       
       // Add a cancellation callback to count completions
       child.setCancellationCallback((timerIds) -> cancellationCallCount.incrementAndGet());

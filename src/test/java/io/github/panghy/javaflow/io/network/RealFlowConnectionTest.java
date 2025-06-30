@@ -1,7 +1,8 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
-import org.junit.jupiter.api.Assertions;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,21 +10,21 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 
 /**
  * Unit tests for RealFlowConnection that mock AsynchronousSocketChannel to test
@@ -90,10 +91,10 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     ByteBuffer testData = ByteBuffer.wrap("Test data".getBytes());
     CompletableFuture<Void> sendFuture = connection.send(testData);
     try {
-      sendFuture.getNow();
+      sendFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
-      assertInstanceOf(IOException.class, e.getCause());
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof IOException);
       Assertions.assertEquals("Simulated write error", e.getCause().getMessage());
     }
 
@@ -126,10 +127,10 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     // Call close on the connection
     CompletableFuture<Void> closeFuture = connection.close();
     try {
-      closeFuture.getNow();
+      closeFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
-      assertInstanceOf(IOException.class, e.getCause());
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof IOException);
       Assertions.assertEquals("Simulated close error", e.getCause().getMessage());
     }
 
@@ -161,9 +162,9 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // Expected exception
     }
 
@@ -187,7 +188,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // Close the connection manually
     CompletableFuture<Void> closeFuture = connection.close();
-    closeFuture.getNow();
+    closeFuture.get(5, TimeUnit.SECONDS);
 
     // Verify connection is closed
     assertFalse(connection.isOpen());
@@ -209,10 +210,10 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // The exception should be an IOException mentioning "closed"
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
-      assertInstanceOf(IOException.class, e.getCause());
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof IOException);
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
   }
@@ -241,9 +242,9 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
 
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // Expected exception
     }
 
@@ -254,9 +255,9 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     // ReceiveFuture should be completed exceptionally
     assertTrue(receiveFuture.isCompletedExceptionally());
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // The error will be StreamClosedException since the stream is closed
       // rather than the direct IOException from the read
     }
@@ -303,14 +304,14 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // Request to receive data
     CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
-    receiveFuture.getNow();
+    receiveFuture.get(5, TimeUnit.SECONDS);
 
     // Verify the read count indicates that we went through the zero bytes branch
     assertTrue(readCount[0] >= 2, "Should have performed at least 2 reads");
 
     // Verify the future completed with data (not exceptionally)
     assertFalse(receiveFuture.isCompletedExceptionally());
-    ByteBuffer result = receiveFuture.getNow();
+    ByteBuffer result = receiveFuture.get(5, TimeUnit.SECONDS);
 
     // Verify the received data
     byte[] resultBytes = new byte[result.remaining()];
@@ -340,8 +341,8 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     CompletableFuture<Void> firstCloseFuture = connection.close();
     CompletableFuture<Void> secondCloseFuture = connection.close();
 
-    firstCloseFuture.getNow();
-    secondCloseFuture.getNow();
+    firstCloseFuture.get(5, TimeUnit.SECONDS);
+    secondCloseFuture.get(5, TimeUnit.SECONDS);
 
     // Verify the close futures completed normally
     assertFalse(firstCloseFuture.isCompletedExceptionally());
@@ -368,7 +369,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     // Close the connection
     CompletableFuture<Void> closeFuture = connection.close();
 
-    closeFuture.getNow();
+    closeFuture.get(5, TimeUnit.SECONDS);
 
     // Try to send data after closing
     ByteBuffer testData = ByteBuffer.wrap("Test data".getBytes());
@@ -379,9 +380,9 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     assertTrue(sendFuture.isCompletedExceptionally());
 
     try {
-      sendFuture.getNow();
+      sendFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof IOException);
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
@@ -406,7 +407,7 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
 
     // Close the connection
     CompletableFuture<Void> closeFuture = connection.close();
-    closeFuture.getNow();
+    closeFuture.get(5, TimeUnit.SECONDS);
 
     // Try to receive data after closing
     CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
@@ -416,9 +417,9 @@ public class RealFlowConnectionTest extends AbstractFlowTest {
     assertTrue(receiveFuture.isCompletedExceptionally());
 
     try {
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof IOException);
       assertTrue(e.getCause().getMessage().contains("closed"));
     }

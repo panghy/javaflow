@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -218,6 +219,6 @@ public class SingleThreadedSchedulerPriorityRandomizationTest {
     scheduler.pump();
     
     assertTrue(future.isDone());
-    assertEquals("zero", future.getNow());
+    assertEquals("zero", future.getNow(null));
   }
 }

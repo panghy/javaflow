@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.io.network.FlowConnection;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -59,7 +60,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
   public interface EdgeCaseService {
     void voidMethod();
     Object nullMethod();
-    FlowPromise<String> promiseMethod();
+    CompletableFuture<String> promiseMethod();
   }
 
   // Non-serializable class for testing
@@ -111,10 +112,10 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
     }
 
     @Override
-    public FlowPromise<String> promiseMethod() {
+    public CompletableFuture<String> promiseMethod() {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Promise result");
-      return future.getPromise();
+      future.complete("Promise result");
+      return future;
     }
   }
 
@@ -250,8 +251,8 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
       assertEquals(null, nullResult);
 
       // Test promise return
-      FlowPromise<String> promise = client.promiseMethod();
-      String promiseResult = await(promise.getFuture());
+      CompletableFuture<String> promise = client.promiseMethod();
+      String promiseResult = await(promise);
       assertEquals("Promise result", promiseResult);
 
       return null;
@@ -338,7 +339,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
     FlowConnection failingConnection = new FlowConnection() {
       @Override
       public CompletableFuture<ByteBuffer> receive(int maxBytes) {
-        return FlowFuture.completed(ByteBuffer.allocate(0));
+        return CompletableFuture.completedFuture(ByteBuffer.allocate(0));
       }
 
       @Override
@@ -353,7 +354,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
       @Override
       public CompletableFuture<Void> close() {
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override
@@ -446,7 +447,7 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
               null,
               null,
               null);
-          return FlowFuture.completed(message.serialize());
+          return CompletableFuture.completedFuture(message.serialize());
         } else {
           // Simulate connection close on second call
           connectionClosed.set(true);
@@ -461,13 +462,13 @@ public class FlowRpcTransportImplErrorHandlingTest extends AbstractFlowTest {
 
       @Override
       public CompletableFuture<Void> send(ByteBuffer data) {
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override
       public CompletableFuture<Void> close() {
         connectionClosed.set(true);
-        return FlowFuture.completed(null);
+        return CompletableFuture.completedFuture(null);
       }
 
       @Override

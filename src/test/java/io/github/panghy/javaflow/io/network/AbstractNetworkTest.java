@@ -57,7 +57,7 @@ public abstract class AbstractNetworkTest extends AbstractFlowTest {
       if (!future.isDone()) {
         throw new AssertionError("Future did not complete after simulation");
       }
-      return future.getNow();
+      return future.getNow(null);
     } else {
       return future.toCompletableFuture().get(timeout, unit);
     }

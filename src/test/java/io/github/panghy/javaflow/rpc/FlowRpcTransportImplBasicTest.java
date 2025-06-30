@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -50,7 +51,7 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
 
     CompletableFuture<String> futureMethod();
 
-    FlowPromise<String> promiseMethod();
+    CompletableFuture<String> promiseMethod();
 
     PromiseStream<String> streamMethod();
   }
@@ -87,15 +88,15 @@ public class FlowRpcTransportImplBasicTest extends AbstractFlowTest {
     @Override
     public CompletableFuture<String> futureMethod() {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Future result");
+      future.complete("Future result");
       return future;
     }
 
     @Override
-    public FlowPromise<String> promiseMethod() {
+    public CompletableFuture<String> promiseMethod() {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Promise result");
-      return future.getPromise();
+      future.complete("Promise result");
+      return future;
     }
 
     @Override

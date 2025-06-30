@@ -177,7 +177,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(senderFuture, processorFuture);
     
     // Get the results
-    Map<Path, FileOperationResponse> results = senderFuture.getNow();
+    Map<Path, FileOperationResponse> results = senderFuture.getNow(null);
     
     // Print all received results for debugging
     System.out.println("Received results:");
@@ -568,7 +568,7 @@ class FileStreamIntegrationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(resultsFuture, processorFuture);
     
     // Get results
-    List<FileOperationResponse> results = resultsFuture.getNow();
+    List<FileOperationResponse> results = resultsFuture.getNow(null);
     
     // Count successes and failures
     int successes = 0;

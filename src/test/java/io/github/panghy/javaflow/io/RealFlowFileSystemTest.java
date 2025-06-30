@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -12,7 +13,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
+import java.util.concurrent.ExecutionException;
 /**
  * Tests for the RealFlowFileSystem class.
  * These tests use a temporary directory to avoid affecting the actual file system.
@@ -340,7 +340,7 @@ class RealFlowFileSystemTest {
       try {
         existsNull.toCompletableFuture().get();
         fail("Expected exception not thrown for null path");
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Expected NPE or similar
         assertTrue(e.getCause() instanceof NullPointerException 
             || e.getCause() instanceof IllegalArgumentException);

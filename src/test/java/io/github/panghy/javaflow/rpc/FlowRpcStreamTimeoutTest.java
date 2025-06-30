@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -96,7 +97,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     // Check if it completed exceptionally and print the exception if so
     if (streamFuture.isCompletedExceptionally()) {
       try {
-        streamFuture.getNow();
+        streamFuture.getNow(null);
       } catch (Exception e) {
         System.err.println("Stream future failed with exception: " + e);
         e.printStackTrace(System.err);
@@ -107,7 +108,7 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
 
     PromiseStream<String> stream;
     try {
-      stream = streamFuture.getNow();
+      stream = streamFuture.getNow(null);
     } catch (Exception e) {
       throw new RuntimeException("Failed to get stream", e);
     }
@@ -154,12 +155,13 @@ public class FlowRpcStreamTimeoutTest extends AbstractFlowTest {
     assertThat(hasNextFuture.isCompletedExceptionally()).isTrue();
 
     // Check the exception from hasNextAsync
-    assertThatThrownBy(hasNextFuture::getNow)
-        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+    assertThatThrownBy(() -> hasNextFuture.getNow(null))
+        .isInstanceOf(java.util.concurrent.CompletionException.class)
         .satisfies(thrown -> {
-          // The exception might be wrapped in multiple ExecutionExceptions
+          // The exception might be wrapped in multiple CompletionExceptions
           Throwable cause = thrown.getCause();
-          while (cause instanceof java.util.concurrent.ExecutionException) {
+          while (cause instanceof java.util.concurrent.CompletionException || 
+                 cause instanceof java.util.concurrent.ExecutionException) {
             cause = cause.getCause();
           }
           assertThat(cause).isInstanceOf(RpcTimeoutException.class);

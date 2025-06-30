@@ -162,7 +162,7 @@ public class CancellationTestUtils {
       startActor(() -> {
         await(Flow.delay(cancelAfterSeconds));
         cancelTime.set(System.nanoTime());
-        future.cancel();
+        future.cancel(true);
         return null;
       });
       
@@ -268,7 +268,7 @@ public class CancellationTestUtils {
       
       // Cancel after delay
       await(Flow.delay(cancelAfter));
-      future.cancel();
+      future.cancel(true);
       
       // Give some time for cleanup
       await(Flow.delay(0.1));
@@ -305,7 +305,7 @@ public class CancellationTestUtils {
       // Cancel all after delay
       await(Flow.delay(cancelAfter));
       for (CompletableFuture<?> future : futures) {
-        future.cancel();
+        future.cancel(true);
       }
       
       // Count how many were successfully cancelled

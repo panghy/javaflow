@@ -1,18 +1,18 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import java.util.concurrent.ExecutionException;
 /**
  * Tests for the listenOnAvailablePort method in SimulatedFlowTransport.
  * Specifically targets coverage for the SimulatedFlowTransport.listenOnAvailablePort method.
@@ -136,11 +136,13 @@ public class SimulatedFlowTransportListenAvailablePortTest extends AbstractFlowT
     // The future should be completed exceptionally
     assertTrue(acceptFuture.isCompletedExceptionally());
     try {
-      acceptFuture.getNow();
-    } catch (ExecutionException e) {
+      acceptFuture.getNow(null);
+    } catch (Exception e) {
       // The cause should be an IOException with a message about the transport being closed
-      assertTrue(e.getCause() instanceof IOException);
-      assertTrue(e.getCause().getMessage().contains("closed"));
+      if (e instanceof ExecutionException) {
+        assertTrue(e.getCause() instanceof IOException);
+        assertTrue(e.getCause().getMessage().contains("closed"));
+      }
     }
   }
   

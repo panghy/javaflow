@@ -1,13 +1,15 @@
 package io.github.panghy.javaflow.core;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.github.panghy.javaflow.Flow.await;
@@ -20,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests for {@link PromiseStream} and {@link FutureStream}.
  */
+@Timeout(30)
 public class PromiseStreamTest extends AbstractFlowTest {
 
   @Test
@@ -38,7 +41,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     testScheduler.pump();
 
     // Verify received value
-    assertEquals(42, receivedValue.getNow());
+    assertEquals(42, receivedValue.getNow(null));
   }
 
   @Test
@@ -65,8 +68,8 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // Check results - values are consumed in order by receivers
     assertTrue(receiver1.isDone());
     assertTrue(receiver2.isDone());
-    assertEquals("first", receiver1.getNow());
-    assertEquals("second", receiver2.getNow());
+    assertEquals("first", receiver1.getNow(null));
+    assertEquals("second", receiver2.getNow(null));
   }
 
   @Test
@@ -88,13 +91,13 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // First value can still be read
     CompletableFuture<Integer> receivedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
-    assertEquals(1, receivedValue.getNow());
+    assertEquals(1, receivedValue.getNow(null));
 
     // Second attempt to read should fail with StreamClosedException
     CompletableFuture<Integer> failedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
     assertTrue(failedValue.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, failedValue::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> failedValue.getNow(null));
     assertInstanceOf(StreamClosedException.class, e.getCause());
   }
 
@@ -113,7 +116,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     CompletableFuture<Integer> failedValue = Flow.startActor(() -> await(futureStream.nextAsync()));
     testScheduler.pump();
     assertTrue(failedValue.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, failedValue::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> failedValue.getNow(null));
     assertEquals(customException, e.getCause());
   }
 
@@ -130,26 +133,26 @@ public class PromiseStreamTest extends AbstractFlowTest {
       return await(hasNextFuture);
     });
     testScheduler.pump();
-    assertTrue(hasNext1.getNow());
+    assertTrue(hasNext1.getNow(null));
 
     // Test with buffered value
     CompletableFuture<Boolean> hasNext2 = Flow.startActor(() ->
         await(futureStream.hasNextAsync()));
     testScheduler.pump();
-    assertTrue(hasNext2.getNow());
+    assertTrue(hasNext2.getNow(null));
 
     // Consume the value
     CompletableFuture<Integer> receiveValue = Flow.startActor(() ->
         await(futureStream.nextAsync()));
     testScheduler.pump();
-    assertEquals(1, receiveValue.getNow());
+    assertEquals(1, receiveValue.getNow(null));
 
     // Closed empty stream
     stream.close();
     CompletableFuture<Boolean> hasNext3 = Flow.startActor(() ->
         await(futureStream.hasNextAsync()));
     testScheduler.pump();
-    assertFalse(hasNext3.getNow());
+    assertFalse(hasNext3.getNow(null));
   }
 
   @Test
@@ -184,7 +187,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify mapped values
     List<Integer> expected = Arrays.asList(2, 4, 6);
-    assertEquals(expected, collectedValues.getNow());
+    assertEquals(expected, collectedValues.getNow(null));
   }
 
   @Test
@@ -220,7 +223,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify filtered values
     List<Integer> expected = Arrays.asList(2, 4);
-    assertEquals(expected, collectedValues.getNow());
+    assertEquals(expected, collectedValues.getNow(null));
   }
 
   @Test
@@ -253,7 +256,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify all values were processed
     List<Integer> expected = Arrays.asList(5, 10, 15);
-    assertEquals(expected, processingFuture.getNow());
+    assertEquals(expected, processingFuture.getNow(null));
   }
 
   @Test
@@ -291,7 +294,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify results
     assertTrue(actor.isDone());
-    assertEquals(Arrays.asList(100, 200), actor.getNow());
+    assertEquals(Arrays.asList(100, 200), actor.getNow(null));
   }
 
   @Test
@@ -311,7 +314,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // The forEach future should be completed exceptionally with the same exception
     assertTrue(forEachFuture.isCompletedExceptionally());
-    Throwable forEachError = assertThrows(ExecutionException.class, forEachFuture::getNow).getCause();
+    Throwable forEachError = assertThrows(CompletionException.class, () -> forEachFuture.getNow(null)).getCause();
     assertEquals(exception, forEachError);
 
     // No items should have been processed
@@ -341,7 +344,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     testScheduler.pump();
 
     assertTrue(collectedValues.isDone());
-    assertEquals(Arrays.asList(1, 2), collectedValues.getNow());
+    assertEquals(Arrays.asList(1, 2), collectedValues.getNow(null));
   }
 
   @Test
@@ -386,7 +389,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Should have processed only values before the exception
     List<Integer> expected = Arrays.asList(2, 4);
-    assertEquals(expected, collectedValues.getNow());
+    assertEquals(expected, collectedValues.getNow(null));
   }
 
   @Test
@@ -424,7 +427,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify composed operations result
     List<Integer> expected = Arrays.asList(20, 40);
-    assertEquals(expected, collectedValues.getNow());
+    assertEquals(expected, collectedValues.getNow(null));
   }
 
   @Test
@@ -472,7 +475,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // Should get a StreamClosedException
     CompletableFuture<Integer> nextValue = futureStream.nextAsync();
     assertTrue(nextValue.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, nextValue::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> nextValue.getNow(null));
     assertInstanceOf(StreamClosedException.class, e.getCause());
   }
 
@@ -503,7 +506,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // But reading should give the custom exception
     CompletableFuture<String> nextValue = futureStream2.nextAsync();
     assertTrue(nextValue.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, nextValue::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> nextValue.getNow(null));
     assertEquals(customException, e.getCause());
   }
 
@@ -526,7 +529,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     // Pump again - reader should now have the value
     testScheduler.pump();
     assertTrue(reader.isDone());
-    assertEquals(42, reader.getNow());
+    assertEquals(42, reader.getNow(null));
   }
 
   @Test
@@ -542,7 +545,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify failure
     assertTrue(reader.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, reader::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> reader.getNow(null));
     assertInstanceOf(StreamClosedException.class, e.getCause());
   }
 
@@ -572,7 +575,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     testScheduler.pump();
 
     // Verify handling of empty string
-    assertEquals(Arrays.asList(0, 5), results.getNow());
+    assertEquals(Arrays.asList(0, 5), results.getNow(null));
   }
 
   @Test
@@ -603,7 +606,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     testScheduler.pump();
 
     // Verify correct filtering
-    assertEquals(Arrays.asList(2, 4), results.getNow());
+    assertEquals(Arrays.asList(2, 4), results.getNow(null));
   }
 
   @Test
@@ -630,7 +633,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify exception propagation
     assertTrue(failedRead.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, failedRead::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> failedRead.getNow(null));
     assertInstanceOf(IllegalArgumentException.class, e.getCause());
     assertEquals("Empty string not allowed", e.getCause().getMessage());
   }
@@ -685,7 +688,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify the forEach fails with our exception
     assertTrue(forEachResult.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, forEachResult::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> forEachResult.getNow(null));
     assertEquals(testException, e.getCause());
   }
 
@@ -837,7 +840,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify results
     assertTrue(results.isDone());
-    assertEquals(Arrays.asList("Value: 4", "Value: 8"), results.getNow());
+    assertEquals(Arrays.asList("Value: 4", "Value: 8"), results.getNow(null));
   }
 
   @Test
@@ -854,18 +857,18 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // First read should get the buffered value
     CompletableFuture<Integer> firstRead = futureStream.nextAsync();
-    assertEquals(42, firstRead.getNow());
+    assertEquals(42, firstRead.getNow(null));
 
     // Second read should get the exception
     CompletableFuture<Integer> secondRead = futureStream.nextAsync();
     assertTrue(secondRead.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, secondRead::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> secondRead.getNow(null));
     assertEquals(customException, e.getCause());
 
     // Verify hasNext also throws.
     CompletableFuture<Boolean> hasNext = futureStream.hasNextAsync();
     assertTrue(hasNext.isCompletedExceptionally());
-    e = assertThrows(ExecutionException.class, hasNext::getNow);
+    e = assertThrows(CompletionException.class, () -> hasNext.getNow(null));
     assertEquals(customException, e.getCause());
   }
 
@@ -896,13 +899,13 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify hasNext completes with false for a closed stream
     assertTrue(hasNextFuture.isDone());
-    assertFalse(hasNextFuture.getNow());
+    assertFalse(hasNextFuture.getNow(null));
 
     // Verify next completes exceptionally
     assertTrue(nextFuture.isCompletedExceptionally());
 
     // Try to get the value - should throw ExecutionException with our original cause in the chain
-    Exception thrown = assertThrows(Exception.class, nextFuture::getNow);
+    Exception thrown = assertThrows(Exception.class, () -> nextFuture.getNow(null));
 
     // Just check that the right message appears somewhere in the chain
     boolean foundExpectedMessage = false;
@@ -936,11 +939,11 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // First hasNext should complete with true (there's a value)
     assertTrue(hasNextFuture1.isDone());
-    assertTrue(hasNextFuture1.getNow());
+    assertTrue(hasNextFuture1.getNow(null));
 
     // First next should get the value
     assertTrue(nextFuture1.isDone());
-    assertEquals("first value", nextFuture1.getNow());
+    assertEquals("first value", nextFuture1.getNow(null));
 
     // Second hasNext should wait as there's no more data
     assertFalse(hasNextFuture2.isDone());
@@ -1033,7 +1036,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
     testScheduler.pump();
 
     List<String> expected = Arrays.asList("Value: 1", "Value: 3");
-    assertEquals(expected, collectedValues.getNow());
+    assertEquals(expected, collectedValues.getNow(null));
 
     // Test forEach after closing
     List<String> forEachResults = new ArrayList<>();
@@ -1073,7 +1076,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Should have a value available now
     assertTrue(hasNextFuture.isDone());
-    assertTrue(hasNextFuture.getNow());
+    assertTrue(hasNextFuture.getNow(null));
 
     // Now start an actor to read the value
     CompletableFuture<Integer> nextFuture = Flow.startActor(() ->
@@ -1084,7 +1087,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // The actor should get the first value successfully
     assertTrue(nextFuture.isDone());
-    assertEquals(1, nextFuture.getNow());
+    assertEquals(1, nextFuture.getNow(null));
 
     // Next attempt should encounter the exception
     CompletableFuture<Integer> failingNextFuture = Flow.startActor(() ->
@@ -1095,7 +1098,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // Verify exception propagation
     assertTrue(failingNextFuture.isCompletedExceptionally());
-    Exception e = assertThrows(ExecutionException.class, failingNextFuture::getNow);
+    Exception e = assertThrows(CompletionException.class, () -> failingNextFuture.getNow(null));
     assertInstanceOf(RuntimeException.class, e.getCause());
     assertEquals("Test filter exception", e.getCause().getMessage());
 
@@ -1104,7 +1107,7 @@ public class PromiseStreamTest extends AbstractFlowTest {
 
     // hasNext should throw false for a stream that failed
     CompletableFuture<Boolean> hasNextAfterException = filteredStream.hasNextAsync();
-    e = assertThrows(ExecutionException.class, hasNextAfterException::getNow);
+    e = assertThrows(CompletionException.class, () -> hasNextAfterException.getNow(null));
     assertInstanceOf(RuntimeException.class, e.getCause());
     assertEquals("Test filter exception", e.getCause().getMessage());
   }

@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
@@ -35,7 +36,7 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
   public interface TestService extends RpcServiceInterface {
     String echo(String message);
     CompletableFuture<String> asyncEcho(String message);
-    FlowPromise<String> promiseEcho(String message);
+    CompletableFuture<String> promiseEcho(String message);
     PromiseStream<String> streamEcho(String message);
     void voidMethod();
   }
@@ -50,15 +51,15 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     @Override
     public CompletableFuture<String> asyncEcho(String message) {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Async: " + message);
+      future.complete("Async: " + message);
       return future;
     }
 
     @Override
-    public FlowPromise<String> promiseEcho(String message) {
+    public CompletableFuture<String> promiseEcho(String message) {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Promise: " + message);
-      return future.getPromise();
+      future.complete("Promise: " + message);
+      return future;
     }
 
     @Override
@@ -94,12 +95,12 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     // Test basic string method
     CompletableFuture<String> echoResult = startActor(() -> stub.echo("test"));
     pumpAndAdvanceTimeUntilDone(echoResult);
-    assertEquals("Echo: test", echoResult.getNow());
+    assertEquals("Echo: test", echoResult.getNow(null));
     
     // Test async future method
     CompletableFuture<String> asyncResult = stub.asyncEcho("async");
     pumpAndAdvanceTimeUntilDone(asyncResult);
-    assertEquals("Async: async", asyncResult.getNow());
+    assertEquals("Async: async", asyncResult.getNow(null));
     
     // Test void method
     CompletableFuture<Void> voidResult = startActor(() -> {
@@ -109,14 +110,14 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(voidResult);
     
     // Test promise method
-    CompletableFuture<FlowPromise<String>> promiseResultF = startActor(() -> stub.promiseEcho("promise"));
+    CompletableFuture<CompletableFuture<String>> promiseResultF = startActor(() -> stub.promiseEcho("promise"));
     pumpAndAdvanceTimeUntilDone(promiseResultF);
-    FlowPromise<String> promise = promiseResultF.getNow();
+    CompletableFuture<String> promise = promiseResultF.getNow(null);
     assertNotNull(promise);
     
-    CompletableFuture<String> promiseValue = promise.getFuture();
+    CompletableFuture<String> promiseValue = promise;
     pumpAndAdvanceTimeUntilDone(promiseValue);
-    assertEquals("Promise: promise", promiseValue.getNow());
+    assertEquals("Promise: promise", promiseValue.getNow(null));
   }
 
   @Test
@@ -156,6 +157,6 @@ public class RpcServiceInterfaceExtraTest extends AbstractFlowTest {
     // Test that it works
     CompletableFuture<String> result = startActor(() -> stub.echo("local"));
     pumpAndAdvanceTimeUntilDone(result);
-    assertEquals("Echo: local", result.getNow());
+    assertEquals("Echo: local", result.getNow(null));
   }
 }

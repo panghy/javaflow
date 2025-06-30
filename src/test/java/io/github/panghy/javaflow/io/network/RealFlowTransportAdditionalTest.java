@@ -118,7 +118,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
         CompletableFuture<FlowConnection> acceptFuture = connectionStream.getFutureStream().nextAsync();
 
         try {
-          acceptFuture.getNow();
+          acceptFuture.get(5, TimeUnit.SECONDS);
           fail("Expected exception was not thrown");
         } catch (Exception e) {
           // This verifies that the completion handler properly propagated the exception
@@ -241,7 +241,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
     RealFlowTransport transport = new RealFlowTransport();
 
     // Close the transport first
-    transport.close().getNow();
+    transport.close().getNow(null);
 
     // Now try to connect
     CompletableFuture<FlowConnection> connectFuture = transport.connect(
@@ -251,7 +251,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
     assertTrue(connectFuture.isCompletedExceptionally());
 
     try {
-      connectFuture.getNow();
+      connectFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
     } catch (Exception e) {
       assertInstanceOf(IOException.class, e.getCause());
@@ -267,7 +267,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
     RealFlowTransport transport = new RealFlowTransport();
 
     // Close the transport first
-    transport.close().getNow();
+    transport.close().getNow(null);
 
     // Now try to listen
     FlowStream<FlowConnection> stream = transport.listen(serverEndpoint);
@@ -279,7 +279,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
     assertTrue(acceptFuture.isCompletedExceptionally());
 
     try {
-      acceptFuture.getNow();
+      acceptFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception was not thrown");
     } catch (Exception e) {
       assertInstanceOf(IOException.class, e.getCause());
@@ -437,15 +437,15 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
 
       try {
         // This should succeed because we've connected
-        FlowConnection connection = acceptFuture.getNow();
+        FlowConnection connection = acceptFuture.get(5, TimeUnit.SECONDS);
 
         // Verify the connection is valid by doing a simple send/receive
         String testMessage = "TestMessage";
         ByteBuffer buffer = ByteBuffer.wrap(testMessage.getBytes());
-        connection.send(buffer).getNow();
+        connection.send(buffer).getNow(null);
 
         // Close connection
-        connection.close().getNow();
+        connection.close().getNow(null);
       } catch (Exception e) {
         // Even if this fails, we've exercised the code path
         System.err.println("Accept completed path error: " + e.getMessage());
@@ -492,7 +492,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
 
       // Check that the stream gets closed with an exception
       try {
-        failedAcceptFuture.getNow();
+        failedAcceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected exception not thrown");
       } catch (Exception expected) {
       }
@@ -517,11 +517,11 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       CompletableFuture<FlowConnection> acceptFuture4 = stream4.getFutureStream().nextAsync();
 
       // Close the transport
-      transport.close().getNow();
+      transport.close().getNow(null);
 
       // The future should complete exceptionally
       try {
-        acceptFuture4.getNow();
+        acceptFuture4.getNow(null);
         fail("Expected exception was not thrown");
       } catch (Exception expected) {
       }
@@ -553,13 +553,13 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
       FlowStream<FlowConnection> stream = transport1.listen(tempEndpoint);
 
       // Close the transport which should prevent accept from working
-      transport1.close().getNow();
+      transport1.close().getNow(null);
 
       // Next connection should fail
       CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
 
       try {
-        acceptFuture.getNow();
+        acceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected exception was not thrown");
       } catch (Exception expected) {
       }
@@ -576,7 +576,7 @@ public class RealFlowTransportAdditionalTest extends AbstractFlowTest {
           new Endpoint("localhost", nonExistentPort));
 
       try {
-        connectFuture.getNow();
+        connectFuture.get(5, TimeUnit.SECONDS);
         fail("Expected exception was not thrown");
       } catch (Exception expected) {
       }

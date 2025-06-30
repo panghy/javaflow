@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -12,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import java.util.concurrent.ExecutionException;
 /**
  * Tests for the RealFlowFile class.
  * These tests use a temporary directory to avoid affecting the actual file system.

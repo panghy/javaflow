@@ -76,7 +76,7 @@ public abstract class AbstractFlowTest {
    * WARNING: This method should ONLY be used for tests in a simulated environment.
    * Do NOT use this method for tests involving real file systems, network I/O, or other
    * blocking operations, as it cannot properly wait for these operations to complete.
-   * For real I/O operations, use {@link FlowFuture#getNow()} instead.
+   * For real I/O operations, use {@link CompletableFuture#getNow(Object)} instead.
    *
    * @param futures The futures to wait for completion. If no futures are provided, the method
    *            will still pump the scheduler to process any pending tasks.
@@ -118,7 +118,7 @@ public abstract class AbstractFlowTest {
    * WARNING: This method should ONLY be used for tests in a simulated environment.
    * Do NOT use this method for tests involving real file systems, network I/O, or other
    * blocking operations, as it cannot properly wait for these operations to complete.
-   * For real I/O operations, use {@link FlowFuture#getNow()} instead.
+   * For real I/O operations, use {@link CompletableFuture#getNow(Object)} instead.
    *
    * @param futures The futures to wait for completion. If no futures are provided, the method
    *            will still pump the scheduler to process any pending tasks.

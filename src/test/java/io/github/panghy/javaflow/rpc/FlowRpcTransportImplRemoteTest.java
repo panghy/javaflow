@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.FlowConnection;
@@ -106,9 +107,9 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
   }
 
   public interface ServiceWithPromise {
-    void processWithCallback(String input, FlowPromise<String> callback);
+    void processWithCallback(String input, CompletableFuture<String> callback);
 
-    String methodWithPromiseAndReturn(FlowPromise<Integer> promise);
+    String methodWithPromiseAndReturn(CompletableFuture<Integer> promise);
   }
 
   public interface ServiceWithStream {
@@ -120,7 +121,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
   public interface ServiceWithMultipleArgs {
     String concat(String a, String b, String c);
 
-    void multiplePromises(FlowPromise<String> p1, FlowPromise<Integer> p2);
+    void multiplePromises(CompletableFuture<String> p1, CompletableFuture<Integer> p2);
   }
 
   // Service implementations
@@ -143,14 +144,14 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     @Override
     public CompletableFuture<String> asyncMethod(String input) {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Async: " + input);
+      future.complete("Async: " + input);
       return future;
     }
   }
 
   private static class ServiceWithPromiseImpl implements ServiceWithPromise {
     @Override
-    public void processWithCallback(String input, FlowPromise<String> callback) {
+    public void processWithCallback(String input, CompletableFuture<String> callback) {
       System.out.println("ServiceWithPromiseImpl.processWithCallback called with input: " + input);
       System.out.println("  Callback class: " + callback.getClass().getName());
       System.out.println("  Completing callback with: Processed: " + input);
@@ -159,7 +160,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     }
 
     @Override
-    public String methodWithPromiseAndReturn(FlowPromise<Integer> promise) {
+    public String methodWithPromiseAndReturn(CompletableFuture<Integer> promise) {
       promise.complete(42);
       return "Promise registered";
     }
@@ -172,7 +173,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     }
 
     @Override
-    public void multiplePromises(FlowPromise<String> p1, FlowPromise<Integer> p2) {
+    public void multiplePromises(CompletableFuture<String> p1, CompletableFuture<Integer> p2) {
       p1.complete("First promise");
       p2.complete(123);
     }
@@ -192,13 +193,13 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     // Test echo method
     CompletableFuture<String> echoF = startActor(() -> remoteService.echo("Hello"));
     pumpAndAdvanceTimeUntilDone(echoF);
-    String echoResult = echoF.getNow();
+    String echoResult = echoF.getNow(null);
     assertEquals("Echo: Hello", echoResult);
 
     // Test add method
     CompletableFuture<Integer> addResultF = startActor(() -> remoteService.add(10, 20));
     pumpAndAdvanceTimeUntilDone(addResultF);
-    int addResult = addResultF.getNow();
+    int addResult = addResultF.getNow(null);
     assertEquals(30, addResult);
   }
 
@@ -216,7 +217,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     });
     pumpAndAdvanceTimeUntilDone(voidF);
 
-    assertDoesNotThrow(voidF::getNow);
+    assertDoesNotThrow(() -> voidF.getNow(null));
   }
 
   @Test
@@ -229,7 +230,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     CompletableFuture<String> resultF = startActor(() -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      FlowPromise<String> promise = future.getPromise();
+      CompletableFuture<String> promise = future;
 
       remoteService.processWithCallback("test input", promise);
 
@@ -237,7 +238,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     });
     pumpAndAdvanceTimeUntilDone(resultF);
 
-    String result = resultF.getNow();
+    String result = resultF.getNow(null);
     assertEquals("Processed: test input", result);
   }
 
@@ -253,7 +254,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
       CompletableFuture<String> future1 = new CompletableFuture<>();
       CompletableFuture<Integer> future2 = new CompletableFuture<>();
 
-      remoteService.multiplePromises(future1.getPromise(), future2.getPromise());
+      remoteService.multiplePromises(future1, future2);
 
       String result1 = await(future1);
       Integer result2 = await(future2);
@@ -261,7 +262,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     });
     pumpAndAdvanceTimeUntilDone(resultF);
 
-    List<Object> results = resultF.getNow();
+    List<Object> results = resultF.getNow(null);
     assertEquals("First promise", results.get(0));
     assertEquals(123, results.get(1));
   }
@@ -276,7 +277,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     CompletableFuture<String> echoF = startActor(() -> remoteService.echo(null));
     pumpAndAdvanceTimeUntilDone(echoF);
-    String result = echoF.getNow();
+    String result = echoF.getNow(null);
     assertEquals("Echo: null", result);
   }
 
@@ -290,7 +291,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     CompletableFuture<String> concatF = startActor(() -> remoteService.concat("Hello", " ", "World"));
     pumpAndAdvanceTimeUntilDone(concatF);
-    String result = concatF.getNow();
+    String result = concatF.getNow(null);
     assertEquals("Hello World", result);
   }
 
@@ -381,7 +382,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     });
     pumpAndAdvanceTimeUntilDone(errorF);
 
-    Exception error = errorF.getNow();
+    Exception error = errorF.getNow(null);
     assertThat(error).isInstanceOf(RpcException.class)
         .hasMessageContaining("RPC invocation failed for method: echo");
   }
@@ -415,13 +416,13 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     CompletableFuture<List<Object>> resultF = startActor(() -> {
       CompletableFuture<Integer> future = new CompletableFuture<>();
-      String returnValue = remoteService.methodWithPromiseAndReturn(future.getPromise());
+      String returnValue = remoteService.methodWithPromiseAndReturn(future);
       Integer promiseValue = await(future);
       return Arrays.asList(returnValue, promiseValue);
     });
     pumpAndAdvanceTimeUntilDone(resultF);
 
-    List<Object> results = resultF.getNow();
+    List<Object> results = resultF.getNow(null);
     assertEquals("Promise registered", results.get(0));
     assertEquals(42, results.get(1));
   }
@@ -434,7 +435,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
 
     CompletableFuture<String> echoF = startActor(() -> remoteService.echo("Direct"));
     pumpAndAdvanceTimeUntilDone(echoF);
-    String result = echoF.getNow();
+    String result = echoF.getNow(null);
     assertEquals("Echo: Direct", result);
   }
 
@@ -449,7 +450,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     // This will test the buildMethodId method with multiple parameter types
     CompletableFuture<String> futureF = startActor(() -> service.concat("a", "b", "c"));
     pumpAndAdvanceTimeUntilDone(futureF);
-    assertEquals("abc", futureF.getNow());
+    assertEquals("abc", futureF.getNow(null));
   }
 
   @Test
@@ -508,7 +509,7 @@ public class FlowRpcTransportImplRemoteTest extends AbstractFlowTest {
     });
     
     pumpAndAdvanceTimeUntilDone(resultF);
-    assertEquals("test-stream-received", resultF.getNow());
+    assertEquals("test-stream-received", resultF.getNow(null));
     
     // Verify that the processArguments method was used by checking
     // that a stream was registered with the RemotePromiseTracker

@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc.util;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.error.RpcTimeoutException;
 import org.junit.jupiter.api.Test;
@@ -29,9 +30,9 @@ public class RpcTimeoutUtilTest extends AbstractFlowTest {
           "testMethod", 
           100);
       
-      // This should throw RpcTimeoutException wrapped in ExecutionException
+      // This should throw RpcTimeoutException wrapped in CompletionException
       assertThatThrownBy(() -> await(timeoutFuture))
-          .isInstanceOf(java.util.concurrent.ExecutionException.class)
+          .isInstanceOf(java.util.concurrent.CompletionException.class)
           .hasCauseInstanceOf(RpcTimeoutException.class)
           .satisfies(thrown -> {
             RpcTimeoutException e = (RpcTimeoutException) thrown.getCause();

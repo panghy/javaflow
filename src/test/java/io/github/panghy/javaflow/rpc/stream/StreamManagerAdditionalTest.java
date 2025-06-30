@@ -12,6 +12,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,7 +43,7 @@ public class StreamManagerAdditionalTest {
     streamManager = new StreamManager();
     mockSender = mock(StreamManager.StreamMessageSender.class);
     when(mockSender.sendMessage(any(), any(), any(), any()))
-        .thenReturn(FlowFuture.completed(null));
+        .thenReturn(CompletableFuture.completedFuture(null));
 
     streamManager.setMessageSender(mockSender);
     testEndpoint = new EndpointId("test-endpoint");

@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,7 +19,6 @@ import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -88,7 +89,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(2)).write(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify no exception
-    result.getNow(); // Should not throw
+    result.getNow(null); // Should not throw
   }
   
   /**
@@ -119,7 +120,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(1)).write(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify exception
-    ExecutionException e = assertThrows(ExecutionException.class, () -> result.getNow());
+    CompletionException e = assertThrows(CompletionException.class, () -> result.getNow(null));
     assertEquals("Simulated write failure", e.getCause().getMessage());
   }
   
@@ -151,7 +152,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify result is an empty buffer
-    ByteBuffer buffer = result.getNow();
+    ByteBuffer buffer = result.getNow(null);
     assertEquals(0, buffer.remaining());
   }
   
@@ -192,7 +193,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify result has partial data
-    ByteBuffer buffer = result.getNow();
+    ByteBuffer buffer = result.getNow(null);
     assertEquals(5, buffer.remaining()); // Half of the requested 10
   }
   
@@ -233,7 +234,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify result has full data
-    ByteBuffer buffer = result.getNow();
+    ByteBuffer buffer = result.getNow(null);
     assertEquals(requestSize, buffer.remaining());
   }
   
@@ -261,7 +262,7 @@ class RealFlowFileMockTest extends AbstractFlowTest {
     verify(mockChannel, times(1)).read(any(ByteBuffer.class), anyLong(), any(), any());
     
     // Verify exception
-    ExecutionException e = assertThrows(ExecutionException.class, () -> result.getNow());
+    CompletionException e = assertThrows(CompletionException.class, () -> result.getNow(null));
     assertEquals("Simulated read failure", e.getCause().getMessage());
   }
 }

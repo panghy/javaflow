@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -218,9 +219,10 @@ class CompletableFutureFlowTest {
     future1.cancel(true);
     
     assertTrue(future1.isCancelled());
-    assertTrue(future2.isCancelled());
+    // In CompletableFuture, dependent futures complete exceptionally but are not marked as cancelled
+    assertTrue(future2.isCompletedExceptionally());
     assertThrows(CancellationException.class, () -> future1.getNow(null));
-    assertThrows(CancellationException.class, () -> future2.getNow(null));
+    assertThrows(CompletionException.class, () -> future2.getNow(null));
   }
   
   @Test
@@ -238,7 +240,7 @@ class CompletableFutureFlowTest {
     assertTrue(future2.isCompletedExceptionally());
     assertThrows(CancellationException.class, () -> future1.getNow(null));
     // The exception should be propagated to the dependent future
-    assertThrows(CancellationException.class, () -> future2.getNow(null));
+    assertThrows(CompletionException.class, () -> future2.getNow(null));
   }
 
   @Test

@@ -116,6 +116,12 @@ public class RealFlowConnection implements FlowConnection {
     int originalPosition = data.position();
     int originalLimit = data.limit();
 
+    // Handle empty buffer case
+    if (!data.hasRemaining()) {
+      promise.complete(null);
+      return;
+    }
+
     // Create a chunk buffer that we'll reuse
     final int CHUNK_SIZE = 1024 * 1024; // 1MB chunks
     ByteBuffer chunk = ByteBuffer.allocateDirect(Math.min(CHUNK_SIZE, data.remaining()));
@@ -494,5 +500,10 @@ public class RealFlowConnection implements FlowConnection {
       throw new IllegalArgumentException("readSize must be positive");
     }
     this.readBufferSize = readSize;
+  }
+
+  @Override
+  public String toString() {
+    return "RealFlowConnection[" + localEndpoint + " -> " + remoteEndpoint + "]";
   }
 }

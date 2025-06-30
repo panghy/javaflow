@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Timeout;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import static io.github.panghy.javaflow.Flow.await;
 import static io.github.panghy.javaflow.Flow.delay;
 import static io.github.panghy.javaflow.Flow.startActor;
@@ -62,12 +61,12 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
     FlowConnection mockConnection = mock(FlowConnection.class);
     when(mockConnection.getRemoteEndpoint()).thenReturn(remoteEndpoint);
     when(mockConnection.isOpen()).thenReturn(true);
-    when(mockConnection.send(any())).thenReturn(FlowFuture.completed(null));
+    when(mockConnection.send(any())).thenReturn(CompletableFuture.completedFuture(null));
     // Never complete the receive - simulating a slow/hung server
     CompletableFuture<ByteBuffer> neverCompletingFuture = new CompletableFuture<>();
     when(mockConnection.receive(anyInt())).thenReturn(neverCompletingFuture);
     when(mockConnection.closeFuture()).thenReturn(new CompletableFuture<>());
-    when(mockTransport.connect(any())).thenReturn(FlowFuture.completed(mockConnection));
+    when(mockTransport.connect(any())).thenReturn(CompletableFuture.completedFuture(mockConnection));
 
     // Get a remote stub and call the slow method
     TestService stub = rpcTransport.getRpcStub(serviceId, TestService.class);
@@ -82,8 +81,8 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
 
     // Verify timeout exception
     assertThat(resultFuture.isDone()).isTrue();
-    assertThatThrownBy(() -> resultFuture.getNow())
-        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+    assertThatThrownBy(() -> resultFuture.getNow(null))
+        .isInstanceOf(java.util.concurrent.CompletionException.class)
         .hasCauseInstanceOf(RpcTimeoutException.class)
         .satisfies(thrown -> {
           RpcTimeoutException e = (RpcTimeoutException) thrown.getCause();
@@ -126,7 +125,7 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
       await(delay(0.5)); // 500ms delay
       return null;
     }));
-    when(mockTransport.connect(any())).thenReturn(FlowFuture.completed(mockConnection));
+    when(mockTransport.connect(any())).thenReturn(CompletableFuture.completedFuture(mockConnection));
 
     // Get a stub and call the void method
     TestService stub = rpcTransport.getRpcStub(serviceId, TestService.class);
@@ -143,7 +142,7 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
     testScheduler.advanceTime(0.01);
     testScheduler.pump();
 
-    assertThat(voidFuture).isCompleted();
+    assertThat(voidFuture).isDone();
   }
 
   @Test
@@ -179,8 +178,8 @@ public class FlowRpcTimeoutTest extends AbstractFlowTest {
 
     // Should fail with connection timeout
     assertThat(resultFuture.isDone()).isTrue();
-    assertThatThrownBy(resultFuture::getNow)
-        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+    assertThatThrownBy(() -> resultFuture.getNow(null))
+        .isInstanceOf(java.util.concurrent.CompletionException.class)
         .hasCauseInstanceOf(RpcTimeoutException.class)
         .satisfies(thrown -> {
           RpcTimeoutException e = (RpcTimeoutException) thrown.getCause();

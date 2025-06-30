@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc.util;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
@@ -61,7 +62,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     assertThat(values).containsExactly("value1");
     assertThat(processingFuture.isCompletedExceptionally()).isTrue();
-    assertThatThrownBy(() -> processingFuture.getNow())
+    assertThatThrownBy(() -> processingFuture.getNow(null))
         .hasCauseInstanceOf(RpcTimeoutException.class);
   }
 
@@ -129,7 +130,7 @@ public class RpcStreamTimeoutUtilCoverageTest extends AbstractFlowTest {
     
     assertThat(values).containsExactly("value1");
     assertThat(consumerFuture.isCompletedExceptionally()).isTrue();
-    assertThatThrownBy(() -> consumerFuture.getNow())
+    assertThatThrownBy(() -> consumerFuture.getNow(null))
         .hasRootCauseInstanceOf(StreamClosedException.class);
   }
 

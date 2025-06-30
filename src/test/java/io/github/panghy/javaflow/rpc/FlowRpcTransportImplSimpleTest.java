@@ -1,6 +1,6 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.SimulatedFlowTransport;
 import io.github.panghy.javaflow.rpc.serialization.DefaultSerializer;
@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -239,25 +240,24 @@ public class FlowRpcTransportImplSimpleTest {
   }
 
   @Test
-  public void testPromiseArgument() {
-    // Interface with promise parameter
-    interface PromiseService {
-      void processWithCallback(String input, FlowPromise<String> callback);
+  public void testCompletableFutureArgument() {
+    // Interface with CompletableFuture parameter
+    interface FutureService {
+      void processWithCallback(String input, CompletableFuture<String> callback);
     }
 
-    PromiseService implementation = (input, callback) -> {
+    FutureService implementation = (input, callback) -> {
       callback.complete("Processed: " + input);
     };
 
-    EndpointId serviceId = new EndpointId("promise-service");
+    EndpointId serviceId = new EndpointId("future-service");
     endpointResolver.registerLocalEndpoint(serviceId, implementation, LocalEndpoint.localhost(0));
 
-    PromiseService service = rpcTransport.getRpcStub(serviceId, PromiseService.class);
+    FutureService service = rpcTransport.getRpcStub(serviceId, FutureService.class);
 
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
 
-    service.processWithCallback("test", promise);
+    service.processWithCallback("test", future);
 
     assertTrue(future.isDone());
     try {

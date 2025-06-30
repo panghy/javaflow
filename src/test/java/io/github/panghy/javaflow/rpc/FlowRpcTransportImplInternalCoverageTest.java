@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
@@ -62,7 +63,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     CompletableFuture<String> futureMethod();
 
-    FlowPromise<String> promiseMethod();
+    CompletableFuture<String> promiseMethod();
 
     PromiseStream<String> streamMethod();
   }
@@ -113,15 +114,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     @Override
     public CompletableFuture<String> futureMethod() {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Future result");
+      future.complete("Future result");
       return future;
     }
 
     @Override
-    public FlowPromise<String> promiseMethod() {
+    public CompletableFuture<String> promiseMethod() {
       CompletableFuture<String> future = new CompletableFuture<>();
-      future.getPromise().complete("Promise result");
-      return future.getPromise();
+      future.complete("Promise result");
+      return future;
     }
 
     @Override
@@ -578,7 +579,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testSendErrorForUnserializablePromiseResult() {
     // Test MessageSender.sendError when promise result serialization fails
     interface UnserializablePromiseService {
-      FlowPromise<Object> getUnserializablePromise();
+      CompletableFuture<Object> getUnserializablePromise();
     }
 
     UnserializablePromiseService impl = () -> {
@@ -596,7 +597,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         });
         return null;
       });
-      return future.getPromise();
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -611,9 +612,9 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         UnserializablePromiseService.class);
 
     CompletableFuture<Void> testFuture = startActor(() -> {
-      FlowPromise<Object> promise = client.getUnserializablePromise();
+      CompletableFuture<Object> promise = client.getUnserializablePromise();
       try {
-        await(promise.getFuture());
+        await(promise);
         fail("Should have thrown exception");
       } catch (Exception e) {
         // Should get serialization error
@@ -765,13 +766,13 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testPromiseWithNullPayload() {
     // Test promise completion with null payload
     interface NullPromiseService {
-      FlowPromise<String> getNullPromise();
+      CompletableFuture<String> getNullPromise();
     }
 
     NullPromiseService impl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
       future.complete(null);
-      return future.getPromise();
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -785,8 +786,8 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     NullPromiseService client = transport.getRpcStub(serviceId, NullPromiseService.class);
 
     CompletableFuture<Void> testFuture = startActor(() -> {
-      FlowPromise<String> promise = client.getNullPromise();
-      String result = await(promise.getFuture());
+      CompletableFuture<String> promise = client.getNullPromise();
+      String result = await(promise);
       assertEquals(null, result);
       return null;
     });
@@ -891,13 +892,13 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     CompletedFutureService impl = new CompletedFutureService() {
       @Override
       public CompletableFuture<String> getCompletedFuture() {
-        return FlowFuture.completed("Already done");
+        return CompletableFuture.completedFuture("Already done");
       }
 
       @Override
       public CompletableFuture<String> getExceptionalFuture() {
         CompletableFuture<String> future = new CompletableFuture<>();
-        future.getPromise().completeExceptionally(new RuntimeException("Already failed"));
+        future.completeExceptionally(new RuntimeException("Already failed"));
         return future;
       }
     };
@@ -1317,16 +1318,16 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testSendCancellationToRemotePromise() {
     // Test cancellation of remote promises
     interface CancellableService {
-      FlowPromise<String> getCancellablePromise();
+      CompletableFuture<String> getCancellablePromise();
     }
 
-    AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<String>> promiseRef = new AtomicReference<>();
 
     CancellableService impl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      promiseRef.set(future.getPromise());
+      promiseRef.set(future);
       // Never complete it
-      return future.getPromise();
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -1340,7 +1341,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     CancellableService client = transport.getRpcStub(serviceId, CancellableService.class);
 
     CompletableFuture<Void> testFuture = startActor(() -> {
-      FlowPromise<String> promise = client.getCancellablePromise();
+      CompletableFuture<String> promise = client.getCancellablePromise();
 
       // Wait a bit then close transport to trigger cancellation
       await(Flow.delay(0.1));
@@ -1348,7 +1349,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       // Promise should be cancelled
       try {
-        await(promise.getFuture());
+        await(promise);
         fail("Should have been cancelled");
       } catch (Exception e) {
         // Expected - promise was cancelled
@@ -1365,15 +1366,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testSendErrorWhenSerializationFails() {
     // Test sendError when serialization of the error itself fails
     interface ErrorService {
-      FlowPromise<String> getPromise();
+      CompletableFuture<String> getPromise();
     }
 
-    AtomicReference<FlowPromise<String>> promiseRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<String>> promiseRef = new AtomicReference<>();
 
     ErrorService impl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      promiseRef.set(future.getPromise());
-      return future.getPromise();
+      promiseRef.set(future);
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -1387,7 +1388,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     ErrorService client = transport.getRpcStub(serviceId, ErrorService.class);
 
     CompletableFuture<Void> testFuture = startActor(() -> {
-      FlowPromise<String> promise = client.getPromise();
+      CompletableFuture<String> promise = client.getPromise();
 
       // Complete with an error that can't be serialized
       startActor(() -> {
@@ -1403,7 +1404,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       // Client should still get an error (even if not the exact one)
       try {
-        await(promise.getFuture());
+        await(promise);
         fail("Should have thrown exception");
       } catch (Exception e) {
         assertNotNull(e);
@@ -1422,7 +1423,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     // Create a service that returns a promise
     interface RemotePromiseService {
-      FlowPromise<String> getRemotePromise();
+      CompletableFuture<String> getRemotePromise();
     }
 
     RemotePromiseService impl = () -> {
@@ -1433,7 +1434,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         future.complete("result");
         return null;
       });
-      return future.getPromise();
+      return future;
     };
 
     // Register service on bad endpoint (won't actually listen)
@@ -1510,7 +1511,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testConnectionAlreadyClosedInSendMessage() {
     // Test sending message when connection exists but is closed
     interface PromiseReturningService {
-      FlowPromise<String> getDelayedValue();
+      CompletableFuture<String> getDelayedValue();
     }
 
     PromiseReturningService impl = () -> {
@@ -1521,7 +1522,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
         future.complete("delayed result");
         return null;
       });
-      return future.getPromise();
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -1535,7 +1536,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
       PromiseReturningService client = transport.getRpcStub(serviceId, PromiseReturningService.class);
 
       // Get the promise
-      FlowPromise<String> promise = client.getDelayedValue();
+      CompletableFuture<String> promise = client.getDelayedValue();
 
       // Force close all connections
       await(Flow.delay(0.1));
@@ -1543,7 +1544,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       // Promise completion should still try to send result
       try {
-        await(promise.getFuture());
+        await(promise);
         fail("Should have thrown exception due to closed connection");
       } catch (Exception e) {
         // Expected - connection was closed
@@ -1836,15 +1837,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
     }
 
     interface CallbackService {
-      FlowPromise<String> getCallback();
+      CompletableFuture<String> getCallback();
     }
 
-    AtomicReference<FlowPromise<String>> callbackPromiseRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<String>> callbackPromiseRef = new AtomicReference<>();
 
     CallbackService callbackImpl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      callbackPromiseRef.set(future.getPromise());
-      return future.getPromise();
+      callbackPromiseRef.set(future);
+      return future;
     };
 
     // Register callback service
@@ -1860,7 +1861,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       startActor(() -> {
         // Get promise from callback
-        FlowPromise<String> promise = callbackClient.getCallback();
+        CompletableFuture<String> promise = callbackClient.getCallback();
 
         // This will complete later
         return null;
@@ -2122,15 +2123,15 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testPromiseWithExistingClosedConnection() {
     // Test that promise completion finds existing connection but it's closed
     interface DelayedPromiseService {
-      FlowPromise<String> getDelayedPromise();
+      CompletableFuture<String> getDelayedPromise();
     }
 
-    AtomicReference<FlowPromise<String>> serverPromiseRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<String>> serverPromiseRef = new AtomicReference<>();
 
     DelayedPromiseService impl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      serverPromiseRef.set(future.getPromise());
-      return future.getPromise();
+      serverPromiseRef.set(future);
+      return future;
     };
 
     EndpointId endpointId = new EndpointId("test-service-" + System.nanoTime());
@@ -2145,7 +2146,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     CompletableFuture<Void> testFuture = startActor(() -> {
       // Get the promise - this establishes a connection
-      FlowPromise<String> clientPromise = client.getDelayedPromise();
+      CompletableFuture<String> clientPromise = client.getDelayedPromise();
 
       // Wait a bit for connection to be established
       await(Flow.delay(0.1));
@@ -2167,7 +2168,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       // Client should get an error due to closed connection
       try {
-        await(clientPromise.getFuture());
+        await(clientPromise);
         fail("Should have thrown exception");
       } catch (Exception e) {
         // Expected - connection was closed
@@ -2309,11 +2310,11 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
           // Create a local promise with sendResultBack=true using the 3-argument version
           UUID promiseId = UUID.randomUUID();
-          FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(
+          CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(
               promiseId, serverEndpoint, new io.github.panghy.javaflow.rpc.serialization.TypeDescription(String.class));
 
           // Cancel the promise - this should trigger sendCancellation
-          boolean cancelled = localPromise.getFuture().cancel();
+          boolean cancelled = localPromise.cancel(true);
           assertTrue(cancelled, "Should be able to cancel the promise");
 
           // Wait for the cancellation to be processed
@@ -2341,16 +2342,16 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
   public void testRemotePromiseCompletionWithConnectionFailure() {
     // Test promise completion when new connection fails
     interface AsyncPromiseService {
-      FlowPromise<String> getAsyncPromise();
+      CompletableFuture<String> getAsyncPromise();
     }
 
-    AtomicReference<FlowPromise<String>> serverPromiseRef = new AtomicReference<>();
+    AtomicReference<CompletableFuture<String>> serverPromiseRef = new AtomicReference<>();
     AtomicReference<EndpointId> clientEndpointRef = new AtomicReference<>();
 
     AsyncPromiseService impl = () -> {
       CompletableFuture<String> future = new CompletableFuture<>();
-      serverPromiseRef.set(future.getPromise());
-      return future.getPromise();
+      serverPromiseRef.set(future);
+      return future;
     };
 
     // Register service on a special endpoint
@@ -2370,7 +2371,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
     CompletableFuture<Void> testFuture = startActor(() -> {
       // Get promise from server
-      FlowPromise<String> clientPromise = client.getAsyncPromise();
+      CompletableFuture<String> clientPromise = client.getAsyncPromise();
 
       // Wait for promise to be created on server
       await(Flow.delay(0.1));
@@ -2393,7 +2394,7 @@ public class FlowRpcTransportImplInternalCoverageTest extends AbstractFlowTest {
 
       // The promise should fail on client side
       try {
-        await(clientPromise.getFuture());
+        await(clientPromise);
         fail("Should have thrown exception");
       } catch (Exception e) {
         // Expected - transport was closed

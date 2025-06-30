@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +13,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -61,14 +61,14 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     // Connect a client
     CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", serverEndpoint.getPort()));
-    connectFuture.getNow();
+    connectFuture.get(5, TimeUnit.SECONDS);
 
     // Verify the connection future completes
     assertFalse(connectFuture.isCompletedExceptionally());
-    FlowConnection clientConnection = connectFuture.getNow();
+    FlowConnection clientConnection = connectFuture.get(5, TimeUnit.SECONDS);
     assertNotNull(clientConnection);
 
-    FlowConnection serverConnection = acceptFuture.getNow();
+    FlowConnection serverConnection = acceptFuture.get(5, TimeUnit.SECONDS);
     assertNotNull(serverConnection);
 
     // Verify the connections are open
@@ -86,12 +86,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
 
     CompletableFuture<Void> sendFuture = clientConnection.send(buffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1024);
-    receiveFuture.getNow();
+    receiveFuture.get(5, TimeUnit.SECONDS);
 
-    ByteBuffer received = receiveFuture.getNow();
+    ByteBuffer received = receiveFuture.get(5, TimeUnit.SECONDS);
     byte[] receivedBytes = new byte[received.remaining()];
     received.get(receivedBytes);
 
@@ -106,14 +106,14 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests connecting to a server that doesn't exist.
    */
   @Test
-  void testConnectToNonExistentServer() {
+  void testConnectToNonExistentServer() throws Exception {
     // Connect to a port where there's no server
     CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", 12345));
     try {
-      connectFuture.getNow();
+      connectFuture.get(5, TimeUnit.SECONDS);
       fail("Expected ExecutionException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       // This is expected - could be various IO exceptions depending on OS
     }
   }
@@ -133,12 +133,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     CompletableFuture<FlowConnection> connectFuture = transport.connect(
         new Endpoint("localhost", serverEndpoint.getPort()));
 
-    FlowConnection clientConnection = connectFuture.getNow();
+    FlowConnection clientConnection = connectFuture.get(5, TimeUnit.SECONDS);
 
     // Accept the connection
     CompletableFuture<FlowConnection> acceptFuture = connectionStream.nextAsync();
 
-    FlowConnection serverConnection = acceptFuture.getNow();
+    FlowConnection serverConnection = acceptFuture.get(5, TimeUnit.SECONDS);
 
     // Verify connections are open
     assertTrue(clientConnection.isOpen());
@@ -146,24 +146,24 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
 
     // Close the transport (this should close the server stream)
     CompletableFuture<Void> closeFuture = transport.close();
-    closeFuture.getNow();
+    closeFuture.get(5, TimeUnit.SECONDS);
 
     // Try to get next connection - should fail
     CompletableFuture<FlowConnection> nextAcceptFuture = connectionStream.nextAsync();
 
     try {
-      nextAcceptFuture.getNow();
+      nextAcceptFuture.get(5, TimeUnit.SECONDS);
       fail("Expected ExecutionException");
-    } catch (ExecutionException ignored) {
+    } catch (Exception ignored) {
     }
 
     // Try to connect after transport is closed
     CompletableFuture<FlowConnection> connectAfterCloseFuture = transport.connect(
         new Endpoint("localhost", serverEndpoint.getPort()));
     try {
-      connectAfterCloseFuture.getNow();
+      connectAfterCloseFuture.get(5, TimeUnit.SECONDS);
       fail("Expected ExecutionException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertInstanceOf(IOException.class, e.getCause());
       assertTrue(e.getCause().getMessage().contains("closed"));
     }
@@ -173,7 +173,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests listening on the same endpoint twice.
    */
   @Test
-  void testListenOnSameEndpointTwice() {
+  void testListenOnSameEndpointTwice() throws Exception {
     // Listen on an available port
     connectionListener = transport.listenOnAvailablePort();
     FlowStream<FlowConnection> connectionStream = connectionListener.getStream();
@@ -213,9 +213,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
       CompletableFuture<FlowConnection> connectFuture = transport.connect(
           new Endpoint("localhost", endpoints[i].getPort()));
 
-      FlowConnection clientConnection = connectFuture.getNow();
+      FlowConnection clientConnection = connectFuture.get(5, TimeUnit.SECONDS);
 
-      FlowConnection serverConnection = acceptFuture.getNow();
+      FlowConnection serverConnection = acceptFuture.get(5, TimeUnit.SECONDS);
 
       // Verify the connections
       assertEquals(endpoints[i].getPort(), clientConnection.getRemoteEndpoint().getPort());
@@ -233,11 +233,11 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
   void testMultipleClose() throws Exception {
     // First close
     CompletableFuture<Void> firstCloseFuture = transport.close();
-    firstCloseFuture.getNow();
+    firstCloseFuture.get(5, TimeUnit.SECONDS);
 
     // Second close
     CompletableFuture<Void> secondCloseFuture = transport.close();
-    secondCloseFuture.getNow();
+    secondCloseFuture.get(5, TimeUnit.SECONDS);
 
     // Should be the same future
     assertSame(firstCloseFuture, secondCloseFuture);
@@ -247,7 +247,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests error handling during accept.
    */
   @Test
-  void testAcceptErrorHandling() {
+  void testAcceptErrorHandling() throws Exception {
     // This test requires OS manipulation, which isn't practical in a unit test.
     // The best we can do is to verify that the code doesn't crash if accept fails.
     // This is mostly just to hit the code paths and improve coverage.
@@ -295,9 +295,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
     transport.close();
 
     try {
-      acceptFuture.getNow();
+      acceptFuture.get(5, TimeUnit.SECONDS);
       fail("Expected ExecutionException");
-    } catch (ExecutionException expected) {
+    } catch (Exception expected) {
     }
   }
 
@@ -321,9 +321,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
       // Try to get a connection
       CompletableFuture<FlowConnection> acceptFuture = localStream.nextAsync();
       try {
-        acceptFuture.getNow();
+        acceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected ExecutionException");
-      } catch (ExecutionException expected) {
+      } catch (Exception expected) {
       }
       transport.close();
     } finally {
@@ -335,7 +335,7 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
    * Tests the failure path of connect when the local address can't be determined.
    */
   @Test
-  void testConnectLocalAddressError() {
+  void testConnectLocalAddressError() throws Exception {
     // Open a random port first.
     // Grab that port and then close it.
     AtomicInteger port = new AtomicInteger(0);
@@ -352,9 +352,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         new Endpoint("localhost", port.get()));
 
     try {
-      connectFuture.getNow();
+      connectFuture.get(5, TimeUnit.SECONDS);
       fail("Expected ExecutionException");
-    } catch (ExecutionException expected) {
+    } catch (Exception expected) {
     }
   }
 
@@ -378,9 +378,9 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
       customTransport.close();
 
       try {
-        acceptFuture.getNow();
+        acceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected ExecutionException");
-      } catch (ExecutionException expected) {
+      } catch (Exception expected) {
       }
     } finally {
       customTransport.close();
@@ -412,12 +412,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         CompletableFuture<FlowConnection> connectFuture = customTransport.connect(
             new Endpoint("localhost", port));
 
-        clients[i] = connectFuture.getNow();
+        clients[i] = connectFuture.get(5, TimeUnit.SECONDS);
 
         // Accept the connection
         CompletableFuture<FlowConnection> acceptFuture = stream.nextAsync();
 
-        servers[i] = acceptFuture.getNow();
+        servers[i] = acceptFuture.get(5, TimeUnit.SECONDS);
       }
 
       // Send some data on each connection
@@ -426,12 +426,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
 
         CompletableFuture<Void> sendFuture = clients[i].send(buffer);
-        sendFuture.getNow();
+        sendFuture.get(5, TimeUnit.SECONDS);
 
         CompletableFuture<ByteBuffer> receiveFuture = servers[i].receive(1024);
-        receiveFuture.getNow();
+        receiveFuture.get(5, TimeUnit.SECONDS);
 
-        ByteBuffer received = receiveFuture.getNow();
+        ByteBuffer received = receiveFuture.get(5, TimeUnit.SECONDS);
         byte[] bytes = new byte[received.remaining()];
         received.get(bytes);
         assertEquals(message, new String(bytes));
@@ -443,12 +443,12 @@ public class RealFlowTransportIntegrationTest extends AbstractFlowTest {
         CompletableFuture<Void> serverCloseFuture = servers[i].close();
 
         // Wait for connections to close properly
-        clientCloseFuture.getNow();
-        serverCloseFuture.getNow();
+        clientCloseFuture.get(5, TimeUnit.SECONDS);
+        serverCloseFuture.get(5, TimeUnit.SECONDS);
       }
     } finally {
       CompletableFuture<Void> closeFuture = customTransport.close();
-      closeFuture.getNow();
+      closeFuture.get(5, TimeUnit.SECONDS);
     }
   }
 }

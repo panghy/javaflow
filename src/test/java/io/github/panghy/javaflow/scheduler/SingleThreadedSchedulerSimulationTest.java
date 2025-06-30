@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -118,7 +118,7 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     // All should complete
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
   
   @Test
@@ -145,8 +145,8 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     try {
-      assertEquals("test", future.getNow());
-    } catch (ExecutionException e) {
+      assertEquals("test", future.getNow(null));
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -239,6 +239,6 @@ public class SingleThreadedSchedulerSimulationTest {
     }
     
     // All tasks should complete
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
 }

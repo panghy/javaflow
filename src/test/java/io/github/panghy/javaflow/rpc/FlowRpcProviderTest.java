@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.io.network.Endpoint;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.io.network.Endpoint;
 import io.github.panghy.javaflow.io.network.LocalEndpoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -148,7 +149,7 @@ public class FlowRpcProviderTest {
     
     @Override
     public CompletableFuture<Void> close() {
-      return FlowFuture.completed(null);
+      return CompletableFuture.completedFuture(null);
     }
   }
 }
