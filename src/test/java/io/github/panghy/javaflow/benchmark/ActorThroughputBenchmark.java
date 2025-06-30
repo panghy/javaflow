@@ -1,11 +1,11 @@
 package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -91,7 +91,7 @@ public class ActorThroughputBenchmark {
       CompletableFuture<Void> actor = Flow.startActor(() -> {
         while (true) {
           totalOperations.incrementAndGet();
-          Flow.await(Flow.yieldF());
+          Flow.await(Flow.yield());
         }
       }, priority);
 

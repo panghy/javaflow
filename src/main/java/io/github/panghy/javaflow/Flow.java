@@ -62,7 +62,7 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  *   <li>{@link #checkCancellation()} - Throws if cancelled (for periodic checks)</li>
  *   <li>{@link #isCancelled()} - Returns cancellation status (for conditional logic)</li>
  *   <li>{@link #await(CompletableFuture)} - Automatically checks cancellation</li>
- *   <li>{@link #yieldF()} - Checks cancellation when resuming</li>
+ *   <li>{@link #yield()} - Checks cancellation when resuming</li>
  * </ul>
  * 
  * <p><b>Example: Long-running operation with cancellation support:</b></p>
@@ -81,7 +81,7 @@ import static io.github.panghy.javaflow.scheduler.TaskPriority.validateUserPrior
  *       // Do work and yield periodically
  *       processItem(i);
  *       if (i % 10 == 0) {
- *         Flow.await(Flow.yieldF());
+ *         Flow.await(Flow.yield());
  *       }
  *     }
  *     return "Completed";
@@ -492,7 +492,7 @@ public final class Flow {
    * Flow.startActor(() -> {
    *   try {
    *     // Do some work
-   *     Flow.await(Flow.yieldF()); // Yield to other tasks
+   *     Flow.await(Flow.yield()); // Yield to other tasks
    *     // More work (won't run if cancelled during yield)
    *   } finally {
    *     cleanup(); // Always runs, even if cancelled
@@ -506,7 +506,7 @@ public final class Flow {
    * @return A future that completes when the actor is resumed
    * @throws IllegalStateException if called outside a flow task
    */
-  public static CompletableFuture<Void> yieldF() {
+  public static CompletableFuture<Void> yield() {
     return scheduler.yield();
   }
 
@@ -514,7 +514,7 @@ public final class Flow {
    * Yields control from the current actor to allow other actors to run with the specified priority.
    * The current actor will be rescheduled with this priority to continue execution in the next event loop cycle.
    *
-   * <p><b>Cancellation behavior:</b> Same as {@link #yieldF()}. If the task is cancelled while yielded,
+   * <p><b>Cancellation behavior:</b> Same as {@link #yield()}. If the task is cancelled while yielded,
    * execution will not resume after the yield point. The returned future will complete exceptionally
    * with a {@link FlowCancellationException}.</p>
    *
@@ -523,7 +523,7 @@ public final class Flow {
    * @throws IllegalArgumentException if the priority is negative
    * @throws IllegalStateException if called outside a flow task
    */
-  public static CompletableFuture<Void> yieldF(int priority) {
+  public static CompletableFuture<Void> yield(int priority) {
     // Validate that user-provided priority isn't negative
     validateUserPriority(priority);
     return scheduler.yield(priority);

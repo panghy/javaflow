@@ -80,10 +80,10 @@ class FlowTest extends AbstractFlowTest {
   }
 
   @Test
-  void testYieldF() throws ExecutionException {
+  void testYield() throws ExecutionException {
     // For now, just verify it returns a completed future
     CompletableFuture<Void> future = Flow.startActor(() -> {
-      Flow.yieldF();
+      Flow.yield();
     });
 
     assertNotNull(future);

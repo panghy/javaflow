@@ -76,7 +76,7 @@ public class CancellationExamples {
           // Yield periodically to be cooperative
           if (processed % 1000 == 0) {
             System.out.println("Processed " + processed + " items");
-            Flow.await(Flow.yieldF());
+            Flow.await(Flow.yield());
           }
         }
         
@@ -102,7 +102,7 @@ public class CancellationExamples {
           
           // Yield periodically
           if (processed % 1000 == 0) {
-            Flow.await(Flow.yieldF());
+            Flow.await(Flow.yield());
           }
         }
         

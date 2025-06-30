@@ -53,7 +53,7 @@ public class FlowAdditionalCoverageTest extends AbstractFlowTest {
   }
 
   @Test
-  void testYieldFWithPriority() {
+  void testYieldWithPriority() {
     AtomicBoolean firstPartExecuted = new AtomicBoolean(false);
     AtomicBoolean secondPartExecuted = new AtomicBoolean(false);
 
@@ -62,7 +62,7 @@ public class FlowAdditionalCoverageTest extends AbstractFlowTest {
       firstPartExecuted.set(true);
       
       // Yield with priority 5
-      Flow.await(Flow.yieldF(5));
+      Flow.await(Flow.yield(5));
       
       secondPartExecuted.set(true);
       return "completed";
@@ -80,11 +80,11 @@ public class FlowAdditionalCoverageTest extends AbstractFlowTest {
   }
 
   @Test
-  void testYieldFWithNegativePriority() {
+  void testYieldWithNegativePriority() {
     // Test that negative priority throws IllegalArgumentException
     CompletableFuture<Void> future = Flow.startActor(() -> {
       assertThrows(IllegalArgumentException.class, () -> {
-        Flow.yieldF(-1); // Negative priority should throw
+        Flow.yield(-1); // Negative priority should throw
       });
       return null;
     });

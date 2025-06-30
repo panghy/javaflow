@@ -2,9 +2,9 @@ package io.github.panghy.javaflow.test;
 
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.PromiseStream;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,7 +66,7 @@ public class CancellationTestUtils {
         
         // Yield periodically to allow cancellation
         if (i % yieldInterval == 0) {
-          await(Flow.yieldF());
+          await(Flow.yield());
           Flow.checkCancellation();
         }
       }

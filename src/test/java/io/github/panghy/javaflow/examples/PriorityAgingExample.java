@@ -1,11 +1,11 @@
 package io.github.panghy.javaflow.examples;
 
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.SimulatedClock;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -40,7 +40,7 @@ public class PriorityAgingExample {
                            "ms] High priority task iteration: " + count);
 
         // Yield after each iteration to give other tasks a chance
-        Flow.await(Flow.yieldF());
+        Flow.await(Flow.yield());
       }
       return null;
     }, TaskPriority.HIGH); // HIGH priority
@@ -55,7 +55,7 @@ public class PriorityAgingExample {
                            "ms] Low priority task iteration: " + count);
 
         // Yield after each iteration
-        Flow.await(Flow.yieldF());
+        Flow.await(Flow.yield());
       }
       return null;
     }, TaskPriority.LOW); // LOW priority

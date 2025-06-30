@@ -3,8 +3,8 @@ package io.github.panghy.javaflow.examples;
 import io.github.panghy.javaflow.Flow;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This example demonstrates the actor model constraints in JavaFlow.
  * It shows how to properly use delay, await, and yield operations within flow tasks,
@@ -40,7 +40,7 @@ public class ActorModelConstraintsExample {
         
         // And yield operations
         System.out.println("Child actor: Yielding control");
-        Flow.await(Flow.yieldF());
+        Flow.await(Flow.yield());
         
         return 42;
       });
@@ -51,7 +51,7 @@ public class ActorModelConstraintsExample {
       
       // And yield control to other actors
       System.out.println("Actor: Yielding control");
-      Flow.await(Flow.yieldF());
+      Flow.await(Flow.yield());
       
       return "Main actor completed with child result: " + childResult;
     });
@@ -125,7 +125,7 @@ public class ActorModelConstraintsExample {
           System.out.println("Actor " + actorId + " incremented counter to " + count);
           
           // Yield to allow other actors to run
-          Flow.await(Flow.yieldF());
+          Flow.await(Flow.yield());
         }
         
         System.out.println("Actor " + actorId + " completed");

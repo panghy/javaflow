@@ -1,11 +1,11 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,7 +55,7 @@ public class PriorityAgingTest {
     CompletableFuture<Void> lowPriorityTask = Flow.startActor(() -> {
       for (int i = 0; i < 10; i++) {
         lowPriorityExecutions.incrementAndGet();
-        Flow.await(Flow.yieldF());
+        Flow.await(Flow.yield());
       }
       return null;
     }, TaskPriority.LOW);
