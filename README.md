@@ -154,7 +154,7 @@ Phase 6 has implemented comprehensive error handling and cancellation support:
 - FlowCancellationException for proper cancellation signaling
 - Cooperative cancellation checking with Flow.checkCancellation() and Flow.isCancelled()
 - Automatic cancellation propagation through future chains and RPC boundaries
-- Enhanced Flow.await() and Flow.yieldF() to properly handle cancellation
+- Enhanced Flow.await() and Flow.yield() to properly handle cancellation
 - CancellationTestUtils for testing cancellation behavior
 - Comprehensive documentation and examples for cancellation patterns
 - Full backward compatibility maintained with existing code
@@ -279,7 +279,7 @@ FlowFuture<String> result = startActor(() -> {
     String partialResult = doSomeWork();
 
     // Yield to let other tasks run
-    await(yieldF());
+    await(yield());
 
     // Continue processing after yielding
     return finalizeWork(partialResult);

@@ -1,18 +1,17 @@
 package io.github.panghy.javaflow.examples;
 
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.github.panghy.javaflow.Flow.await;
-import static io.github.panghy.javaflow.Flow.yieldF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,7 +62,7 @@ public class SingleThreadedActorExample {
           System.out.println("Generated work item " + i);
 
           // Yield after each item to allow workers to process
-          await(yieldF());
+          await(Flow.yield());
         }
 
         System.out.println("Generator finished");
@@ -95,7 +94,7 @@ public class SingleThreadedActorExample {
               System.out.println(workerName + " processing item " + workItem);
 
               // Simulate work with a yield
-              await(yieldF());
+              await(Flow.yield());
 
               // Record which worker processed this item
               processingLog.add(workerName + ":" + workItem);
@@ -105,10 +104,10 @@ public class SingleThreadedActorExample {
               workFinishedLatch.countDown();
 
               // Yield to give other workers a chance
-              await(yieldF());
+              await(Flow.yield());
             } else {
               // No work available, yield and check again
-              await(yieldF());
+              await(Flow.yield());
             }
           }
 
@@ -134,7 +133,7 @@ public class SingleThreadedActorExample {
 
           // Do a longer yield equivalent to a delay
           for (int i = 0; i < 3; i++) {
-            await(yieldF());
+            await(Flow.yield());
           }
         }
 

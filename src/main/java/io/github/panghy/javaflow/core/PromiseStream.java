@@ -371,7 +371,7 @@ public class PromiseStream<T> {
             action.accept(value);
 
             // Add a yield to ensure the test can pump and see progress
-            Flow.await(Flow.yieldF());
+            Flow.await(Flow.yield());
           }
         } catch (Exception e) {
           result.completeExceptionally(e);

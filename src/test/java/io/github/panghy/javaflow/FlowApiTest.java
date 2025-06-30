@@ -1,10 +1,10 @@
 package io.github.panghy.javaflow;
 
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,7 +26,7 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowYieldF() throws Exception {
+  void testFlowYield() throws Exception {
     // Create a counter
     AtomicInteger counter = new AtomicInteger(0);
     
@@ -36,7 +36,7 @@ class FlowApiTest {
       counter.incrementAndGet();
       
       // Yield back to scheduler
-      Flow.await(Flow.yieldF());
+      Flow.await(Flow.yield());
       
       // Second increment
       return counter.incrementAndGet();

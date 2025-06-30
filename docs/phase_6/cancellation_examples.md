@@ -78,7 +78,7 @@ public class CooperativeCancellationExample {
                 
                 // Yield periodically to be cooperative
                 if (processed % 100 == 0) {
-                    Flow.await(Flow.yieldF());
+                    Flow.await(Flow.yield());
                 }
             }
             
@@ -107,7 +107,7 @@ public class CooperativeCancellationExample {
                 
                 // Yield periodically
                 if (processed % 100 == 0) {
-                    Flow.await(Flow.yieldF());
+                    Flow.await(Flow.yield());
                 }
             }
             

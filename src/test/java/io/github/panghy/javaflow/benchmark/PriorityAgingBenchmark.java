@@ -1,7 +1,6 @@
 package io.github.panghy.javaflow.benchmark;
 
 import io.github.panghy.javaflow.Flow;
-import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 
@@ -9,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -113,7 +113,7 @@ public class PriorityAgingBenchmark {
           }
 
           lowPriorityOps.incrementAndGet();
-          Flow.await(Flow.yieldF());
+          Flow.await(Flow.yield());
         }
       }, TaskPriority.LOW);
 
@@ -131,7 +131,7 @@ public class PriorityAgingBenchmark {
               // Do some work and then exit
               for (int j = 0; j < 100; j++) {
                 highPriorityOps.incrementAndGet();
-                Flow.await(Flow.yieldF());
+                Flow.await(Flow.yield());
               }
               return null;
             }, TaskPriority.HIGH);
