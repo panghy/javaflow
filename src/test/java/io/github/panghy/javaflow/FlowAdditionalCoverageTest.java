@@ -57,7 +57,7 @@ public class FlowAdditionalCoverageTest extends AbstractFlowTest {
     AtomicBoolean firstPartExecuted = new AtomicBoolean(false);
     AtomicBoolean secondPartExecuted = new AtomicBoolean(false);
 
-    // Test yieldF with custom priority
+    // Test yield with custom priority
     CompletableFuture<String> future = Flow.startActor(() -> {
       firstPartExecuted.set(true);
       

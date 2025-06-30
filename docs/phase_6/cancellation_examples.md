@@ -18,14 +18,14 @@ The simplest form of cancellation occurs when a task is cancelled while waiting 
 
 ```java
 import io.github.panghy.javaflow.Flow;
-import io.github.panghy.javaflow.core.FlowFuture;
+import java.util.concurrent.CompletableFuture;
 import io.github.panghy.javaflow.core.FlowCancellationException;
 
 public class BasicCancellationExample {
     
     public static void main(String[] args) {
         // Start a long-running operation
-        FlowFuture<String> future = Flow.startActor(() -> {
+        CompletableFuture<String> future = Flow.startActor(() -> {
             System.out.println("Starting long operation...");
             
             // This will be interrupted by cancellation
@@ -64,7 +64,7 @@ public class CooperativeCancellationExample {
     /**
      * Processes a large dataset with cancellation support.
      */
-    public static FlowFuture<Integer> processLargeDataset(List<String> data) {
+    public static CompletableFuture<Integer> processLargeDataset(List<String> data) {
         return Flow.startActor(() -> {
             int processed = 0;
             
@@ -89,7 +89,7 @@ public class CooperativeCancellationExample {
     /**
      * Alternative using isCancelled() for graceful handling.
      */
-    public static FlowFuture<ProcessingResult> processWithPartialResults(List<String> data) {
+    public static CompletableFuture<ProcessingResult> processWithPartialResults(List<String> data) {
         return Flow.startActor(() -> {
             List<String> results = new ArrayList<>();
             int processed = 0;
@@ -139,7 +139,7 @@ public class ResourceCleanupExample {
     /**
      * Demonstrates proper resource cleanup during cancellation.
      */
-    public static FlowFuture<String> processWithResources() {
+    public static CompletableFuture<String> processWithResources() {
         return Flow.startActor(() -> {
             Resource resource = null;
             try {
@@ -169,7 +169,7 @@ public class ResourceCleanupExample {
     /**
      * Using try-with-resources pattern (if Resource implements AutoCloseable).
      */
-    public static FlowFuture<String> processWithAutoCloseable() {
+    public static CompletableFuture<String> processWithAutoCloseable() {
         return Flow.startActor(() -> {
             try (AutoCloseableResource resource = new AutoCloseableResource()) {
                 for (int i = 0; i < 100; i++) {
@@ -230,7 +230,7 @@ public class StreamingCancellationExample {
     /**
      * Consumer that processes stream values with cancellation support.
      */
-    public static FlowFuture<Integer> consumeStream(FutureStream<Integer> stream) {
+    public static CompletableFuture<Integer> consumeStream(FutureStream<Integer> stream) {
         return Flow.startActor(() -> {
             int sum = 0;
             
@@ -267,13 +267,13 @@ public class NestedCancellationExample {
     /**
      * Parent operation that spawns child operations.
      */
-    public static FlowFuture<String> parentOperation() {
+    public static CompletableFuture<String> parentOperation() {
         return Flow.startActor(() -> {
             System.out.println("Parent starting");
             
             // Start child operations
-            FlowFuture<String> child1 = childOperation("Child1", 2.0);
-            FlowFuture<String> child2 = childOperation("Child2", 3.0);
+            CompletableFuture<String> child1 = childOperation("Child1", 2.0);
+            CompletableFuture<String> child2 = childOperation("Child2", 3.0);
             
             // Wait for both children
             String result1 = Flow.await(child1);
@@ -283,7 +283,7 @@ public class NestedCancellationExample {
         });
     }
     
-    private static FlowFuture<String> childOperation(String name, double duration) {
+    private static CompletableFuture<String> childOperation(String name, double duration) {
         return Flow.startActor(() -> {
             System.out.println(name + " starting");
             
@@ -303,11 +303,11 @@ public class NestedCancellationExample {
     /**
      * Demonstrates selective cancellation of child operations.
      */
-    public static FlowFuture<String> selectiveCancellation() {
+    public static CompletableFuture<String> selectiveCancellation() {
         return Flow.startActor(() -> {
             // Start multiple operations
-            FlowFuture<String> critical = criticalOperation();
-            FlowFuture<String> optional = optionalOperation();
+            CompletableFuture<String> critical = criticalOperation();
+            CompletableFuture<String> optional = optionalOperation();
             
             // Set up timeout for optional operation only
             Flow.startActor(() -> {
@@ -343,13 +343,13 @@ public class TimeoutExample {
     /**
      * Executes an operation with a timeout.
      */
-    public static <T> FlowFuture<T> withTimeout(
-            FlowFuture<T> operation, 
+    public static <T> CompletableFuture<T> withTimeout(
+            CompletableFuture<T> operation, 
             double timeoutSeconds) {
         
         return Flow.startActor(() -> {
             // Create timeout task
-            FlowFuture<Void> timeoutFuture = Flow.startActor(() -> {
+            CompletableFuture<Void> timeoutFuture = Flow.startActor(() -> {
                 Flow.await(Flow.delay(timeoutSeconds));
                 operation.cancel();
                 return null;
@@ -374,8 +374,8 @@ public class TimeoutExample {
     /**
      * Retry with timeout pattern.
      */
-    public static <T> FlowFuture<T> retryWithTimeout(
-            Supplier<FlowFuture<T>> operationSupplier,
+    public static <T> CompletableFuture<T> retryWithTimeout(
+            Supplier<CompletableFuture<T>> operationSupplier,
             double timeoutSeconds,
             int maxRetries) {
         
@@ -384,7 +384,7 @@ public class TimeoutExample {
             
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 try {
-                    FlowFuture<T> operation = operationSupplier.get();
+                    CompletableFuture<T> operation = operationSupplier.get();
                     return Flow.await(withTimeout(operation, timeoutSeconds));
                     
                 } catch (TimeoutException e) {
@@ -408,18 +408,18 @@ Implement graceful shutdown patterns for services.
 public class GracefulShutdownExample {
     
     public static class Service {
-        private final List<FlowFuture<?>> activeOperations = new ArrayList<>();
+        private final List<CompletableFuture<?>> activeOperations = new ArrayList<>();
         private volatile boolean shuttingDown = false;
         
         /**
          * Starts a new operation if not shutting down.
          */
-        public FlowFuture<String> startOperation(String id) {
+        public CompletableFuture<String> startOperation(String id) {
             if (shuttingDown) {
                 throw new IllegalStateException("Service is shutting down");
             }
             
-            FlowFuture<String> operation = Flow.startActor(() -> {
+            CompletableFuture<String> operation = Flow.startActor(() -> {
                 try {
                     // Check if we should stop
                     if (shuttingDown) {
@@ -455,17 +455,17 @@ public class GracefulShutdownExample {
         /**
          * Initiates graceful shutdown.
          */
-        public FlowFuture<Void> shutdown(double gracePeriodSeconds) {
+        public CompletableFuture<Void> shutdown(double gracePeriodSeconds) {
             return Flow.startActor(() -> {
                 shuttingDown = true;
                 
                 // Cancel all active operations
-                List<FlowFuture<?>> toCancel;
+                List<CompletableFuture<?>> toCancel;
                 synchronized (activeOperations) {
                     toCancel = new ArrayList<>(activeOperations);
                 }
                 
-                for (FlowFuture<?> op : toCancel) {
+                for (CompletableFuture<?> op : toCancel) {
                     op.cancel();
                 }
                 
@@ -506,7 +506,7 @@ public class RemoteCancellationExample {
      * RPC service interface with cancellable operations.
      */
     public interface DataService {
-        FlowFuture<String> fetchData(String query);
+        CompletableFuture<String> fetchData(String query);
         PromiseStream<DataChunk> streamData(String query);
     }
     
@@ -523,12 +523,12 @@ public class RemoteCancellationExample {
         /**
          * Fetches data with timeout and cancellation.
          */
-        public FlowFuture<String> fetchWithTimeout(String query, double timeout) {
+        public CompletableFuture<String> fetchWithTimeout(String query, double timeout) {
             return Flow.startActor(() -> {
-                FlowFuture<String> fetchFuture = service.fetchData(query);
+                CompletableFuture<String> fetchFuture = service.fetchData(query);
                 
                 // Set up timeout
-                FlowFuture<Void> timeoutFuture = Flow.startActor(() -> {
+                CompletableFuture<Void> timeoutFuture = Flow.startActor(() -> {
                     Flow.await(Flow.delay(timeout));
                     System.out.println("Timeout reached, cancelling fetch");
                     fetchFuture.cancel();
@@ -549,7 +549,7 @@ public class RemoteCancellationExample {
         /**
          * Streams data with cancellation on condition.
          */
-        public FlowFuture<List<DataChunk>> streamUntilCondition(
+        public CompletableFuture<List<DataChunk>> streamUntilCondition(
                 String query, 
                 Predicate<DataChunk> stopCondition) {
             
@@ -590,7 +590,7 @@ public class RemoteCancellationExample {
     public static class DataServiceImpl implements DataService {
         
         @Override
-        public FlowFuture<String> fetchData(String query) {
+        public CompletableFuture<String> fetchData(String query) {
             return Flow.startActor(() -> {
                 System.out.println("Starting fetch for: " + query);
                 
