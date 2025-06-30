@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.examples;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.scheduler.TaskPriority;
 import org.junit.jupiter.api.Test;
 

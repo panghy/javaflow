@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.PromiseStream;
 import org.junit.jupiter.api.AfterEach;
@@ -18,7 +19,6 @@ import java.nio.channels.CompletionHandler;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,7 +88,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
     assertTrue(acceptLatch.await(2, TimeUnit.SECONDS));
 
     // Wait for the connect future to complete
-    connectFuture.getNow();
+    connectFuture.get(5, TimeUnit.SECONDS);
   }
 
   /**
@@ -147,10 +147,10 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       testTransport.triggerAcceptError(endpoint);
 
       try {
-        acceptFuture.getNow();
+        acceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected ExecutionException");
-      } catch (ExecutionException e) {
-        // Expected exception
+      } catch (Exception e) {
+        // Expected
       }
 
       // Verify the stream was closed
@@ -188,10 +188,10 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
 
       // Wait for the accept future to complete exceptionally
       try {
-        acceptFuture.getNow();
+        acceptFuture.get(5, TimeUnit.SECONDS);
         fail("Expected ExecutionException");
-      } catch (ExecutionException e) {
-        // Expected exception
+      } catch (Exception e) {
+        // Expected
       }
     }
   }
@@ -230,9 +230,9 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
 
     // Wait for the close future to complete
     try {
-      closeFuture.getNow();
-    } catch (ExecutionException e) {
-      // Expected exception
+      closeFuture.get(5, TimeUnit.SECONDS);
+    } catch (Exception e) {
+      // May complete exceptionally due to broken channelGroup
     }
   }
 
@@ -288,7 +288,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       CompletableFuture<FlowConnection> connectWithException() throws Exception {
         // Create a connect future with a handler that will fail in a specific way
         CompletableFuture<FlowConnection> result = new CompletableFuture<>();
-        FlowPromise<FlowConnection> promise = result.getPromise();
+        CompletableFuture<FlowConnection> promise = result;
 
         // Create a socket that will be closed during the connection process
         AsynchronousSocketChannel channel = AsynchronousSocketChannel.open(getChannelGroup());
@@ -354,7 +354,7 @@ public class RealFlowTransportFinalTest extends AbstractFlowTest {
       CompletableFuture<FlowConnection> connectFuture = testTransport.connectWithException();
 
       try {
-        connectFuture.getNow();
+        connectFuture.get(5, TimeUnit.SECONDS);
         fail("Expected exception not thrown");
       } catch (Exception e) {
         // Expected

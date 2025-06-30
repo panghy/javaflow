@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,20 +20,20 @@ public class RpcServiceInterfaceTest {
 
   // A simple implementation of RpcServiceInterface for testing
   private static class TestService implements RpcServiceInterface {
-    public final PromiseStream<Pair<String, FlowPromise<String>>> echo = new PromiseStream<>();
+    public final PromiseStream<Pair<String, CompletableFuture<String>>> echo = new PromiseStream<>();
 
     public CompletableFuture<String> echoAsync(String message) {
       CompletableFuture<String> future = new CompletableFuture<>();
-      echo.send(new Pair<>(message, future.getPromise()));
+      echo.send(new Pair<>(message, future));
       return future;
     }
 
     // Override onClose for testing
-    private final FlowPromise<Void> closePromise = new CompletableFuture<Void>().getPromise();
+    private final CompletableFuture<Void> closePromise = new CompletableFuture<Void>();
 
     @Override
     public CompletableFuture<Void> onClose() {
-      return closePromise.getFuture();
+      return closePromise;
     }
 
     public void close() {
@@ -57,7 +58,7 @@ public class RpcServiceInterfaceTest {
     CompletableFuture<Void> readyFuture = service.ready();
 
     assertNotNull(readyFuture);
-    assertTrue(readyFuture.isCompleted());
+    assertTrue(readyFuture.isDone());
   }
 
   @Test
@@ -69,13 +70,13 @@ public class RpcServiceInterfaceTest {
 
     // Verify it's not completed initially
     assertNotNull(closeFuture);
-    assertFalse(closeFuture.isCompleted());
+    assertFalse(closeFuture.isDone());
 
     // Close the service
     service.close();
 
     // Verify the future is now completed
-    assertTrue(closeFuture.isCompleted());
+    assertTrue(closeFuture.isDone());
   }
 
   @Test
@@ -90,6 +91,6 @@ public class RpcServiceInterfaceTest {
     future.complete("Echo: " + testMessage);
 
     // Verify the future is completed
-    assertTrue(future.isCompleted());
+    assertTrue(future.isDone());
   }
 }

@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import jdk.internal.vm.Continuation;
+import java.util.concurrent.CompletableFuture;
+import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -118,70 +118,6 @@ class SingleThreadedSchedulerTest {
 
     // No exception should be thrown - we can't easily assert anything else
     // but this helps with code coverage
-  }
-
-  @Test
-  void testMultipleYieldCallbacks() throws Exception {
-    // This tests the callback handling in resumeTask with multiple registered callbacks
-    // First start the scheduler
-    scheduler.start();
-
-    // Create a latch to wait for callbacks
-    CountDownLatch latch = new CountDownLatch(2);
-
-    // Get access to the internal yieldPromises map through reflection
-    Field yieldPromisesField = SingleThreadedScheduler.class.getDeclaredField("yieldPromises");
-    yieldPromisesField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, FlowPromise<Void>> yieldPromises =
-        (Map<Long, FlowPromise<Void>>) yieldPromisesField.get(scheduler);
-
-    // Set up the task in the idToTask map
-    Field idToTaskField = SingleThreadedScheduler.class.getDeclaredField("idToTask");
-    idToTaskField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, Task> idToTask = (Map<Long, Task>) idToTaskField.get(scheduler);
-
-    // Create a task ID
-    Long taskId = 123L;
-
-    // Create a future and get its promise
-    CompletableFuture<Void> future = new CompletableFuture<>();
-    FlowPromise<Void> promise = future.getPromise();
-
-    // Add callbacks using whenComplete
-    promise.getFuture().whenComplete((v, t) -> latch.countDown());
-    promise.getFuture().whenComplete((v, t) -> latch.countDown());
-    yieldPromises.put(taskId, promise);
-
-    // Create a task
-    Task task = new Task(taskId, TaskPriority.DEFAULT, () -> null, null);
-    task.setState(Task.TaskState.SUSPENDED);
-    idToTask.put(taskId, task);
-
-    // Create a task scope
-    Continuation continuation = getContinuation("test-scope-" + taskId, taskId);
-
-    // Register the continuation
-    Field taskToContinuationField =
-        SingleThreadedScheduler.class.getDeclaredField("taskToContinuation");
-    taskToContinuationField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, Continuation> taskToContinuation =
-        (Map<Long, Continuation>) taskToContinuationField.get(scheduler);
-    taskToContinuation.put(taskId, continuation);
-
-    // Now call resumeTask directly
-    Method resumeTaskMethod =
-        SingleThreadedScheduler.class.getDeclaredMethod("resumeTask", long.class);
-    resumeTaskMethod.setAccessible(true);
-    resumeTaskMethod.invoke(scheduler, taskId);
-
-    // Both callbacks should have been executed
-    assertTrue(latch.await(100, TimeUnit.MILLISECONDS));
-
-    // The promise should be removed from the map after resuming
-    assertFalse(yieldPromises.containsKey(taskId));
   }
 
   @Test
@@ -328,80 +264,6 @@ class SingleThreadedSchedulerTest {
   }
 
   @Test
-  void testResumeTaskWithCallbacks() throws Exception {
-    // Test the case where resumeTask has callbacks
-
-    CountDownLatch callbackExecuted = new CountDownLatch(1);
-    AtomicInteger value = new AtomicInteger(0);
-    AtomicReference<Task> taskRef = new AtomicReference<>();
-
-    // Create a task
-    Callable<Void> callable = () -> null;
-    Task task = new Task(1, TaskPriority.DEFAULT, callable, null);
-
-    // Get the idToTask map to manually set up the task association
-    Field idToTaskField = SingleThreadedScheduler.class.getDeclaredField("idToTask");
-    idToTaskField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, Task> idToTask = (Map<Long, Task>) idToTaskField.get(scheduler);
-
-    // Get the yieldPromises map to manually add a promise
-    Field yieldPromisesField = SingleThreadedScheduler.class.getDeclaredField("yieldPromises");
-    yieldPromisesField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, FlowPromise<Void>> yieldPromises =
-        (Map<Long, FlowPromise<Void>>) yieldPromisesField.get(scheduler);
-
-    // Set the task state to suspended
-    task.setState(Task.TaskState.SUSPENDED);
-
-    // Create a task ID and associate it with the task
-    Long taskId = 1L;
-    idToTask.put(taskId, task);
-    taskRef.set(task);
-
-    // Create a future and get its promise
-    CompletableFuture<Void> future = new CompletableFuture<>();
-    FlowPromise<Void> promise = future.getPromise();
-
-    // Add a callback using whenComplete
-    promise.getFuture().whenComplete((v, t) -> {
-      value.set(42);
-      callbackExecuted.countDown();
-    });
-    yieldPromises.put(taskId, promise);
-
-    // Create a task scope
-    Continuation continuation = getContinuation("test-scope", taskId);
-
-    // Register the continuation
-    Field taskToContinuationField =
-        SingleThreadedScheduler.class.getDeclaredField("taskToContinuation");
-    taskToContinuationField.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    Map<Long, Continuation> taskToContinuation =
-        (Map<Long, Continuation>) taskToContinuationField.get(scheduler);
-    taskToContinuation.put(taskId, continuation);
-
-    // Now invoke resumeTask
-    Method resumeTaskMethod =
-        SingleThreadedScheduler.class.getDeclaredMethod("resumeTask", long.class);
-    resumeTaskMethod.setAccessible(true);
-    resumeTaskMethod.invoke(scheduler, taskId);
-
-    // Verify the callback was executed
-    assertTrue(callbackExecuted.await(100, TimeUnit.MILLISECONDS));
-    assertEquals(42, value.get());
-
-    // Verify the task state was changed
-    // After running the continuation, if it's done, it will be set to COMPLETED
-    assertTrue(taskRef.get().getState() == Task.TaskState.RUNNING ||
-               taskRef.get().getState() == Task.TaskState.COMPLETED);
-
-    // Clean up
-    idToTask.remove(taskId);
-  }
-
   private Continuation getContinuation(String name, Long taskId) throws NoSuchFieldException, IllegalAccessException {
     ContinuationScope scope = new ContinuationScope(name);
 
@@ -1089,7 +951,7 @@ class SingleThreadedSchedulerTest {
     assertTrue(taskYielded.await(1, TimeUnit.SECONDS), "Task should have yielded");
 
     // Now cancel the task
-    boolean cancelled = future.cancel();
+    boolean cancelled = future.cancel(true);
     assertTrue(cancelled, "Task should be cancelled successfully");
 
     // Use pump to ensure all pending tasks are processed
@@ -1157,3 +1019,4 @@ class SingleThreadedSchedulerTest {
     assertNotNull(activeTasks, "Active tasks set should not be null");
   }
 }
+

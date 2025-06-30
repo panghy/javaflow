@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +12,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,7 +56,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     
     // Run until the directory is created
     pumpAndAdvanceTimeUntilDone(dirFuture);
-    dirFuture.getNow();
+    dirFuture.getNow(null);
     
     // Create files sequentially to avoid timing issues
     final int fileCount = 5;
@@ -81,7 +82,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       
       // Wait for the file to be created before creating the next one
       pumpAndAdvanceTimeUntilDone(createFuture);
-      createFuture.getNow(); // Will throw if an error occurred
+      createFuture.getNow(null); // Will throw if an error occurred
       
       // Make sure the operation is fully completed
       testScheduler.advanceTime(0.01);
@@ -107,7 +108,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       });
       
       pumpAndAdvanceTimeUntilDone(existsFuture);
-      assertTrue(existsFuture.getNow(), "File " + filePath + " should exist");
+      assertTrue(existsFuture.getNow(null), "File " + filePath + " should exist");
     }
     
     // Process files sequentially for debugging
@@ -160,7 +161,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
       // Process one file at a time
       pumpAndAdvanceTimeUntilDone(future);
       try {
-        future.getNow(); // Will throw if an error occurred
+        future.getNow(null); // Will throw if an error occurred
         System.out.println("==== Successfully processed file: " + filePath + " ====\n");
       } catch (Exception e) {
         System.err.println("==== Failed to process file: " + filePath + " ====\n");
@@ -192,7 +193,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // The actor should complete normally because it caught the exception
-    future.getNow(); // Should not throw
+    future.getNow(null); // Should not throw
     
     // Test that errors propagate properly if not caught
     CompletableFuture<Void> unhandledFuture = Flow.startActor(() -> {
@@ -205,8 +206,8 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(unhandledFuture);
     
     // The actor should complete exceptionally
-    ExecutionException exception = org.junit.jupiter.api.Assertions.assertThrows(
-        ExecutionException.class, unhandledFuture::getNow);
+    CompletionException exception = org.junit.jupiter.api.Assertions.assertThrows(
+        CompletionException.class, () -> unhandledFuture.getNow(null));
     
     // Verify the exception type is propagated properly
     assertTrue(exception.getCause() instanceof Exception);
@@ -223,7 +224,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     });
     
     pumpAndAdvanceTimeUntilDone(dirFuture);
-    dirFuture.getNow();
+    dirFuture.getNow(null);
     
     // Start an actor to perform a long file operation
     CompletableFuture<Void> opFuture = Flow.startActor(() -> {
@@ -246,7 +247,7 @@ class FlowFileIntegrationTest extends AbstractFlowTest {
     testScheduler.advanceTime(0.1); // Advance time by 0.1 seconds
     
     // Cancel the operation
-    opFuture.cancel();
+    opFuture.cancel(true);
     
     // Run until everything settles
     testScheduler.pump();

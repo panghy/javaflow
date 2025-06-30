@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -256,7 +257,7 @@ class PumpMethodTest {
     assertTrue(yielded.get(), "Task should have reached the yield point");
     
     // Cancel the task
-    future.cancel();
+    future.cancel(true);
     
     // Pump multiple times to ensure the task has a chance to process the cancellation
     for (int i = 0; i < 3 && !cancelLatch.await(100, TimeUnit.MILLISECONDS); i++) {

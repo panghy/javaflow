@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +12,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,7 +66,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the file exists
-    assertTrue(testFuture.getNow());
+    assertTrue(testFuture.getNow(null));
   }
   
   @Test
@@ -104,7 +104,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify the file contents
-    assertEquals(testData, testFuture.getNow());
+    assertEquals(testData, testFuture.getNow(null));
   }
   
   @Test
@@ -161,7 +161,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file contents
-    assertEquals(testData, testFuture.getNow());
+    assertEquals(testData, testFuture.getNow(null));
   }
   
   @Test
@@ -191,7 +191,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify directory contents
-    List<Path> files = testFuture.getNow();
+    List<Path> files = testFuture.getNow(null);
     assertEquals(2, files.size());
     
     // Sort the results to make the test stable
@@ -234,7 +234,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file was deleted
-    assertTrue(testFuture.getNow(), "File should no longer exist after deletion");
+    assertTrue(testFuture.getNow(null), "File should no longer exist after deletion");
   }
   
   @Test
@@ -278,7 +278,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify truncate size
-    assertEquals(truncateSize, testFuture.getNow().intValue());
+    assertEquals(truncateSize, testFuture.getNow(null).intValue());
   }
   
   @Test
@@ -328,7 +328,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify file contents
-    assertEquals(testData, testFuture.getNow());
+    assertEquals(testData, testFuture.getNow(null));
   }
   
   @Test
@@ -342,15 +342,16 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
         Flow.await(fileSystem.open(path, OpenOptions.READ));
         // Should not reach here
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
         if (cause instanceof RuntimeException && cause.getCause() != null) {
           return cause.getCause().getClass();
         }
-        return cause.getClass();
-      } catch (Exception e) {
+        if (cause != null) {
+          return cause.getClass();
+        }
         // In case of a different exception
         return e.getClass();
       }
@@ -360,7 +361,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception type
-    assertEquals(NoSuchFileException.class, testFuture.getNow());
+    assertEquals(NoSuchFileException.class, testFuture.getNow(null));
   }
   
   @Test
@@ -381,15 +382,16 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
         Flow.await(fileSystem.open(path, OpenOptions.CREATE_NEW, OpenOptions.WRITE));
         // Should not reach here
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
         if (cause instanceof RuntimeException && cause.getCause() != null) {
           return cause.getCause().getClass();
         }
-        return cause.getClass();
-      } catch (Exception e) {
+        if (cause != null) {
+          return cause.getClass();
+        }
         // In case of a different exception
         return e.getClass();
       }
@@ -399,7 +401,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception type
-    assertEquals(FileAlreadyExistsException.class, testFuture.getNow());
+    assertEquals(FileAlreadyExistsException.class, testFuture.getNow(null));
   }
   
   @Test
@@ -445,7 +447,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify exception was thrown with correct message
-    assertTrue(testFuture.getNow(), "Should have received 'File is closed' error");
+    assertTrue(testFuture.getNow(null), "Should have received 'File is closed' error");
   }
   
   @Test
@@ -496,7 +498,7 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify data was updated
-    assertEquals(updatedData, testFuture.getNow(), 
+    assertEquals(updatedData, testFuture.getNow(null), 
         "Content should match what was written by the second file handle");
   }
   
@@ -555,6 +557,6 @@ class SimulatedFlowFileSystemTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(testFuture);
     
     // Verify operations worked as expected
-    assertTrue(testFuture.getNow(), "File operations should work correctly with proper closing");
+    assertTrue(testFuture.getNow(null), "File operations should work correctly with proper closing");
   }
 }

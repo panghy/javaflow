@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.scheduler.FlowScheduler;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.scheduler.FlowScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,9 +48,9 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureReadyOrThrow() throws Exception {
+  void testCompletableFutureReadyOrThrow() throws Exception {
     // Create a completed future
-    CompletableFuture<String> completedFuture = FlowFuture.completed("test");
+    CompletableFuture<String> completedFuture = CompletableFuture.completedFuture("test");
     
     // Check if it's ready
     assertTrue(Flow.futureReadyOrThrow(completedFuture), 
@@ -64,7 +65,7 @@ class FlowApiTest {
     
     // Create a failed future
     RuntimeException testException = new RuntimeException("Test exception");
-    CompletableFuture<String> failedFuture = FlowFuture.failed(testException);
+    CompletableFuture<String> failedFuture = CompletableFuture.failedFuture(testException);
     
     // Should throw the exception
     Exception thrown = assertThrows(RuntimeException.class, 
@@ -76,10 +77,10 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureToCompletableFuture() throws Exception {
+  void testCompletableFutureToCompletableFuture() throws Exception {
     // Create a future
     CompletableFuture<String> future = new CompletableFuture<>();
-    future.getPromise().complete("test");
+    future.complete("test");
     
     // Convert to CompletableFuture
     assertEquals("test", future.toCompletableFuture().get(), 
@@ -87,21 +88,21 @@ class FlowApiTest {
   }
   
   @Test
-  void testFlowFutureGetNow() throws Exception {
+  void testCompletableFutureGetNow() throws Exception {
     // Create a completed future
-    CompletableFuture<String> completedFuture = FlowFuture.completed("test");
+    CompletableFuture<String> completedFuture = CompletableFuture.completedFuture("test");
     
     // Get the value now
-    assertEquals("test", completedFuture.getNow(), 
+    assertEquals("test", completedFuture.getNow(null), 
         "getNow should return the value for a completed future");
     
     // Create a failed future
     RuntimeException testException = new RuntimeException("Test exception");
-    CompletableFuture<String> failedFuture = FlowFuture.failed(testException);
+    CompletableFuture<String> failedFuture = CompletableFuture.failedFuture(testException);
 
     // Should throw the exception
     Exception thrown = assertThrows(Exception.class,
-        failedFuture::getNow,
+        () -> failedFuture.getNow(null),
         "Should throw the exception from the failed future");
 
     assertEquals("Test exception", thrown.getCause().getMessage(),
@@ -127,7 +128,7 @@ class FlowApiTest {
     });
     
     // Complete the future
-    future.getPromise().complete("test");
+    future.complete("test");
     
     // Get the result
     assertEquals("test", resultFuture.toCompletableFuture().get(), 

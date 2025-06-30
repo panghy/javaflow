@@ -74,6 +74,7 @@ jacoco {
 }
 
 jacocoTestReport {
+    dependsOn test, compileJava, processResources
     reports {
         xml.required = true
         csv.required = false
@@ -89,7 +90,6 @@ jacocoTestReport {
             ])
         }))
     }
-    dependsOn test
 }
 
 jacocoTestCoverageVerification {

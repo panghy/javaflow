@@ -55,7 +55,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -110,8 +110,8 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    System.out.println("Test result: " + future.getNow());
-    assertEquals("EXPECTED_EXCEPTION_FILE_EXISTS_true", future.getNow());
+    System.out.println("Test result: " + future.getNow(null));
+    assertEquals("EXPECTED_EXCEPTION_FILE_EXISTS_true", future.getNow(null));
   }
   
   /**
@@ -135,7 +135,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -156,7 +156,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -176,7 +176,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -211,7 +211,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -231,7 +231,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -255,7 +255,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -278,7 +278,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -304,7 +304,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -326,7 +326,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -409,7 +409,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -437,7 +437,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -466,7 +466,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -492,7 +492,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -634,7 +634,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -656,7 +656,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -680,7 +680,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -708,7 +708,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -732,7 +732,7 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   /**
@@ -765,6 +765,6 @@ class SimulatedFlowFileSystemBranchTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
 }

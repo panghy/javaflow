@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,7 @@ public class StreamManagerTest {
     streamManager = new StreamManager();
     mockSender = mock(StreamManager.StreamMessageSender.class);
     when(mockSender.sendMessage(any(), any(), any(), any()))
-        .thenReturn(FlowFuture.completed(null));
+        .thenReturn(CompletableFuture.completedFuture(null));
 
     streamManager.setMessageSender(mockSender);
     testEndpoint = new EndpointId("test-endpoint");

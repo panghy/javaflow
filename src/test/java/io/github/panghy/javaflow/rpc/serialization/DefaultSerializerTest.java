@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc.serialization;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.PromiseStream;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.core.PromiseStream;
 import io.github.panghy.javaflow.rpc.error.RpcSerializationException;
 import org.junit.jupiter.api.Test;
 
@@ -244,16 +245,16 @@ public class DefaultSerializerTest {
     DefaultSerializer<CompletableFuture<String>> serializer = new DefaultSerializer<>();
     ByteBuffer buffer = ByteBuffer.allocate(10);
     RpcSerializationException exception = assertThrows(RpcSerializationException.class,
-        () -> serializer.deserialize(buffer, (Class<CompletableFuture<String>>) (Class<?>) FlowFuture.class));
+        () -> serializer.deserialize(buffer, (Class<CompletableFuture<String>>) (Class<?>) CompletableFuture.class));
     assertTrue(exception.getMessage().contains("Cannot be directly serialized/deserialized"));
   }
 
   @Test
-  public void testDeserializeFlowPromise() {
-    DefaultSerializer<FlowPromise<String>> serializer = new DefaultSerializer<>();
+  public void testDeserializeCompletableFuture() {
+    DefaultSerializer<CompletableFuture<String>> serializer = new DefaultSerializer<>();
     ByteBuffer buffer = ByteBuffer.allocate(10);
     RpcSerializationException exception = assertThrows(RpcSerializationException.class,
-        () -> serializer.deserialize(buffer, (Class<FlowPromise<String>>) (Class<?>) FlowPromise.class));
+        () -> serializer.deserialize(buffer, (Class<CompletableFuture<String>>) (Class<?>) CompletableFuture.class));
     assertTrue(exception.getMessage().contains("Cannot be directly serialized/deserialized"));
   }
 
@@ -271,18 +272,12 @@ public class DefaultSerializerTest {
     // Test subclasses of flow types
     ByteBuffer buffer = ByteBuffer.allocate(10);
 
-    // Custom FlowFuture subclass
-    DefaultSerializer<CustomCompletableFuture<String>> futureSerializer = new DefaultSerializer<>();
+    // Custom CompletableFuture subclass
+    DefaultSerializer<CompletableFuture<String>> futureSerializer = new DefaultSerializer<>();
     RpcSerializationException futureEx = assertThrows(RpcSerializationException.class,
         () -> futureSerializer.deserialize(buffer,
-            (Class<CustomCompletableFuture<String>>) (Class<?>) CustomFlowFuture.class));
+            (Class<CompletableFuture<String>>) (Class<?>) CompletableFuture.class));
     assertTrue(futureEx.getMessage().contains("Cannot be directly serialized/deserialized"));
-
-    // Custom FlowPromise subclass
-    DefaultSerializer<FlowPromise<String>> promiseSerializer = new DefaultSerializer<>();
-    RpcSerializationException promiseEx = assertThrows(RpcSerializationException.class,
-        () -> promiseSerializer.deserialize(buffer, (Class<FlowPromise<String>>) (Class<?>) FlowPromise.class));
-    assertTrue(promiseEx.getMessage().contains("Cannot be directly serialized/deserialized"));
 
     // Custom PromiseStream subclass
     DefaultSerializer<CustomPromiseStream<String>> streamSerializer = new DefaultSerializer<>();

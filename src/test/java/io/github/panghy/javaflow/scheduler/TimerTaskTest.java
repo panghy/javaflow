@@ -195,6 +195,7 @@ class TimerTaskTest {
     // We'll use a lambda when completing the promise exceptionally to check if it's a cancellation
 
     // Create a timer task with the parent task
+    CompletableFuture<Void> promise = new CompletableFuture<>();
     TimerTask timerTask = new TimerTask(42, 1000, () -> { }, TaskPriority.DEFAULT, promise, parentTask);
 
     // Register the timer with the parent (normally done by scheduler)

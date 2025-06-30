@@ -3,9 +3,8 @@ package io.github.panghy.javaflow.examples;
 import io.github.panghy.javaflow.Flow;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.concurrent.ExecutionException;
 /**
  * This example demonstrates the actor model constraints in JavaFlow.
  * It shows how to properly use delay, await, and yield operations within flow tasks,

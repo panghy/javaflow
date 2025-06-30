@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,6 @@ import java.nio.channels.CompletionHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -115,7 +115,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
    * Emulates the core logic of the CompletionHandler.completed method in RealFlowConnection.
    */
   @Test
-  void testBufferHandling() {
+  void testBufferHandling() throws Exception {
     // This test directly verifies the logic in the read completion handler
 
     // Case 1: Normal case, buffer has exactly the bytes we need
@@ -194,7 +194,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
    * This simulates multiple sequential reads to verify data doesn't bleed between reads.
    */
   @Test
-  void testBufferIsolation() {
+  void testBufferIsolation() throws Exception {
     // Simulate multiple read operations with different data
     // Create three buffers with different content
     ByteBuffer buffer1 = ByteBuffer.allocate(1024);
@@ -248,7 +248,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
    * CompletionHandler for each read operation.
    */
   @Test
-  void testSeparateHandlers() {
+  void testSeparateHandlers() throws Exception {
     // This test manually simulates what our new implementation does - creating separate
     // handlers and buffers for each read to avoid interference
 
@@ -320,11 +320,11 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer sendBuffer = ByteBuffer.wrap(data);
     CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive with a smaller maxBytes (only 100 bytes)
     CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(100);
-    ByteBuffer receiveBuffer = receiveFuture.getNow();
+    ByteBuffer receiveBuffer = receiveFuture.get(5, TimeUnit.SECONDS);
 
     // Verify we got exactly 100 bytes, not more
     assertEquals(100, receiveBuffer.remaining());
@@ -339,7 +339,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     // Now receive the remaining data in a second read with larger maxBytes
     CompletableFuture<ByteBuffer> receiveFuture2 = serverConnection.receive(2000);
-    ByteBuffer receiveBuffer2 = receiveFuture2.getNow();
+    ByteBuffer receiveBuffer2 = receiveFuture2.get(5, TimeUnit.SECONDS);
 
     // Verify we got the remaining 900 bytes
     assertEquals(900, receiveBuffer2.remaining());
@@ -366,11 +366,11 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer sendBuffer = ByteBuffer.wrap(data);
     CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive with exactly matching maxBytes
     CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(500);
-    ByteBuffer receiveBuffer = receiveFuture.getNow();
+    ByteBuffer receiveBuffer = receiveFuture.get(5, TimeUnit.SECONDS);
 
     // Verify we got exactly 500 bytes
     assertEquals(500, receiveBuffer.remaining());
@@ -394,11 +394,11 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer sendBuffer = ByteBuffer.wrap(data);
     CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive with a larger maxBytes than actual data
     CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(1000);
-    ByteBuffer receiveBuffer = receiveFuture.getNow();
+    ByteBuffer receiveBuffer = receiveFuture.get(5, TimeUnit.SECONDS);
 
     // Verify we got exactly 300 bytes (all that was available)
     assertEquals(300, receiveBuffer.remaining());
@@ -424,7 +424,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer sendBuffer = ByteBuffer.wrap(data);
     CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive the data in exact-sized chunks
     ByteBuffer combinedBuffer = ByteBuffer.allocate(totalSize);
@@ -436,7 +436,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     for (int i = 0; i < chunksToReceive; i++) {
       CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(chunkSize);
-      ByteBuffer chunk = receiveFuture.getNow();
+      ByteBuffer chunk = receiveFuture.get(5, TimeUnit.SECONDS);
 
       assertEquals(chunkSize, chunk.remaining(), "Chunk size mismatch");
       combinedBuffer.put(chunk);
@@ -446,7 +446,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
     // Get the last chunk if there's a remainder
     if (lastChunkSize > 0) {
       CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(lastChunkSize);
-      ByteBuffer chunk = receiveFuture.getNow();
+      ByteBuffer chunk = receiveFuture.get(5, TimeUnit.SECONDS);
 
       assertEquals(lastChunkSize, chunk.remaining(), "Last chunk size mismatch");
       combinedBuffer.put(chunk);
@@ -476,7 +476,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer sendBuffer = ByteBuffer.wrap(data);
     CompletableFuture<Void> sendFuture = clientConnection.send(sendBuffer);
-    sendFuture.getNow();
+    sendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive in many tiny chunks (5 bytes each)
     int chunkSize = 5;
@@ -485,7 +485,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     for (int i = 0; i < expectedChunks; i++) {
       CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(chunkSize);
-      ByteBuffer chunk = receiveFuture.getNow();
+      ByteBuffer chunk = receiveFuture.get(5, TimeUnit.SECONDS);
 
       assertEquals(chunkSize, chunk.remaining());
 
@@ -506,20 +506,20 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
    * Tests that invalid maxBytes values (0 or negative) are properly rejected.
    */
   @Test
-  void testInvalidMaxBytes() {
+  void testInvalidMaxBytes() throws Exception {
     try {
       CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(0);
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception for maxBytes = 0");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertInstanceOf(IllegalArgumentException.class, e.getCause());
     }
 
     try {
       CompletableFuture<ByteBuffer> receiveFuture = serverConnection.receive(-10);
-      receiveFuture.getNow();
+      receiveFuture.get(5, TimeUnit.SECONDS);
       fail("Expected exception for maxBytes = -10");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertInstanceOf(IllegalArgumentException.class, e.getCause());
     }
   }
@@ -544,11 +544,11 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer firstSendBuffer = ByteBuffer.wrap(firstData);
     CompletableFuture<Void> firstSendFuture = clientConnection.send(firstSendBuffer);
-    firstSendFuture.getNow();
+    firstSendFuture.get(5, TimeUnit.SECONDS);
 
     // Receive first chunk (100 bytes)
     CompletableFuture<ByteBuffer> firstReceiveFuture = serverConnection.receive(100);
-    ByteBuffer firstReceiveBuffer = firstReceiveFuture.getNow();
+    ByteBuffer firstReceiveBuffer = firstReceiveFuture.get(5, TimeUnit.SECONDS);
     assertEquals(100, firstReceiveBuffer.remaining());
 
     byte[] firstReceivedChunk = new byte[firstReceiveBuffer.remaining()];
@@ -560,7 +560,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     // Receive rest of first buffer (900 bytes)
     CompletableFuture<ByteBuffer> secondReceiveFuture = serverConnection.receive(1000); // More than needed
-    ByteBuffer secondReceiveBuffer = secondReceiveFuture.getNow();
+    ByteBuffer secondReceiveBuffer = secondReceiveFuture.get(5, TimeUnit.SECONDS);
     assertEquals(900, secondReceiveBuffer.remaining());
 
     // Send second buffer (500 bytes)
@@ -571,7 +571,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     ByteBuffer secondSendBuffer = ByteBuffer.wrap(secondData);
     CompletableFuture<Void> secondSendFuture = clientConnection.send(secondSendBuffer);
-    secondSendFuture.getNow();
+    secondSendFuture.get(5, TimeUnit.SECONDS);
 
     byte[] secondReceivedChunk = new byte[secondReceiveBuffer.remaining()];
     secondReceiveBuffer.get(secondReceivedChunk);
@@ -582,7 +582,7 @@ public class RealFlowConnectionBufferHandlingTest extends AbstractFlowTest {
 
     // Receive entire second buffer (500 bytes)
     CompletableFuture<ByteBuffer> thirdReceiveFuture = serverConnection.receive(1000); // More than needed
-    ByteBuffer thirdReceiveBuffer = thirdReceiveFuture.getNow();
+    ByteBuffer thirdReceiveBuffer = thirdReceiveFuture.get(5, TimeUnit.SECONDS);
     assertEquals(500, thirdReceiveBuffer.remaining());
 
     byte[] thirdReceivedChunk = new byte[thirdReceiveBuffer.remaining()];

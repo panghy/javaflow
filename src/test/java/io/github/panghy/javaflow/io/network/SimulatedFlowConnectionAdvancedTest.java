@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import io.github.panghy.javaflow.core.StreamClosedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -59,7 +60,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(receiveFuture);
     
     assertFalse(receiveFuture.isCompletedExceptionally());
-    assertNotNull(receiveFuture.getNow());
+    assertNotNull(receiveFuture.getNow(null));
     
     // Now close the connection
     connection1.close();
@@ -72,7 +73,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     assertTrue(failFuture.isCompletedExceptionally());
     
     // The exception is wrapped by ExecutionException
-    ExecutionException ex = assertThrows(ExecutionException.class, () -> failFuture.getNow());
+    CompletionException ex = assertThrows(CompletionException.class, () -> failFuture.getNow(null));
     // The cause should be a StreamClosedException
     assertTrue(ex.getCause() instanceof StreamClosedException, 
         "Expected StreamClosedException, got: " + ex.getCause().getClass().getName());
@@ -92,7 +93,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     assertTrue(sendFuture.isCompletedExceptionally());
     
     // The exception is wrapped by ExecutionException
-    ExecutionException ex = assertThrows(ExecutionException.class, () -> sendFuture.getNow());
+    CompletionException ex = assertThrows(CompletionException.class, () -> sendFuture.getNow(null));
     // The cause should be an IOException
     assertTrue(ex.getCause() instanceof IOException, 
         "Expected IOException, got: " + ex.getCause().getClass().getName());
@@ -111,7 +112,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     assertTrue(receiveFuture.isCompletedExceptionally());
     
     // The exception is wrapped by ExecutionException
-    ExecutionException ex = assertThrows(ExecutionException.class, () -> receiveFuture.getNow());
+    CompletionException ex = assertThrows(CompletionException.class, () -> receiveFuture.getNow(null));
     // The cause should be an IOException
     assertTrue(ex.getCause() instanceof IOException, 
         "Expected IOException, got: " + ex.getCause().getClass().getName());
@@ -197,7 +198,7 @@ public class SimulatedFlowConnectionAdvancedTest extends AbstractFlowTest {
     assertTrue(sendFuture.isCompletedExceptionally());
     
     // The exception is wrapped by ExecutionException
-    ExecutionException ex = assertThrows(ExecutionException.class, () -> sendFuture.getNow());
+    CompletionException ex = assertThrows(CompletionException.class, () -> sendFuture.getNow(null));
     // The cause should be an IOException
     assertTrue(ex.getCause() instanceof IOException, 
         "Expected IOException, got: " + ex.getCause().getClass().getName());

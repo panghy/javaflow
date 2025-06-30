@@ -1,9 +1,11 @@
 package io.github.panghy.javaflow;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.core.FlowCancellationException;
+import io.github.panghy.javaflow.core.FlowCancellationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,8 +27,8 @@ class FlowTest extends AbstractFlowTest {
     CompletableFuture<Integer> future2 = Flow.startActor(() -> Flow.await(future));
     pumpAndAdvanceTimeUntilDone(future, future2);
     
-    assertEquals(42, future.getNow());
-    assertEquals(42, future2.getNow());
+    assertEquals(42, future.getNow(null));
+    assertEquals(42, future2.getNow(null));
   }
 
   @Test
@@ -34,7 +36,7 @@ class FlowTest extends AbstractFlowTest {
     // Test the start method with priority parameter
     CompletableFuture<Integer> future = Flow.startActor(() -> 42, 5);
     pumpAndAdvanceTimeUntilDone(future);
-    assertEquals(42, future.getNow());
+    assertEquals(42, future.getNow(null));
   }
 
   @Test
@@ -45,7 +47,7 @@ class FlowTest extends AbstractFlowTest {
 
     pumpAndAdvanceTimeUntilDone(future);
     assertTrue(executed.get());
-    future.getNow(); // Should not throw
+    future.getNow(null); // Should not throw
   }
 
   @Test
@@ -57,7 +59,7 @@ class FlowTest extends AbstractFlowTest {
 
     pumpAndAdvanceTimeUntilDone(future);
     assertTrue(executed.get());
-    future.getNow(); // Should not throw
+    future.getNow(null); // Should not throw
   }
 
   @Test
@@ -86,7 +88,7 @@ class FlowTest extends AbstractFlowTest {
 
     assertNotNull(future);
     pumpAndAdvanceTimeUntilDone(future);
-    future.getNow(); // Should not throw
+    future.getNow(null); // Should not throw
   }
 
   @Test
@@ -97,7 +99,7 @@ class FlowTest extends AbstractFlowTest {
   @Test
   void testAwaitSuccess() throws Exception {
     // Test await method with a successful future
-    CompletableFuture<String> future = FlowFuture.completed("success");
+    CompletableFuture<String> future = CompletableFuture.completedFuture("success");
 
     String result = Flow.await(future);
     assertEquals("success", result);
@@ -107,7 +109,7 @@ class FlowTest extends AbstractFlowTest {
   void testAwaitWithException() {
     // Test await method with a future that completes exceptionally
     Exception testException = new RuntimeException("test error");
-    CompletableFuture<String> future = FlowFuture.failed(testException);
+    CompletableFuture<String> future = CompletableFuture.failedFuture(testException);
 
     Exception thrown = assertThrows(RuntimeException.class, () -> Flow.await(future));
     assertEquals("test error", thrown.getMessage());
@@ -119,7 +121,7 @@ class FlowTest extends AbstractFlowTest {
     // This tests the else branch in await() where cause is not an Exception
     Throwable testThrowable = new Error("test error");
     CompletableFuture<String> future = new CompletableFuture<>();
-    future.getPromise().completeExceptionally(testThrowable);
+    future.completeExceptionally(testThrowable);
 
     ExecutionException thrown = assertThrows(ExecutionException.class, () -> Flow.await(future));
     assertEquals("test error", thrown.getCause().getMessage());
@@ -134,8 +136,8 @@ class FlowTest extends AbstractFlowTest {
     });
 
     pumpAndAdvanceTimeUntilDone(future);
-    ExecutionException thrown =
-        assertThrows(ExecutionException.class, () -> future.getNow());
+    CompletionException thrown =
+        assertThrows(CompletionException.class, () -> future.getNow(null));
     assertEquals(testException, thrown.getCause());
   }
 
@@ -151,8 +153,8 @@ class FlowTest extends AbstractFlowTest {
     });
 
     pumpAndAdvanceTimeUntilDone(future);
-    ExecutionException thrown =
-        assertThrows(ExecutionException.class, () -> future.getNow());
+    CompletionException thrown =
+        assertThrows(CompletionException.class, () -> future.getNow(null));
     assertEquals(testException, thrown.getCause());
     assertTrue(exceptionThrown.get(), "Runnable should have executed and thrown exception");
   }
@@ -197,10 +199,10 @@ class FlowTest extends AbstractFlowTest {
     CompletableFuture<Void> future = Flow.startActor(() -> {
       // First part returns a string
       return "step1";
-    }).map(str -> {
+    }).thenApply(str -> {
       // Map to concatenate a value
       return str + "-step2";
-    }).map(str -> {
+    }).thenApply(str -> {
       // Store the result and signal completion
       result.set(str);
       completed.set(true);
@@ -216,10 +218,10 @@ class FlowTest extends AbstractFlowTest {
   void testCancellationPropagation() {
     // Simplified test that just verifies that cancellation works for dependent futures
     CompletableFuture<String> future1 = new CompletableFuture<>();
-    CompletableFuture<String> future2 = future1.map(s -> s + " mapped");
+    CompletableFuture<String> future2 = future1.thenApply(s -> s + " mapped");
 
     // When we cancel the first future
-    future1.cancel();
+    future1.cancel(true);
 
     // Check that it was marked as cancelled
     assertTrue(future1.isCancelled());
@@ -255,7 +257,7 @@ class FlowTest extends AbstractFlowTest {
     pump();
     
     // Cancel the future
-    future.cancel();
+    future.cancel(true);
     
     // Process everything
     pumpAndAdvanceTimeUntilDone(future);
@@ -283,7 +285,7 @@ class FlowTest extends AbstractFlowTest {
     // Wait for completion
     pumpAndAdvanceTimeUntilDone(future);
     assertTrue(completedFlag.get());
-    assertEquals("completed", future.getNow());
+    assertEquals("completed", future.getNow(null));
   }
 
   @Test
@@ -307,7 +309,7 @@ class FlowTest extends AbstractFlowTest {
     pump();
     
     // Cancel the future
-    future.cancel();
+    future.cancel(true);
     
     // Process everything
     pumpAndAdvanceTimeUntilDone(future);
@@ -355,7 +357,7 @@ class FlowTest extends AbstractFlowTest {
   void testAwaitThrowsFlowCancellationExceptionOnCancelledFuture() {
     // Test case 1: Future is already cancelled when we await it
     CompletableFuture<String> alreadyCancelledFuture = new CompletableFuture<>();
-    alreadyCancelledFuture.cancel();
+    alreadyCancelledFuture.cancel(true);
     
     AtomicBoolean flowCancellationExceptionThrown = new AtomicBoolean(false);
     
@@ -399,7 +401,7 @@ class FlowTest extends AbstractFlowTest {
     }
     
     // Cancel the future
-    futureToCancelLater.cancel();
+    futureToCancelLater.cancel(true);
     
     // Pump to process cancellation
     pumpAndAdvanceTimeUntilDone(future2);
@@ -426,7 +428,7 @@ class FlowTest extends AbstractFlowTest {
         // Start another actor that will cancel our future while we're waiting
         Flow.startActor(() -> {
           Flow.await(Flow.delay(0.01)); // Small delay
-          futureToBeCancelled.cancel();
+          futureToBeCancelled.cancel(true);
           return null;
         });
         
@@ -467,6 +469,6 @@ class FlowTest extends AbstractFlowTest {
     });
     
     pumpAndAdvanceTimeUntilDone(result);
-    assertEquals("success", result.getNow());
+    assertEquals("success", result.getNow(null));
   }
 }

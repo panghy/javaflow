@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -65,7 +66,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
       return Flow.await(fileSystem.open(testFile, OpenOptions.CREATE, OpenOptions.WRITE));
     });
     pumpAndAdvanceTimeUntilDone(openFuture);
-    FlowFile file = openFuture.getNow();
+    FlowFile file = openFuture.getNow(null);
     
     // Write data
     CompletableFuture<Void> writeFuture = Flow.startActor(() -> {
@@ -89,13 +90,13 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
         return Flow.await(fileSystem.open(testFile, OpenOptions.READ));
       });
       pumpAndAdvanceTimeUntilDone(readOpenFuture);
-      FlowFile readFile = readOpenFuture.getNow();
+      FlowFile readFile = readOpenFuture.getNow(null);
       
       CompletableFuture<ByteBuffer> readFuture = Flow.startActor(() -> {
         return Flow.await(readFile.read(0, originalData.getBytes().length));
       });
       pumpAndAdvanceTimeUntilDone(readFuture);
-      ByteBuffer readBuffer = readFuture.getNow();
+      ByteBuffer readBuffer = readFuture.getNow(null);
       
       String readData = StandardCharsets.UTF_8.decode(readBuffer).toString();
       totalReads.incrementAndGet();
@@ -221,7 +222,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
       });
       pumpAndAdvanceTimeUntilDone(createFuture);
       if (!createFuture.isCompletedExceptionally()) {
-        file = createFuture.getNow();
+        file = createFuture.getNow(null);
       }
     }
     
@@ -334,7 +335,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
         return Flow.await(fileSystem.exists(testFile));
       });
       pumpAndAdvanceTimeUntilDone(existsFuture);
-      assertTrue(existsFuture.getNow(), "File should exist after successful write");
+      assertTrue(existsFuture.getNow(null), "File should exist after successful write");
     }
   }
 
@@ -396,7 +397,7 @@ public class EnhancedFileSystemSimulationTest extends AbstractFlowTest {
         "Read time should be around 0.101s but was " + readTime);
     
     // Verify data integrity
-    ByteBuffer readBuffer = readFuture.getNow();
+    ByteBuffer readBuffer = readFuture.getNow(null);
     byte[] readData = new byte[readBuffer.remaining()];
     readBuffer.get(readData);
     for (int i = 0; i < fileSize; i++) {

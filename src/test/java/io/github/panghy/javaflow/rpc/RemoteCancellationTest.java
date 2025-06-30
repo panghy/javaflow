@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.core.FlowCancellationException;
 import io.github.panghy.javaflow.core.FutureStream;
@@ -179,7 +180,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     pump();
 
     // Cancel the operation
-    future.cancel();
+    future.cancel(true);
 
     // Process cancellation
     advanceTime(1.0);
@@ -216,7 +217,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     assertTrue(service.isCooperativeOpStarted(), "Operation should have started");
     
     // Cancel the operation
-    future.cancel();
+    future.cancel(true);
 
     // Process cancellation
     for (int i = 0; i < 20; i++) {
@@ -288,7 +289,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     int itemsBeforeCancellation = itemsReceived.get();
 
     // Cancel the consumer
-    consumerFuture.cancel();
+    consumerFuture.cancel(true);
 
     // Process cancellation
     for (int i = 0; i < 10; i++) {
@@ -323,7 +324,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     pump();
 
     // Cancel before nested operation completes
-    future.cancel();
+    future.cancel(true);
 
     // Process cancellation
     advanceTime(1.0);
@@ -378,7 +379,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     pump();
 
     // Cancel the operation
-    future.cancel();
+    future.cancel(true);
 
     // Simulate network partition by creating new transport with 100% packet loss
     // Note: In a real scenario, you'd need to interrupt existing connections
@@ -414,9 +415,9 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     pump();
 
     // Cancel all operations
-    future1.cancel();
-    future2.cancel();
-    future3.cancel();
+    future1.cancel(true);
+    future2.cancel(true);
+    future3.cancel(true);
 
     // Process cancellations
     advanceTime(3.5);
@@ -459,7 +460,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     pump();
 
     // Cancel the remote operation
-    remoteFuture.cancel();
+    remoteFuture.cancel(true);
 
     // Process cancellation
     advanceTime(1.0);
@@ -483,7 +484,7 @@ public class RemoteCancellationTest extends AbstractFlowTest {
     CompletableFuture<String> future = client.longRunningOperation(1.0);
 
     // Cancel before connection is established
-    future.cancel();
+    future.cancel(true);
 
     // Now register service
     CancellableServiceImpl service = new CancellableServiceImpl();

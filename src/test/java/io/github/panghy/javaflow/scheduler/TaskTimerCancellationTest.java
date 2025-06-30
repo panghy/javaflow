@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,7 +99,7 @@ public class TaskTimerCancellationTest {
 
     // Cancel the parent task
     System.out.println("DEBUG: Cancelling parent task");
-    parentFuture.getPromise().completeExceptionally(new CancellationException("Test cancellation"));
+    parentFuture.completeExceptionally(new CancellationException("Test cancellation"));
 
     // Process the cancellation
     testScheduler.pump();
@@ -106,7 +107,7 @@ public class TaskTimerCancellationTest {
     // If this doesn't work, manually cancel the timer future
     if (!timerCancelled.get()) {
       System.out.println("DEBUG: Manually cancelling timer future");
-      timerFutureRef.get().cancel();
+      timerFutureRef.get().cancel(true);
       testScheduler.pump();
     }
 
@@ -170,7 +171,7 @@ public class TaskTimerCancellationTest {
 
     // Cancel the timer future directly
     System.out.println("DEBUG: Cancelling timer future directly");
-    timerFuture.cancel();
+    timerFuture.cancel(true);
 
     // Process the cancellation
     testScheduler.pump();

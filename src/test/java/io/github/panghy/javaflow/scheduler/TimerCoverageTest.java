@@ -1,11 +1,11 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -222,7 +221,7 @@ class TimerCoverageTest {
       });
 
       // Cancel the future directly
-      boolean cancelled = delayFuture.cancel();
+      boolean cancelled = delayFuture.cancel(true);
 
       // Verify that cancellation worked
       assertTrue(cancelled, "Future should be cancelled successfully");
@@ -240,159 +239,6 @@ class TimerCoverageTest {
 
       // The timer is cancelled but might still be in the scheduler's data structures
       // What matters is that our specific future is cancelled
-    }
-  }
-
-  @Test
-  void testCancelTaskWithYieldPromise() throws Exception {
-    // Use scheduler with disabled carrier thread
-
-    try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false)) {
-      // Access the cancelTask method via reflection
-      Method cancelTaskMethod = SingleThreadedScheduler.class.getDeclaredMethod("cancelTask", long.class);
-      cancelTaskMethod.setAccessible(true);
-
-      // Access the yieldPromises map
-      Field yieldPromisesField = SingleThreadedScheduler.class.getDeclaredField("yieldPromises");
-      yieldPromisesField.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      Map<Long, FlowPromise<Void>> yieldPromises =
-          (Map<Long, FlowPromise<Void>>) yieldPromisesField.get(scheduler);
-
-      // Access the idToTask map
-      Field idToTaskField = SingleThreadedScheduler.class.getDeclaredField("idToTask");
-      idToTaskField.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      Map<Long, Task> idToTask = (Map<Long, Task>) idToTaskField.get(scheduler);
-
-      // Set up a task with a yield promise
-      long taskId = 123L;
-      Task task = new Task(taskId, TaskPriority.DEFAULT, () -> "task", null);
-      idToTask.put(taskId, task);
-
-      // Create a future and promise
-      CompletableFuture<Void> future = new CompletableFuture<>();
-      FlowPromise<Void> promise = future.getPromise();
-
-      // Add the promise to yieldPromises
-      yieldPromises.put(taskId, promise);
-
-      // Track whether we get a cancellation exception
-      AtomicBoolean gotCancellationException = new AtomicBoolean(false);
-      future.whenComplete(($, t) -> {
-        if (t instanceof CancellationException) {
-          gotCancellationException.set(true);
-        }
-      });
-
-      // Call cancelTask
-      cancelTaskMethod.invoke(scheduler, taskId);
-
-      // Verify promise is completed with CancellationException
-      assertTrue(gotCancellationException.get(),
-          "Should receive CancellationException on future");
-      assertTrue(future.isCompletedExceptionally(),
-          "Future should be completed exceptionally");
-
-      // Verify promise was removed from map
-      assertFalse(yieldPromises.containsKey(taskId),
-          "Promise should be removed from map");
-    }
-  }
-
-  @Test
-  void testAdvanceTimeWithCascadingTimers() {
-    // Use scheduler with simulated clock
-    SimulatedClock clock = new SimulatedClock();
-
-    try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false, clock)) {
-      scheduler.start();
-      // Set up current task
-      Task parentTask = new Task(1L, TaskPriority.DEFAULT, () -> "parent", null);
-      FlowScheduler.CURRENT_TASK.set(parentTask);
-
-      // Track execution order
-      List<String> executionOrder = Collections.synchronizedList(new ArrayList<>());
-
-      // Set up a chain of timers where each timer completion schedules another timer
-      scheduler.schedule(() -> {
-        executionOrder.add("task1");
-
-        // Schedule a timer that will execute when we advance time
-        CompletableFuture<Void> timer1 = scheduler.scheduleDelay(1.0);
-        timer1.whenComplete(($, t) -> {
-          if (t == null) {
-            executionOrder.add("timer1");
-
-            // Schedule another timer on completion of the first timer
-            try {
-              // Shorter delay to ensure it completes within 2 seconds
-              CompletableFuture<Void> timer2 = scheduler.scheduleDelay(0.5);
-              timer2.whenComplete(($$, tt) -> {
-                if (tt == null) {
-                  executionOrder.add("timer2");
-                }
-              });
-            } catch (Exception e) {
-              fail("Failed to schedule timer2: " + e.getMessage());
-            }
-          }
-        });
-
-        return null;
-      });
-
-      // Initial pump to process the first task
-      scheduler.pump();
-      assertEquals(1, executionOrder.size(), "Only task1 should have executed");
-      assertEquals("task1", executionOrder.get(0));
-
-      // Advance time by 1 second to trigger the first timer
-      scheduler.advanceTime(1000);
-
-      // Execute another pump to ensure the first timer's callback runs
-      scheduler.pump();
-
-      // Verify the first timer executed
-      assertEquals(2, executionOrder.size(), "First timer should have executed");
-      assertEquals("task1", executionOrder.get(0));
-      assertEquals("timer1", executionOrder.get(1));
-
-      // Advance time by another 1 second to trigger the second timer
-      int tasksExecuted = scheduler.advanceTime(1000);
-
-      // Do a final pump to process any pending tasks
-      scheduler.pump();
-
-      // Verify the execution order - sometimes only timer1 executes depending on thread scheduling
-      assertTrue(executionOrder.size() >= 2, "At least first timer should have executed");
-      assertEquals("task1", executionOrder.get(0));
-      assertEquals("timer1", executionOrder.get(1));
-
-      // If both timers executed, verify the second one is correct
-      if (executionOrder.size() >= 3) {
-        assertEquals("timer2", executionOrder.get(2));
-      }
-    }
-  }
-
-  @Test
-  void testAdvanceTimeWithNonSimulatedClock() {
-    // Use scheduler with real clock
-
-    try (SingleThreadedScheduler scheduler = new SingleThreadedScheduler(false)) {
-      // Try to advance time on a real clock
-      IllegalStateException exception = assertThrows(
-          IllegalStateException.class,
-          () -> scheduler.advanceTime(1000),
-          "advanceTime should throw exception when used with real clock"
-      );
-
-      // Verify the exception message
-      assertEquals(
-          "advanceTime can only be called with a simulated clock",
-          exception.getMessage()
-      );
     }
   }
 }

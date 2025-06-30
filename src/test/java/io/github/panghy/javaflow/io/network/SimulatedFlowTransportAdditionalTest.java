@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FlowStream;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +51,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       assertFalse(successFuture.isCompletedExceptionally(), "Connect should succeed with 0% error probability");
       
       // Test send errors
-      FlowConnection connection = successFuture.getNow();
+      FlowConnection connection = successFuture.getNow(null);
       assertNotNull(connection);
       
       // Send should fail with 100% probability
@@ -92,7 +93,7 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       
       assertFalse(connectFuture.isCompletedExceptionally(), "Connect should succeed");
       
-      FlowConnection connection = connectFuture.getNow();
+      FlowConnection connection = connectFuture.getNow(null);
       assertNotNull(connection);
       
       // Send with 100% disconnect probability should cause connection to close
@@ -141,10 +142,10 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
       assertFalse(acceptFuture2.isCompletedExceptionally());
       
       // Clean up connections
-      connectFuture1.getNow().close();
-      connectFuture2.getNow().close();
-      acceptFuture1.getNow().close();
-      acceptFuture2.getNow().close();
+      connectFuture1.getNow(null).close();
+      connectFuture2.getNow(null).close();
+      acceptFuture1.getNow(null).close();
+      acceptFuture2.getNow(null).close();
       
       // Wait for close operations
       pumpAndAdvanceTimeUntilDone();
@@ -169,8 +170,8 @@ public class SimulatedFlowTransportAdditionalTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(connectFuture, acceptFuture);
     
     // Get the connections
-    FlowConnection clientConn = connectFuture.getNow();
-    FlowConnection serverConn = acceptFuture.getNow();
+    FlowConnection clientConn = connectFuture.getNow(null);
+    FlowConnection serverConn = acceptFuture.getNow(null);
     
     // Start operations that will be interrupted by close
     AtomicReference<Exception> sendException = new AtomicReference<>();

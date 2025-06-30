@@ -1,10 +1,10 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,8 +71,8 @@ class FlowDelayTest extends AbstractFlowTest {
     System.out.println("Current time at end: " + currentTimeSeconds() + "s");
     assertTrue(delayTestFuture.isDone(), "Delay should complete after advancing time");
     try {
-      assertTrue(delayTestFuture.getNow(), "Delay actor should return true on success");
-    } catch (ExecutionException e) {
+      assertTrue(delayTestFuture.getNow(null), "Delay actor should return true on success");
+    } catch (Exception e) {
       throw new AssertionError("Delay actor completed exceptionally", e);
     }
   }

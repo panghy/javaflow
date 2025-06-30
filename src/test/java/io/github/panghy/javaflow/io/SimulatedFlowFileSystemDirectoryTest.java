@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +11,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,7 +48,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify it exists
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -68,7 +68,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       try {
         Flow.await(fileSystem.createDirectory(dir));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -82,7 +82,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(FileAlreadyExistsException.class, future.getNow());
+    assertEquals(FileAlreadyExistsException.class, future.getNow(null));
   }
   
   @Test
@@ -105,7 +105,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all directories exist
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -134,7 +134,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify results
-    List<Path> children = future.getNow();
+    List<Path> children = future.getNow(null);
     assertEquals(3, children.size());
     assertTrue(children.contains(Paths.get("/parent/child1")));
     assertTrue(children.contains(Paths.get("/parent/child2")));
@@ -150,7 +150,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       try {
         Flow.await(fileSystem.list(nonExistent));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -164,7 +164,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(NoSuchFileException.class, future.getNow());
+    assertEquals(NoSuchFileException.class, future.getNow(null));
   }
   
   @Test
@@ -192,7 +192,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the directory was deleted
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -210,7 +210,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
         // Try to delete the non-empty directory
         Flow.await(fileSystem.delete(parent));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -224,7 +224,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify the exception class is IOException
-    assertEquals(IOException.class, future.getNow());
+    assertEquals(IOException.class, future.getNow(null));
   }
   
   @Test
@@ -256,7 +256,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify all checks pass
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -274,7 +274,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
         // Try to move to an existing directory
         Flow.await(fileSystem.move(source, target));
         return null;
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -288,7 +288,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     // Verify exception type
-    assertEquals(FileAlreadyExistsException.class, future.getNow());
+    assertEquals(FileAlreadyExistsException.class, future.getNow(null));
   }
   
   @Test
@@ -355,7 +355,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
   
   @Test
@@ -370,7 +370,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       try {
         Flow.await(fileSystem.open(filePath, OpenOptions.READ));
         results[0] = null; // Should not reach here
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -388,7 +388,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
       try {
         Flow.await(fileSystem.open(filePath, OpenOptions.CREATE_NEW, OpenOptions.WRITE));
         results[1] = null; // Should not reach here
-      } catch (ExecutionException e) {
+      } catch (Exception e) {
         // Flow.await wraps exceptions in ExecutionException
         Throwable cause = e.getCause();
         // SimulatedFlowFileSystem wraps exceptions in RuntimeException
@@ -404,7 +404,7 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    Class<?>[] results = future.getNow();
+    Class<?>[] results = future.getNow(null);
     assertEquals(NoSuchFileException.class, results[0]);
     assertEquals(FileAlreadyExistsException.class, results[1]);
   }
@@ -430,6 +430,6 @@ class SimulatedFlowFileSystemDirectoryTest extends AbstractFlowTest {
     
     pumpAndAdvanceTimeUntilDone(future);
     
-    assertTrue(future.getNow());
+    assertTrue(future.getNow(null));
   }
 }

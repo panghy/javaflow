@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.rpc.stream;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.core.FutureStream;
 import io.github.panghy.javaflow.rpc.EndpointId;
 import io.github.panghy.javaflow.rpc.message.RpcMessageHeader;

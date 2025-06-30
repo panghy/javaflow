@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -176,7 +175,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     // Register the promise
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -193,7 +192,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     // Register the promise
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -222,7 +221,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     // Register the promise
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -246,12 +245,12 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a local promise for a remote ID
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Verify a promise was created
     assertNotNull(localPromise);
-    assertFalse(localPromise.getFuture().isDone());
+    assertFalse(localPromise.isDone());
 
     // Verify the promise is tracked
     assertTrue(tracker.hasIncomingPromise(remoteId));
@@ -265,7 +264,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a local promise for a remote ID
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Complete the promise with a result
@@ -273,14 +272,14 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify completion was successful
     assertTrue(completed);
-    assertTrue(localPromise.getFuture().isDone());
-    assertFalse(localPromise.getFuture().isCompletedExceptionally());
+    assertTrue(localPromise.isDone());
+    assertFalse(localPromise.isCompletedExceptionally());
 
     // Verify the promise is no longer tracked
     assertFalse(tracker.hasIncomingPromise(remoteId));
 
     // Verify the promise has the correct result
-    assertEquals("success", localPromise.getFuture().getNow());
+    assertEquals("success", localPromise.getNow(null));
   }
 
   @Test
@@ -291,7 +290,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a local promise for a remote ID
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Force the exception directly for testing
@@ -300,14 +299,14 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // verify promise is completed exceptionally
     pump();
-    assertTrue(localPromise.getFuture().isDone());
-    assertTrue(localPromise.getFuture().isCompletedExceptionally());
+    assertTrue(localPromise.isDone());
+    assertTrue(localPromise.isCompletedExceptionally());
 
     // Verify the promise failed with a ClassCastException
     try {
-      localPromise.getFuture().getNow();
+      localPromise.getNow(null);
       fail("Expected ClassCastException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof ClassCastException);
     }
   }
@@ -320,7 +319,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a local promise for a remote ID
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Complete the promise with an exception
@@ -329,17 +328,17 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify completion was successful
     assertTrue(completed);
-    assertTrue(localPromise.getFuture().isDone());
-    assertTrue(localPromise.getFuture().isCompletedExceptionally());
+    assertTrue(localPromise.isDone());
+    assertTrue(localPromise.isCompletedExceptionally());
 
     // Verify the promise is no longer tracked
     assertFalse(tracker.hasIncomingPromise(remoteId));
 
     // Verify the promise failed with the correct exception
     try {
-      localPromise.getFuture().getNow();
+      localPromise.getNow(null);
       fail("Expected exception");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertEquals(testException, e.getCause());
     }
   }
@@ -379,7 +378,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a local promise for a remote ID
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Start an actor to cancel the future
@@ -388,7 +387,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Launch an actor to cancel the future
     pump();
     Flow.startActor(() -> {
-      localPromise.getFuture().cancel();
+      localPromise.cancel(true);
       actorDone.complete(null);
       return null;
     });
@@ -416,9 +415,9 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     UUID remoteId2 = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
 
-    FlowPromise<String> localPromise1 = tracker.createLocalPromiseForRemote(remoteId1, source,
+    CompletableFuture<String> localPromise1 = tracker.createLocalPromiseForRemote(remoteId1, source,
         new TypeDescription(String.class));
-    FlowPromise<Integer> localPromise2 = tracker.createLocalPromiseForRemote(remoteId2, source,
+    CompletableFuture<Integer> localPromise2 = tracker.createLocalPromiseForRemote(remoteId2, source,
         new TypeDescription(Integer.class));
 
     // Verify promises are tracked
@@ -433,16 +432,16 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     assertFalse(tracker.hasIncomingPromise(remoteId2));
 
     // Verify promises were completed exceptionally
-    assertTrue(localPromise1.getFuture().isDone());
-    assertTrue(localPromise1.getFuture().isCompletedExceptionally());
-    assertTrue(localPromise2.getFuture().isDone());
-    assertTrue(localPromise2.getFuture().isCompletedExceptionally());
+    assertTrue(localPromise1.isDone());
+    assertTrue(localPromise1.isCompletedExceptionally());
+    assertTrue(localPromise2.isDone());
+    assertTrue(localPromise2.isCompletedExceptionally());
 
     // Verify the exceptions
     try {
-      localPromise1.getFuture().getNow();
+      localPromise1.getNow(null);
       fail("Expected exception");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof IllegalStateException);
       assertTrue(e.getCause().getMessage().contains("shut down"));
     }
@@ -454,7 +453,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     // Register the promise
     Endpoint destination = new Endpoint("localhost", 8080);
@@ -729,7 +728,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint endpoint = new Endpoint("localhost", 8080);
 
     // Create an incoming promise
-    FlowPromise<String> promise = tracker.createIncomingPromise(promiseId, endpoint);
+    CompletableFuture<String> promise = tracker.createIncomingPromise(promiseId, endpoint);
 
     // Complete the promise with a result
     promise.complete("incoming result");
@@ -748,7 +747,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint endpoint = new Endpoint("localhost", 8080);
 
     // Create an incoming promise
-    FlowPromise<String> promise = tracker.createIncomingPromise(promiseId, endpoint);
+    CompletableFuture<String> promise = tracker.createIncomingPromise(promiseId, endpoint);
 
     // Complete the promise with an error
     RuntimeException error = new RuntimeException("test error");
@@ -802,7 +801,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a promise expecting String
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> localPromise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Try to complete with Integer (wrong type)
@@ -816,14 +815,14 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Promise should be completed
     pump();
-    assertTrue(localPromise.getFuture().isDone());
-    assertFalse(localPromise.getFuture().isCompletedExceptionally());
+    assertTrue(localPromise.isDone());
+    assertFalse(localPromise.isCompletedExceptionally());
 
     // The value should be there (though it's technically wrong type)
-    // Since getNow() can throw ExecutionException, we need to handle it
+    // Since getNow(null) can throw ExecutionException, we need to handle it
     try {
-      assertEquals(123, ((Object) localPromise.getFuture().getNow()));
-    } catch (ExecutionException e) {
+      assertEquals(123, ((Object) localPromise.getNow(null)));
+    } catch (Exception e) {
       fail("Promise should have completed successfully, but got exception: " + e.getCause());
     }
   }
@@ -903,7 +902,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     Endpoint destination = new Endpoint("localhost", 8080);
     UUID promiseId = tracker.registerOutgoingPromise(promise, destination,
@@ -937,7 +936,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Create a promise
     CompletableFuture<String> future = new CompletableFuture<>();
-    FlowPromise<String> promise = future.getPromise();
+    CompletableFuture<String> promise = future;
 
     Endpoint destination = new Endpoint("localhost", 8080);
     UUID promiseId = tracker.registerOutgoingPromise(promise, destination,
@@ -1058,19 +1057,19 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     CompletableFuture<String> future2 = new CompletableFuture<>();
     CompletableFuture<String> future3 = new CompletableFuture<>();
 
-    UUID promiseId1 = tracker.registerOutgoingPromise(future1.getPromise(), endpoint1,
+    UUID promiseId1 = tracker.registerOutgoingPromise(future1, endpoint1,
         new TypeDescription(String.class));
-    UUID promiseId2 = tracker.registerOutgoingPromise(future2.getPromise(), endpoint1,
+    UUID promiseId2 = tracker.registerOutgoingPromise(future2, endpoint1,
         new TypeDescription(String.class));
-    UUID promiseId3 = tracker.registerOutgoingPromise(future3.getPromise(), endpoint2,
+    UUID promiseId3 = tracker.registerOutgoingPromise(future3, endpoint2,
         new TypeDescription(String.class));
 
     // Create incoming promises from both endpoints
-    FlowPromise<String> incoming1 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
+    CompletableFuture<String> incoming1 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
         endpoint1, new TypeDescription(String.class));
-    FlowPromise<String> incoming2 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
+    CompletableFuture<String> incoming2 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
         endpoint1, new TypeDescription(String.class));
-    FlowPromise<String> incoming3 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
+    CompletableFuture<String> incoming3 = tracker.createLocalPromiseForRemote(UUID.randomUUID(),
         endpoint2, new TypeDescription(String.class));
 
     // Create outgoing streams for both endpoints
@@ -1113,13 +1112,13 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     assertTrue(tracker.hasIncomingStream(incomingStreamId2));
 
     // Verify incoming promises were completed exceptionally
-    assertTrue(incoming1.getFuture().isDone());
-    assertTrue(incoming1.getFuture().isCompletedExceptionally());
-    assertTrue(incoming2.getFuture().isDone());
-    assertTrue(incoming2.getFuture().isCompletedExceptionally());
+    assertTrue(incoming1.isDone());
+    assertTrue(incoming1.isCompletedExceptionally());
+    assertTrue(incoming2.isDone());
+    assertTrue(incoming2.isCompletedExceptionally());
 
     // Verify incoming3 is still pending
-    assertFalse(incoming3.getFuture().isDone());
+    assertFalse(incoming3.isDone());
 
     // Verify incoming streams were closed exceptionally
     assertTrue(incomingStream1.isClosed());
@@ -1127,7 +1126,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify the exception message
     AtomicReference<Throwable> capturedError = new AtomicReference<>();
-    incoming1.getFuture().whenComplete((value, ex) -> capturedError.set(ex));
+    incoming1.whenComplete((value, ex) -> capturedError.set(ex));
     pump();
 
     assertNotNull(capturedError.get());
@@ -1147,7 +1146,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify tracker is still functional
     CompletableFuture<String> future = new CompletableFuture<>();
-    UUID promiseId = tracker.registerOutgoingPromise(future.getPromise(), endpoint,
+    UUID promiseId = tracker.registerOutgoingPromise(future, endpoint,
         new TypeDescription(String.class));
 
     assertNotNull(tracker.getOutgoingPromiseInfo(promiseId));
@@ -1162,37 +1161,37 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint source = new Endpoint("localhost", 9090);
 
     // Test Integer overflow
-    FlowPromise<Integer> intPromise = tracker.createLocalPromiseForRemote(remoteId1, source,
+    CompletableFuture<Integer> intPromise = tracker.createLocalPromiseForRemote(remoteId1, source,
         new TypeDescription(Integer.class));
 
     // Try to complete with Long.MAX_VALUE (should cause overflow)
     boolean completed1 = tracker.completeLocalPromise(remoteId1, Long.MAX_VALUE);
     assertFalse(completed1); // Should return false due to overflow
     pump();
-    assertTrue(intPromise.getFuture().isDone());
-    assertTrue(intPromise.getFuture().isCompletedExceptionally());
+    assertTrue(intPromise.isDone());
+    assertTrue(intPromise.isCompletedExceptionally());
 
     // Test Short overflow
     UUID remoteId2 = UUID.randomUUID();
-    FlowPromise<Short> shortPromise = tracker.createLocalPromiseForRemote(remoteId2, source,
+    CompletableFuture<Short> shortPromise = tracker.createLocalPromiseForRemote(remoteId2, source,
         new TypeDescription(Short.class));
 
     boolean completed2 = tracker.completeLocalPromise(remoteId2, 100000L); // Too big for short
     assertFalse(completed2);
     pump();
-    assertTrue(shortPromise.getFuture().isDone());
-    assertTrue(shortPromise.getFuture().isCompletedExceptionally());
+    assertTrue(shortPromise.isDone());
+    assertTrue(shortPromise.isCompletedExceptionally());
 
     // Test Byte overflow
     UUID remoteId3 = UUID.randomUUID();
-    FlowPromise<Byte> bytePromise = tracker.createLocalPromiseForRemote(remoteId3, source,
+    CompletableFuture<Byte> bytePromise = tracker.createLocalPromiseForRemote(remoteId3, source,
         new TypeDescription(Byte.class));
 
     boolean completed3 = tracker.completeLocalPromise(remoteId3, 1000L); // Too big for byte
     assertFalse(completed3);
     pump();
-    assertTrue(bytePromise.getFuture().isDone());
-    assertTrue(bytePromise.getFuture().isCompletedExceptionally());
+    assertTrue(bytePromise.isDone());
+    assertTrue(bytePromise.isCompletedExceptionally());
   }
 
   @Test
@@ -1201,18 +1200,18 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Test completing with null value
     boolean completed = tracker.completeLocalPromise(remoteId, null);
     assertTrue(completed);
     pump();
-    assertTrue(promise.getFuture().isDone());
-    assertFalse(promise.getFuture().isCompletedExceptionally());
+    assertTrue(promise.isDone());
+    assertFalse(promise.isCompletedExceptionally());
     try {
-      assertNull(promise.getFuture().getNow());
-    } catch (ExecutionException e) {
+      assertNull(promise.getNow(null));
+    } catch (Exception e) {
       fail("Promise should have completed with null");
     }
   }
@@ -1223,16 +1222,16 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<Object> promise = tracker.createLocalPromiseForRemote(remoteId, source, null);
+    CompletableFuture<Object> promise = tracker.createLocalPromiseForRemote(remoteId, source, null);
 
     // With null TypeDescription, conversion should pass through unchanged
     boolean completed = tracker.completeLocalPromise(remoteId, "test");
     assertTrue(completed);
     pump();
-    assertTrue(promise.getFuture().isDone());
+    assertTrue(promise.isDone());
     try {
-      assertEquals("test", promise.getFuture().getNow());
-    } catch (ExecutionException e) {
+      assertEquals("test", promise.getNow(null));
+    } catch (Exception e) {
       fail("Promise should have completed successfully");
     }
   }
@@ -1245,7 +1244,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint source = new Endpoint("localhost", 9090);
 
     // Create promise with sendResultBack=false
-    FlowPromise<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class), false);
 
     // Complete the promise locally
@@ -1313,11 +1312,11 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     UUID remoteId = UUID.randomUUID();
     Endpoint source = new Endpoint("localhost", 9090);
-    FlowPromise<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Cancel the promise's future
-    promise.getFuture().cancel();
+    promise.cancel(true);
     pump();
 
     // Verify cancellation was sent back to source
@@ -1331,7 +1330,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create an outgoing promise
     CompletableFuture<String> future = new CompletableFuture<>();
     Endpoint destination = new Endpoint("localhost", 8080);
-    UUID promiseId = tracker.registerOutgoingPromise(future.getPromise(), destination,
+    UUID promiseId = tracker.registerOutgoingPromise(future, destination,
         new TypeDescription(String.class));
 
     // Test completing outgoing promise successfully
@@ -1356,7 +1355,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint source = new Endpoint("localhost", 9090);
 
     // Create promise - should work even with null MessageSender
-    FlowPromise<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
+    CompletableFuture<String> promise = tracker.createLocalPromiseForRemote(remoteId, source,
         new TypeDescription(String.class));
 
     // Complete the promise
@@ -1364,10 +1363,10 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     pump();
 
     // Should not crash even though no MessageSender is available
-    assertTrue(promise.getFuture().isDone());
+    assertTrue(promise.isDone());
     try {
-      assertEquals("test", promise.getFuture().getNow());
-    } catch (ExecutionException e) {
+      assertEquals("test", promise.getNow(null));
+    } catch (Exception e) {
       fail("Promise should have completed successfully");
     }
   }
@@ -1400,7 +1399,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     Endpoint sourceEndpoint = new Endpoint("source", 1234);
 
     // Test Byte overflow
-    FlowPromise<Byte> bytePromise = tracker.createLocalPromiseForRemote(
+    CompletableFuture<Byte> bytePromise = tracker.createLocalPromiseForRemote(
         promiseId, sourceEndpoint, new TypeDescription(Byte.class), false);
 
     // Complete with a Long value that's too large for Byte
@@ -1409,21 +1408,21 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify the promise was completed exceptionally
     pump();
-    assertTrue(bytePromise.getFuture().isDone());
-    assertTrue(bytePromise.getFuture().isCompletedExceptionally());
+    assertTrue(bytePromise.isDone());
+    assertTrue(bytePromise.isCompletedExceptionally());
 
     // Verify the exception
     try {
-      bytePromise.getFuture().getNow();
+      bytePromise.getNow(null);
       fail("Expected ExecutionException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof IllegalArgumentException);
       assertTrue(e.getCause().getMessage().contains("cannot be converted to Byte"));
     }
 
     // Test Short overflow
     UUID shortPromiseId = UUID.randomUUID();
-    FlowPromise<Short> shortPromise = tracker.createLocalPromiseForRemote(
+    CompletableFuture<Short> shortPromise = tracker.createLocalPromiseForRemote(
         shortPromiseId, sourceEndpoint, new TypeDescription(Short.class), false);
 
     // Complete with a Long value that's too large for Short
@@ -1432,14 +1431,14 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify the promise was completed exceptionally
     pump();
-    assertTrue(shortPromise.getFuture().isDone());
-    assertTrue(shortPromise.getFuture().isCompletedExceptionally());
+    assertTrue(shortPromise.isDone());
+    assertTrue(shortPromise.isCompletedExceptionally());
 
     // Verify the exception
     try {
-      shortPromise.getFuture().getNow();
+      shortPromise.getNow(null);
       fail("Expected ExecutionException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertTrue(e.getCause() instanceof IllegalArgumentException);
       assertTrue(e.getCause().getMessage().contains("cannot be converted to Short"));
     }
@@ -1457,7 +1456,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     TypeDescription listType = new TypeDescription("java.util.List",
         new TypeDescription[]{new TypeDescription(String.class)});
 
-    FlowPromise<List<String>> listPromise = tracker.createLocalPromiseForRemote(
+    CompletableFuture<List<String>> listPromise = tracker.createLocalPromiseForRemote(
         promiseId, sourceEndpoint, listType, false);
 
     // Complete with a list
@@ -1465,11 +1464,11 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.completeLocalPromise(promiseId, values);
 
     // Verify the promise was completed successfully
-    CompletableFuture<List<String>> future = listPromise.getFuture();
+    CompletableFuture<List<String>> future = listPromise;
     assertTrue(future.isDone());
     try {
-      assertEquals(values, future.getNow());
-    } catch (ExecutionException e) {
+      assertEquals(values, future.getNow(null));
+    } catch (Exception e) {
       fail("Promise should have completed successfully");
     }
   }
@@ -1485,7 +1484,7 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     // Create a TypeDescription that will throw ClassNotFoundException
     TypeDescription unknownType = new TypeDescription("com.unknown.UnknownClass");
 
-    FlowPromise<Object> promise = tracker.createLocalPromiseForRemote(
+    CompletableFuture<Object> promise = tracker.createLocalPromiseForRemote(
         promiseId, sourceEndpoint, unknownType, false);
 
     // Complete with a value - should return as-is since type can't be loaded
@@ -1493,11 +1492,11 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
     tracker.completeLocalPromise(promiseId, value);
 
     // Verify the promise was completed with the original value
-    CompletableFuture<Object> future = promise.getFuture();
+    CompletableFuture<Object> future = promise;
     assertTrue(future.isDone());
     try {
-      assertEquals(value, future.getNow());
-    } catch (ExecutionException e) {
+      assertEquals(value, future.getNow(null));
+    } catch (Exception e) {
       fail("Promise should have completed successfully");
     }
   }
@@ -1583,9 +1582,9 @@ public class RemotePromiseTrackerTest extends AbstractFlowTest {
 
     // Verify the exception
     try {
-      nextFuture.getNow();
+      nextFuture.getNow(null);
       fail("Expected ExecutionException");
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       assertEquals("Stream error", e.getCause().getMessage());
     }
   }

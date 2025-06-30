@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -339,7 +340,7 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(connectFuture1);
     assertTrue(connectFuture1.isDone() && !connectFuture1.isCompletedExceptionally(),
         "Initial connection should succeed");
-    connectFuture1.getNow().close();
+    connectFuture1.getNow(null).close();
     
     // Create network partition between client and server
     transport.createPartition(clientAddr, serverAddr);
@@ -367,6 +368,6 @@ public class EnhancedNetworkSimulationTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(connectFuture3);
     assertTrue(connectFuture3.isDone() && !connectFuture3.isCompletedExceptionally(),
         "Connection should succeed after healing partition");
-    connectFuture3.getNow().close();
+    connectFuture3.getNow(null).close();
   }
 }

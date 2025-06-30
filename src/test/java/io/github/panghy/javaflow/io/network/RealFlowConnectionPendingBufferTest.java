@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,7 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
 
     // Client requests only 30 bytes
     CompletableFuture<ByteBuffer> receive1 = clientConnection.receive(30);
-    ByteBuffer result1 = receive1.getNow();
+    ByteBuffer result1 = receive1.get(5, TimeUnit.SECONDS);
     assertEquals(30, result1.remaining());
 
     // Verify the first 30 bytes
@@ -120,7 +121,7 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
 
     // Client requests another 40 bytes - should come from pending buffer
     CompletableFuture<ByteBuffer> receive2 = clientConnection.receive(40);
-    ByteBuffer result2 = receive2.getNow();
+    ByteBuffer result2 = receive2.get(5, TimeUnit.SECONDS);
     assertEquals(40, result2.remaining());
 
     // Verify the next 40 bytes
@@ -132,7 +133,7 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
 
     // Client requests the remaining 30 bytes
     CompletableFuture<ByteBuffer> receive3 = clientConnection.receive(30);
-    ByteBuffer result3 = receive3.getNow();
+    ByteBuffer result3 = receive3.get(5, TimeUnit.SECONDS);
     assertEquals(30, result3.remaining());
 
     // Verify the last 30 bytes
@@ -153,14 +154,14 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
     for (int i = 0; i < 50; i++) {
       data[i] = (byte) (i + 100); // Different pattern
     }
-    serverConnection.send(ByteBuffer.wrap(data)).getNow();
+    serverConnection.send(ByteBuffer.wrap(data)).get(5, TimeUnit.SECONDS);
 
     // Give time for data to arrive
     Thread.sleep(100);
 
     // Request exactly 50 bytes
     CompletableFuture<ByteBuffer> receiveFuture = clientConnection.receive(50);
-    ByteBuffer result = receiveFuture.getNow();
+    ByteBuffer result = receiveFuture.get(5, TimeUnit.SECONDS);
 
     assertEquals(50, result.remaining());
     byte[] received = new byte[50];
@@ -178,14 +179,14 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
     for (int i = 0; i < 20; i++) {
       data[i] = (byte) (i * 2);
     }
-    serverConnection.send(ByteBuffer.wrap(data)).getNow();
+    serverConnection.send(ByteBuffer.wrap(data)).get(5, TimeUnit.SECONDS);
 
     Thread.sleep(100);
 
     // Receive in 5-byte chunks
     for (int chunk = 0; chunk < 4; chunk++) {
       CompletableFuture<ByteBuffer> future = clientConnection.receive(5);
-      ByteBuffer result = future.getNow();
+      ByteBuffer result = future.get(5, TimeUnit.SECONDS);
       assertEquals(5, result.remaining());
 
       // Verify chunk data
@@ -208,13 +209,13 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
     for (int i = 0; i < 1000; i++) {
       data[i] = (byte) (i % 256);
     }
-    serverConnection.send(ByteBuffer.wrap(data)).getNow();
+    serverConnection.send(ByteBuffer.wrap(data)).get(5, TimeUnit.SECONDS);
 
     Thread.sleep(100);
 
     // Receive the data
     CompletableFuture<ByteBuffer> future = clientConnection.receive(1000);
-    ByteBuffer result = future.getNow();
+    ByteBuffer result = future.get(5, TimeUnit.SECONDS);
 
     assertNotNull(result);
     assertEquals(1000, result.remaining());
@@ -227,16 +228,16 @@ public class RealFlowConnectionPendingBufferTest extends AbstractFlowTest {
   void testPendingBufferSliceException() throws Exception {
     // Send data that will be partially consumed
     byte[] data = new byte[100];
-    serverConnection.send(ByteBuffer.wrap(data)).getNow();
+    serverConnection.send(ByteBuffer.wrap(data)).get(5, TimeUnit.SECONDS);
 
     Thread.sleep(100);
 
     // First receive to establish pending buffer
-    clientConnection.receive(40).getNow();
+    clientConnection.receive(40).get(5, TimeUnit.SECONDS);
 
     // Try to receive with a very small buffer that tests edge cases
     CompletableFuture<ByteBuffer> future = clientConnection.receive(1);
-    ByteBuffer result = future.getNow();
+    ByteBuffer result = future.get(5, TimeUnit.SECONDS);
     assertEquals(1, result.remaining());
   }
 }

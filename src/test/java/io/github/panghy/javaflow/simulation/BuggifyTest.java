@@ -1,13 +1,13 @@
 package io.github.panghy.javaflow.simulation;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.Flow;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.Flow;
 import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -297,8 +297,8 @@ public class BuggifyTest extends AbstractFlowTest {
     pumpAndAdvanceTimeUntilDone(future);
     
     try {
-      assertEquals("expected", future.getNow());
-    } catch (ExecutionException e) {
+      assertEquals("expected", future.getNow(null));
+    } catch (Exception e) {
       fail("Future failed with exception: " + e.getMessage());
     }
     assertTrue(delayExecuted.get(), "Delay should have been executed");

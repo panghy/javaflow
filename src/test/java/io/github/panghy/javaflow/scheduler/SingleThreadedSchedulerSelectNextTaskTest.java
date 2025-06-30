@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
+import java.util.concurrent.CompletableFuture;
+import io.github.panghy.javaflow.simulation.DeterministicRandomSource;
 import io.github.panghy.javaflow.simulation.FlowRandom;
 import io.github.panghy.javaflow.simulation.SimulationConfiguration;
 import io.github.panghy.javaflow.simulation.SimulationContext;
@@ -99,7 +100,7 @@ public class SingleThreadedSchedulerSelectNextTaskTest {
     }
     
     // Verify all tasks completed
-    assertTrue(futures.stream().allMatch(FlowFuture::isDone));
+    assertTrue(futures.stream().allMatch(CompletableFuture::isDone));
   }
   
   @Test

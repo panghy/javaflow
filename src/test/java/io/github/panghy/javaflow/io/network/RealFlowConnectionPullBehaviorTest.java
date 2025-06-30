@@ -1,6 +1,8 @@
 package io.github.panghy.javaflow.io.network;
 
-import java.util.concurrent.CompletableFuture;import io.github.panghy.javaflow.AbstractFlowTest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import io.github.panghy.javaflow.AbstractFlowTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -10,10 +12,7 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,243 +26,238 @@ import static org.mockito.Mockito.when;
  * Tests for the pull-based behavior of RealFlowConnection.
  * These tests verify that reads are only performed when requested.
  */
-@SuppressWarnings("unchecked")
 public class RealFlowConnectionPullBehaviorTest extends AbstractFlowTest {
 
-  // The mocked socket channel
   private AsynchronousSocketChannel mockChannel;
-
-  // The connection under test
-  private RealFlowConnection connection;
-
-  // Endpoints for the connection
-  private Endpoint localEndpoint;
+  private LocalEndpoint localEndpoint;
   private Endpoint remoteEndpoint;
-
-  // Track read operations
-  private AtomicInteger readCount;
-
-  // Track if connection is closed
-  private AtomicBoolean channelClosed;
+  private RealFlowConnection connection;
+  private AtomicInteger readOperationCount;
+  private List<CompletionHandler<Integer, ByteBuffer>> capturedHandlers;
+  private List<ByteBuffer> capturedBuffers;
 
   @BeforeEach
-  void setUp() throws IOException {
-    // Reset counters
-    readCount = new AtomicInteger(0);
-    channelClosed = new AtomicBoolean(false);
-
-    // Create mock AsynchronousSocketChannel
+  void setUp() throws Exception {
     mockChannel = mock(AsynchronousSocketChannel.class);
-
-    // Set up default mock behavior
     when(mockChannel.isOpen()).thenReturn(true);
-
-    // Setup endpoints
-    localEndpoint = new Endpoint("localhost", 12345);
-    remoteEndpoint = new Endpoint("localhost", 54321);
-
-    // Mock the close() method
+    
+    localEndpoint = LocalEndpoint.localhost(12345);
+    remoteEndpoint = new Endpoint("localhost", 8080);
+    
+    readOperationCount = new AtomicInteger(0);
+    capturedHandlers = new ArrayList<>();
+    capturedBuffers = new ArrayList<>();
+    
+    // Mock read operations to capture handlers instead of invoking them immediately
     doAnswer(invocation -> {
-      channelClosed.set(true);
-      when(mockChannel.isOpen()).thenReturn(false);
+      ByteBuffer buffer = invocation.getArgument(0);
+      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
+      readOperationCount.incrementAndGet();
+      capturedHandlers.add(handler);
+      capturedBuffers.add(buffer);
+      // Don't invoke the handler immediately - let the test control when data arrives
       return null;
-    }).when(mockChannel).close();
+    }).when(mockChannel).read(any(ByteBuffer.class), any(ByteBuffer.class), any());
   }
 
-  /**
-   * Tests that no reads are performed during construction (pull-based).
-   */
   @Test
-  void testNoReadDuringConstruction() throws Exception {
-    // Mock the read method to capture reads
-    doAnswer(invocation -> {
-      readCount.incrementAndGet();
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
-    // Create connection - NO reads should happen during construction (pull-based)
-    connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
-
-    // Verify that NO read was performed during construction
-    assertEquals(0, readCount.get());
-  }
-
-  /**
-   * Tests that accessing the stream triggers a read (pull-based).
-   */
-  @Test
-  void testReceiveStreamAccess() throws Exception {
-    final List<CompletionHandler<Integer, ByteBuffer>> handlers = new ArrayList<>();
-
-    // Mock the read method to capture the handler and increment readCount
-    doAnswer(invocation -> {
-      readCount.incrementAndGet();
-      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
-      handlers.add(handler);
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
+  void testNoReadUntilReceiveIsCalled() throws Exception {
     // Create connection
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
-
-    // Verify that NO read was performed during construction
-    assertEquals(0, readCount.get());
-
-    // Access the receiveStream() - this should trigger a read
-    connection.receiveStream();
-
-    // Verify that NO read was performed just by accessing the stream
-    assertEquals(0, readCount.get());
-
-    // Simulate data arrival to test the stream
-    if (!handlers.isEmpty()) {
-      byte[] testData = "Test data".getBytes();
-      handlers.get(0).completed(testData.length, ByteBuffer.wrap(testData));
-    }
+    
+    // Wait a bit to ensure no automatic reads happen
+    advanceTime(0.1);
+    pump();
+    
+    // Verify no read operations were started
+    assertEquals(0, readOperationCount.get(), "No reads should occur before receive() is called");
   }
 
-  /**
-   * Tests that receive() calls trigger reads.
-   */
   @Test
-  void testReceiveTriggersRead() throws Exception {
-    final List<CompletionHandler<Integer, ByteBuffer>> handlers = new ArrayList<>();
-    final List<ByteBuffer> readBuffers = new ArrayList<>();
-
-    // Mock the read method to capture handlers and buffers
-    doAnswer(invocation -> {
-      readCount.incrementAndGet();
-      ByteBuffer buffer = invocation.getArgument(0);
-      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
-      readBuffers.add(buffer);
-      handlers.add(handler);
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
-    // Create connection
+  void testSingleReadOnReceive() throws Exception {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
-
-    // Verify no initial read
-    assertEquals(0, readCount.get());
-
-    // Request to receive data - this should trigger a read
+    
+    // Call receive
     CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
-
-    // Verify a read was triggered
-    assertEquals(1, readCount.get());
-
-    // Simulate data arrival by properly filling the read buffer
-    if (!handlers.isEmpty() && !readBuffers.isEmpty()) {
-      ByteBuffer readBuffer = readBuffers.get(0);
-      byte[] testData = "Test data".getBytes();
-
-      // Clear the buffer and put test data
-      readBuffer.clear();
-      readBuffer.put(testData);
-
-      // Call the completion handler with the number of bytes read
-      handlers.get(0).completed(testData.length, readBuffer);
-    }
-
-    // Verify we can get the data (just check not null, content verification is complex in mock)
-    ByteBuffer result = receiveFuture.getNow();
+    pump();
+    
+    // Verify exactly one read operation was started
+    assertEquals(1, readOperationCount.get(), "Exactly one read should occur when receive() is called");
+    assertFalse(receiveFuture.isDone(), "Receive future should not be done until data arrives");
+    
+    // Simulate data arrival - put data in captured buffer
+    ByteBuffer readBuffer = capturedBuffers.get(0);
+    byte[] testData = "test data".getBytes();
+    readBuffer.put(testData);
+    capturedHandlers.get(0).completed(testData.length, readBuffer);
+    pump();
+    
+    // Verify receive completes
+    assertTrue(receiveFuture.isDone(), "Receive future should complete when data arrives");
+    ByteBuffer result = receiveFuture.get(5, TimeUnit.SECONDS);
     assertNotNull(result);
+    assertEquals(testData.length, result.remaining());
   }
 
-  /**
-   * Tests that read buffer size is customizable.
-   */
   @Test
-  void testCustomReadBufferSize() throws Exception {
-    // Create connection
+  void testMultipleReceivesQueuedProperly() throws Exception {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
-
-    // Set custom read buffer size
-    connection.setReadBufferSize(8192);
-
-    // Mock the read method to verify the buffer size after setting it
-    doAnswer(invocation -> {
-      ByteBuffer buffer = invocation.getArgument(0);
-      // We should see a buffer of at least the custom size (or larger if maxBytes is bigger)
-      assertTrue(buffer.capacity() >= 8192);
-      readCount.incrementAndGet();
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
-    // Request to receive data - this should use the custom buffer size
-    connection.receive(8192);
-
-    // Verify the read was performed
-    assertEquals(1, readCount.get());
+    
+    // Call receive multiple times
+    CompletableFuture<ByteBuffer> receive1 = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receive2 = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receive3 = connection.receive(1024);
+    pump();
+    
+    // Only one read should be active
+    assertEquals(1, readOperationCount.get(), "Only one read should be active at a time");
+    
+    // Complete first read
+    byte[] data1 = "data1".getBytes();
+    ByteBuffer buffer1 = capturedBuffers.get(0);
+    buffer1.put(data1);
+    capturedHandlers.get(0).completed(data1.length, buffer1);
+    pump();
+    
+    // Second read should start automatically
+    assertEquals(2, readOperationCount.get(), "Second read should start after first completes");
+    assertTrue(receive1.isDone());
+    assertFalse(receive2.isDone());
+    
+    // Complete second read
+    byte[] data2 = "data2".getBytes();
+    ByteBuffer buffer2 = capturedBuffers.get(1);
+    buffer2.put(data2);
+    capturedHandlers.get(1).completed(data2.length, buffer2);
+    pump();
+    
+    // Third read should start
+    assertEquals(3, readOperationCount.get(), "Third read should start after second completes");
+    assertTrue(receive2.isDone());
+    assertFalse(receive3.isDone());
+    
+    // Complete third read
+    byte[] data3 = "data3".getBytes();
+    ByteBuffer buffer3 = capturedBuffers.get(2);
+    buffer3.put(data3);
+    capturedHandlers.get(2).completed(data3.length, buffer3);
+    pump();
+    
+    // All receives should be complete
+    assertTrue(receive3.isDone());
+    
+    // Verify data
+    assertEquals("data1", new String(toArray(receive1.get(5, TimeUnit.SECONDS))));
+    assertEquals("data2", new String(toArray(receive2.get(5, TimeUnit.SECONDS))));
+    assertEquals("data3", new String(toArray(receive3.get(5, TimeUnit.SECONDS))));
   }
 
-  /**
-   * Tests error handling during read operations.
-   */
+  @Test
+  void testNoExtraReadsAfterReceivesComplete() throws Exception {
+    connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
+    
+    // Call receive
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    pump();
+    
+    assertEquals(1, readOperationCount.get());
+    
+    // Complete the read
+    byte[] data = "test".getBytes();
+    ByteBuffer buffer = capturedBuffers.get(0);
+    buffer.put(data);
+    capturedHandlers.get(0).completed(data.length, buffer);
+    pump();
+    
+    assertTrue(receiveFuture.isDone());
+    
+    // Wait and pump to ensure no extra reads happen
+    advanceTime(0.1);
+    pump();
+    
+    // Still only one read total
+    assertEquals(1, readOperationCount.get(), "No extra reads should occur after receive completes");
+  }
+
+  @Test
+  void testConnectionCloseStopsReads() throws Exception {
+    connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
+    
+    // Queue multiple receives
+    CompletableFuture<ByteBuffer> receive1 = connection.receive(1024);
+    CompletableFuture<ByteBuffer> receive2 = connection.receive(1024);
+    pump();
+    
+    assertEquals(1, readOperationCount.get());
+    
+    // Close connection
+    connection.close();
+    pump();
+    
+    // Complete the pending read with end-of-stream
+    capturedHandlers.get(0).completed(-1, capturedBuffers.get(0));
+    pump();
+    
+    // No new read should start
+    assertEquals(1, readOperationCount.get(), "No new reads should start after connection close");
+    
+    // Both receives should complete exceptionally
+    assertTrue(receive1.isCompletedExceptionally());
+    assertTrue(receive2.isCompletedExceptionally());
+  }
+
   @Test
   void testReadErrorHandling() throws Exception {
-    final List<CompletionHandler<Integer, ByteBuffer>> handlers = new ArrayList<>();
-
-    // Mock the read method to capture handlers and simulate failure
-    doAnswer(invocation -> {
-      readCount.incrementAndGet();
-      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
-      handlers.add(handler);
-
-      // Simulate failure on first read
-      if (readCount.get() == 1) {
-        handler.failed(new IOException("Simulated read error"), null);
-      }
-
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
-    // Create connection
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
-
-    // Trigger a read by calling receive
-    connection.receive(1024);
-
-    // Verify that a read was performed and failed
-    assertEquals(1, readCount.get());
-
-    // Connection should be closed due to the error
-    assertTrue(channelClosed.get());
-    assertFalse(connection.isOpen());
+    
+    // Call receive
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    pump();
+    
+    assertEquals(1, readOperationCount.get());
+    
+    // Simulate read error
+    IOException error = new IOException("Read failed");
+    capturedHandlers.get(0).failed(error, capturedBuffers.get(0));
+    pump();
+    
+    // Receive should complete exceptionally
+    assertTrue(receiveFuture.isCompletedExceptionally());
+    
+    // Connection should be closed
+    assertTrue(connection.closeFuture().isDone());
   }
 
-  /**
-   * Tests end of stream handling.
-   */
   @Test
-  void testEndOfStreamHandling() throws Exception {
-    final List<CompletionHandler<Integer, ByteBuffer>> handlers = new ArrayList<>();
-
-    // Mock the read method to simulate end of stream
-    doAnswer(invocation -> {
-      readCount.incrementAndGet();
-      CompletionHandler<Integer, ByteBuffer> handler = invocation.getArgument(2);
-      handlers.add(handler);
-
-      // Simulate end of stream (bytesRead = -1)
-      if (readCount.get() == 1) {
-        handler.completed(-1, null);
-      }
-
-      return mock(Future.class);
-    }).when(mockChannel).read(any(ByteBuffer.class), any(), any(CompletionHandler.class));
-
-    // Create connection
+  void testZeroBytesReadContinuesReading() throws Exception {
     connection = new RealFlowConnection(mockChannel, localEndpoint, remoteEndpoint);
+    
+    // Call receive
+    CompletableFuture<ByteBuffer> receiveFuture = connection.receive(1024);
+    pump();
+    
+    // Simulate zero bytes read (should retry)
+    capturedHandlers.get(0).completed(0, capturedBuffers.get(0));
+    pump();
+    
+    // Should trigger another read
+    assertEquals(2, readOperationCount.get(), "Zero-byte read should trigger retry");
+    assertFalse(receiveFuture.isDone(), "Receive should not complete on zero-byte read");
+    
+    // Complete with actual data
+    byte[] data = "data".getBytes();
+    ByteBuffer buffer = capturedBuffers.get(1);
+    buffer.put(data);
+    capturedHandlers.get(1).completed(data.length, buffer);
+    pump();
+    
+    assertTrue(receiveFuture.isDone());
+    assertEquals("data", new String(toArray(receiveFuture.get(5, TimeUnit.SECONDS))));
+  }
 
-    // Trigger a read by calling receive
-    connection.receive(1024);
-
-    // Verify that a read was performed
-    assertEquals(1, readCount.get());
-
-    // Connection should be closed due to end of stream
-    assertTrue(channelClosed.get());
-    assertFalse(connection.isOpen());
+  private byte[] toArray(ByteBuffer buffer) {
+    byte[] array = new byte[buffer.remaining()];
+    buffer.get(array);
+    return array;
   }
 }

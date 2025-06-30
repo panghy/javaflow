@@ -1,6 +1,7 @@
 package io.github.panghy.javaflow.scheduler;
 
-import java.util.concurrent.CompletableFuture;import org.junit.jupiter.api.AfterEach;
+import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -330,9 +331,9 @@ class FlowSchedulerTest {
     }
 
     // Verify the tasks completed successfully
-    task1.getNow();
-    task2.getNow();
-    task3.getNow();
+    task1.getNow(null);
+    task2.getNow(null);
+    task3.getNow(null);
   }
 
   @Test
