@@ -36,6 +36,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          # Configure git to use the token for authentication
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ secrets.RELEASE_TOKEN }}"
 
       - name: Update to release version
         run: |
