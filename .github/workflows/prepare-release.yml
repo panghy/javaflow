@@ -20,8 +20,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -34,10 +32,17 @@ jobs:
 
       - name: Configure Git and Authentication
         run: |
-          # Set the remote URL to use the token FIRST
+          # Debug: Check if token is available
+          if [ -z "${{ secrets.RELEASE_TOKEN }}" ]; then
+            echo "ERROR: RELEASE_TOKEN is not set!"
+            exit 1
+          fi
+          # Set the remote URL to use the token
           git remote set-url origin https://x-access-token:${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git
-          # Verify the remote URL is set (will show the URL with token masked)
-          echo "Remote URL configured"
+          # Verify the remote URL is set
+          echo "Remote URL configured successfully"
+          # Test authentication with a simple fetch
+          git fetch origin || echo "WARNING: Fetch failed"
           # Configure git user
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
