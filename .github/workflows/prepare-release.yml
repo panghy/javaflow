@@ -36,8 +36,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Configure git to use the token for authentication
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ secrets.RELEASE_TOKEN }}"
+          # Set the remote URL to use the token
+          git remote set-url origin https://x-access-token:${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Update to release version
         run: |
@@ -67,6 +67,8 @@ jobs:
       - name: Create and push release branch
         run: |
           BRANCH_NAME="release/${{ github.event.inputs.release_version }}"
+          # Delete the branch if it already exists (from a previous failed run)
+          git push origin --delete "$BRANCH_NAME" || true
           git checkout -b "$BRANCH_NAME"
           git push -u origin "$BRANCH_NAME"
 
