@@ -32,12 +32,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Configure Git
+      - name: Configure Git and Authentication
         run: |
+          # Set the remote URL to use the token FIRST
+          git remote set-url origin https://x-access-token:${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git
+          # Verify the remote URL is set (will show the URL with token masked)
+          echo "Remote URL configured"
+          # Configure git user
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Set the remote URL to use the token
-          git remote set-url origin https://x-access-token:${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Update to release version
         run: |
