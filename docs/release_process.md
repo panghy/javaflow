@@ -47,18 +47,22 @@ Add the following secrets to your GitHub repository:
 5. Click "Run workflow" to start the release process
 
 The workflow will automatically:
-1. Update the version in build.gradle to the release version
-2. Build and test the project with the release version
-3. Commit the release version change
-4. Create a Git tag for the release
+1. Create a new branch named `release/{version}`
+2. Update the version in build.gradle to the release version
+3. Build and test the project with the release version
+4. Commit the release version change
 5. Update the version in build.gradle to the next development version
 6. Commit the next development version change
-7. Push all changes and tags to GitHub
-8. Create a GitHub Release
-9. Trigger the "Publish to Maven Central" workflow that will:
-   - Build the project
-   - Sign the artifacts
-   - Publish directly to Maven Central using the User Token
+7. Create a pull request to the main branch with the label "release"
+8. Once the PR is merged, a separate workflow will:
+   - Create a Git tag for the release on the appropriate commit
+   - Create a GitHub Release
+   - Trigger the "Publish to Maven Central" workflow that will:
+     - Build the project
+     - Sign the artifacts
+     - Publish directly to Maven Central using the User Token
+
+**Note**: Since the main branch is protected, the release process uses pull requests to ensure all changes are reviewed before being merged.
 
 ### Manual Release Process (Alternative)
 
