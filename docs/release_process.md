@@ -33,6 +33,18 @@ Add the following secrets to your GitHub repository:
 2. `MAVEN_CENTRAL_TOKEN`: Your Maven Central Portal User Token
 3. `SIGNING_KEY`: The contents of your exported private key (the entire file content)
 4. `SIGNING_KEY_PASSWORD`: The passphrase for your GPG key
+5. `RELEASE_TOKEN`: A GitHub Personal Access Token (PAT) with `repo` and `pull_request` permissions (required for creating pull requests)
+
+### Creating a GitHub Personal Access Token for Releases
+
+1. Go to GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)
+2. Click "Generate new token (classic)"
+3. Give it a descriptive name like "JavaFlow Release Automation"
+4. Select the following scopes:
+   - `repo` (all permissions under repo)
+   - `workflow` (to trigger workflows)
+5. Click "Generate token" and copy the token
+6. Add it as a repository secret named `RELEASE_TOKEN`
 
 ## Release Process
 
