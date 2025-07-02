@@ -94,5 +94,4 @@ jobs:
             - Update version to ${{ github.event.inputs.release_version }}
             - Update version to next development version ${{ github.event.inputs.next_version }}
             
-            Once this PR is merged, a tag \`v${{ github.event.inputs.release_version }}\` will be created automatically and a GitHub release will be published." \
-            --label "release"
+            Once this PR is merged, a tag \`v${{ github.event.inputs.release_version }}\` will be created automatically and a GitHub release will be published."
