@@ -36,6 +36,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          # Configure git to use the token for authentication
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ secrets.RELEASE_TOKEN }}"
 
       - name: Update to release version
         run: |
@@ -62,14 +64,19 @@ jobs:
           git add build.gradle
           git commit -m "chore: prepare for next development version ${{ github.event.inputs.next_version }}"
 
+      - name: Create and push release branch
+        run: |
+          BRANCH_NAME="release/${{ github.event.inputs.release_version }}"
+          git checkout -b "$BRANCH_NAME"
+          git push -u origin "$BRANCH_NAME"
+
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          branch: release/${{ github.event.inputs.release_version }}
-          title: "Release: ${{ github.event.inputs.release_version }}"
-          body: |
-            ## Release ${{ github.event.inputs.release_version }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Release: ${{ github.event.inputs.release_version }}" \
+            --body "## Release ${{ github.event.inputs.release_version }}
             
             This PR prepares the release for version ${{ github.event.inputs.release_version }} and sets up the next development version ${{ github.event.inputs.next_version }}.
             
@@ -77,6 +84,5 @@ jobs:
             - Update version to ${{ github.event.inputs.release_version }}
             - Update version to next development version ${{ github.event.inputs.next_version }}
             
-            Once this PR is merged, a tag `v${{ github.event.inputs.release_version }}` will be created automatically and a GitHub release will be published.
-          labels: release
-          delete-branch: true
+            Once this PR is merged, a tag \`v${{ github.event.inputs.release_version }}\` will be created automatically and a GitHub release will be published." \
+            --label "release"
